@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+  <title>Iron League</title>
+  <meta name="description" content="Weekly calisthenics leaderboard for you and your friends.">
+  <meta name="theme-color" content="#08090c">
+  <meta name="color-scheme" content="dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Iron League">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<!-- ============================ BOOT ============================ -->
+<div id="boot" class="screen center">
+  <div class="bolt-loader"></div>
+  <p class="muted mono">LOADING</p>
+</div>
+
+<!-- ======================== SETUP MISSING ======================= -->
+<div id="setup" class="screen pad" hidden>
+  <h1 class="display">SETUP<br><span class="accent">NEEDED</span></h1>
+  <p class="muted">This app is not connected to a database yet.</p>
+  <ol class="steps">
+    <li>Create a free project on <b>supabase.com</b></li>
+    <li>Run <code>supabase/schema.sql</code> in the SQL editor</li>
+    <li>Turn on <b>Anonymous sign-ins</b> in Authentication → Sign In / Providers</li>
+    <li>Paste your Project URL + anon key into <code>config.js</code></li>
+  </ol>
+  <p class="muted small">Full walkthrough: see <code>README.md</code>.</p>
+  <p id="setupErr" class="err small"></p>
+</div>
+
+<!-- ========================= ONBOARDING ========================= -->
+<div id="onboard" class="screen pad" hidden>
+  <div class="brandmark">
+    <div class="brand-bolt"></div>
+    <h1 class="display" id="brandName">IRON LEAGUE</h1>
+    <p class="kicker">WEEKLY CALISTHENICS WAR</p>
+  </div>
+
+  <div id="joinPreview" class="joincard" hidden></div>
+
+  <form id="enterForm" autocomplete="off">
+    <label class="lbl" for="nameInput">YOUR FIGHTER NAME</label>
+    <input id="nameInput" class="input big" maxlength="18" minlength="2"
+           placeholder="MAX 18 CHARACTERS" required autocomplete="nickname"
+           autocapitalize="characters" spellcheck="false">
+    <div id="newLeagueWrap" hidden>
+      <label class="lbl" for="firstLeague">NAME YOUR LEAGUE</label>
+      <input id="firstLeague" class="input" maxlength="28" placeholder="THE CREW"
+             autocapitalize="characters" spellcheck="false">
+      <p class="muted small">You are the first one here. You will get a link to share.</p>
+    </div>
+    <button id="enterBtn" class="btn primary xl" type="submit">ENTER THE ARENA</button>
+  </form>
+
+  <button id="restoreToggle" class="linkbtn">Changed phone? Restore your profile</button>
+  <div id="restoreBox" hidden>
+    <label class="lbl" for="restoreInput">RESTORE CODE</label>
+    <input id="restoreInput" class="input mono" maxlength="9" placeholder="XXXXXXXX"
+           autocapitalize="characters" spellcheck="false">
+    <button id="restoreBtn" class="btn ghost">RESTORE PROFILE</button>
+  </div>
+  <p id="onboardErr" class="err"></p>
+</div>
+
+<!-- ============================ APP ============================= -->
+<div id="app" class="screen" hidden>
+
+  <header class="topbar">
+    <button id="leagueBtn" class="leaguepill" type="button">
+      <span class="lg-name" id="lgName">—</span>
+      <span class="lg-meta" id="lgMeta">—</span>
+    </button>
+    <button id="refreshBtn" class="iconbtn" type="button" aria-label="Refresh">
+      <span class="live-dot"></span>
+    </button>
+  </header>
+
+  <div class="countdown" id="countdown">
+    <span class="cd-label">WEEK ENDS IN</span>
+    <span class="cd-time mono" id="cdTimer">--:--:--</span>
+  </div>
+
+  <main class="views">
+    <!-- LIVE -->
+    <section id="view-live" class="view">
+      <div class="section-head">
+        <h2>LIVE STANDINGS</h2>
+        <span class="muted small mono" id="weekLabel"></span>
+      </div>
+      <div id="board" class="board"></div>
+      <p class="hint">Tap a name to see everything they logged this week.</p>
+    </section>
+
+    <!-- HALL OF FAME -->
+    <section id="view-hall" class="view" hidden>
+      <div class="section-head"><h2>HALL OF FAME</h2></div>
+      <div id="hall"></div>
+    </section>
+
+    <!-- LEAGUES / ME -->
+    <section id="view-me" class="view" hidden>
+      <div class="section-head"><h2>MY LEAGUES</h2></div>
+      <div id="leagueList" class="stack"></div>
+
+      <div class="panel">
+        <h3>INVITE YOUR CREW</h3>
+        <p class="muted small">Send this link. They open it, pick a name, and they are in.</p>
+        <div class="copyrow">
+          <input id="shareLink" class="input mono small" readonly>
+          <button id="copyBtn" class="btn ghost sm" type="button">COPY</button>
+        </div>
+        <button id="shareBtn" class="btn ghost" type="button" hidden>SHARE LINK</button>
+      </div>
+
+      <div class="panel">
+        <h3>JOIN ANOTHER LEAGUE</h3>
+        <div class="copyrow">
+          <input id="joinCodeInput" class="input mono" maxlength="6" placeholder="CODE"
+                 autocapitalize="characters" spellcheck="false">
+          <button id="joinBtn" class="btn ghost sm" type="button">JOIN</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>CREATE A LEAGUE</h3>
+        <p class="muted small">Max 20 fighters. Anyone can join later — they just start at 0.</p>
+        <div class="copyrow">
+          <input id="newLeagueInput" class="input" maxlength="28" placeholder="LEAGUE NAME">
+          <button id="createBtn" class="btn ghost sm" type="button">CREATE</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>MY PROFILE</h3>
+        <div class="copyrow">
+          <input id="renameInput" class="input" maxlength="18">
+          <button id="renameBtn" class="btn ghost sm" type="button">RENAME</button>
+        </div>
+        <p class="muted small" style="margin-top:14px">
+          Restore code — write it down. It moves your profile to a new phone.</p>
+        <div class="codebox mono" id="restoreCode">--------</div>
+        <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
+      </div>
+
+      <div class="panel">
+        <h3>SCORING</h3>
+        <div id="pointsTable" class="ptable"></div>
+      </div>
+      <p class="muted small center" id="version"></p>
+    </section>
+  </main>
+
+  <div class="actionbar">
+    <button id="logBtn" class="btn primary xl slab" type="button">LOG WORKOUT</button>
+  </div>
+
+  <nav class="tabbar">
+    <button class="tab is-active" data-view="live" type="button">
+      <span class="tab-i">▲</span>LIVE</button>
+    <button class="tab" data-view="hall" type="button">
+      <span class="tab-i">★</span>HALL OF FAME</button>
+    <button class="tab" data-view="me" type="button">
+      <span class="tab-i">☰</span>LEAGUES</button>
+  </nav>
+</div>
+
+<!-- ========================== LOG MODAL ========================= -->
+<div id="logModal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="Log workout">
+    <div class="sheet-grab"></div>
+    <div class="sheet-head">
+      <h2>LOG WORKOUT</h2>
+      <button class="iconbtn close" data-close type="button" aria-label="Close">✕</button>
+    </div>
+
+    <div class="sheet-body">
+      <label class="lbl" for="exSelect">EXERCISE</label>
+      <div class="selwrap">
+        <select id="exSelect" class="input select"></select>
+      </div>
+
+      <div id="modeRow" class="segmented" hidden></div>
+
+      <label class="lbl" for="amountInput"><span id="amountLbl">REPS</span></label>
+      <div class="stepper">
+        <button class="step" id="minusBtn" type="button">−</button>
+        <input id="amountInput" class="input num mono" type="number" inputmode="decimal"
+               step="any" min="0" value="10">
+        <button class="step" id="plusBtn" type="button">+</button>
+      </div>
+      <div id="quickRow" class="quickrow"></div>
+
+      <div class="preview">
+        <span class="muted small" id="rateLbl">1 pt / rep</span>
+        <span class="preview-pts"><b id="ptsPreview">10</b> PTS</span>
+      </div>
+
+      <button id="addBtn" class="btn primary xl" type="button">ADD</button>
+
+      <div id="sessionBox" hidden>
+        <div class="session-head">
+          <span class="lbl">THIS SESSION</span>
+          <span class="session-total"><b id="sessionTotal">0</b> PTS</span>
+        </div>
+        <div id="sessionList" class="stack tight"></div>
+      </div>
+      <p id="modalErr" class="err"></p>
+    </div>
+
+    <div class="sheet-foot">
+      <button id="doneBtn" class="btn ghost xl" type="button" data-close>DONE</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="./config.js"></script>
+<script src="./vendor/supabase.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
