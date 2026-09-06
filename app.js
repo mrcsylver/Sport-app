@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.0.0';
+  var APP_VERSION = '1.1.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -86,13 +86,14 @@
     toastTimer = setTimeout(function () { t.hidden = true; }, bad ? 4200 : 2400);
   }
   var FRIENDLY = {
-    LEAGUE_FULL: 'That league is full — 20 fighters maximum.',
-    NO_SUCH_LEAGUE: 'No league found with that code.',
+    LEAGUE_FULL: 'That league is full — 30 fighters maximum.',
+    NO_SUCH_LEAGUE: 'No league found with that code. Check the 6 characters.',
     BAD_CODE: 'That restore code does not match any profile.',
     DEVICE_HAS_DATA: 'This phone already has a profile with workouts on it.',
     NO_PROFILE: 'Pick your name first.',
     TOO_MANY_LEAGUES: 'You already own 10 leagues.',
-    NOT_SIGNED_IN: 'Connection lost — reload the page.'
+    NOT_SIGNED_IN: 'Connection lost — reload the page.',
+    WEEK_CLOSED: 'That week is over — its entries are locked.'
   };
   function niceError(e) {
     if (!e) return 'Something went wrong.';
@@ -266,6 +267,23 @@
   /* ===================================================================
      6. Onboarding
      =================================================================== */
+  /* 'invite'  = arrived through a friend's link, league already known
+     'join'    = default: type the code you were given
+     'create'  = deliberately starting a new group                        */
+  var onboardMode = 'join';
+
+  function setOnboardMode(m) {
+    onboardMode = m;
+    $('#joinWrap').hidden      = (m !== 'join');
+    $('#newLeagueWrap').hidden = (m !== 'create');
+    $('#joinPreview').hidden   = (m !== 'invite');
+    $('#modeToggle').hidden    = (m === 'invite');
+    $('#modeToggle').textContent = (m === 'create')
+      ? 'Actually, I have a league code'
+      : 'No code? Start a brand new league';
+    $('#enterBtn').textContent = (m === 'create') ? 'CREATE MY LEAGUE' : 'ENTER THE ARENA';
+  }
+
   async function startOnboarding() {
     show('#onboard');
     var code = state.pendingCode;
@@ -273,7 +291,6 @@
       var pv = await sb.rpc('league_preview', { p_code: code });
       var l = pv.data && pv.data[0];
       if (l) {
-        $('#joinPreview').hidden = false;
         $('#joinPreview').innerHTML =
           '<div class="jc-k">YOU ARE JOINING</div>' +
           '<div class="jc-n">' + esc(l.name) + '</div>' +
@@ -281,14 +298,55 @@
           ' FIGHTERS · CODE ' + esc(l.code) + '</div>' +
           (l.members >= l.max_members
             ? '<div class="err small">This league is full.</div>' : '');
-      } else {
-        state.pendingCode = null;
-        try { sessionStorage.removeItem('ironleague.invite'); } catch (e) {}
+        setOnboardMode('invite');
+        $('#nameInput').focus();
+        return;
       }
+      state.pendingCode = null;
+      try { sessionStorage.removeItem('ironleague.invite'); } catch (e) {}
     }
-    $('#newLeagueWrap').hidden = !!state.pendingCode;
+    setOnboardMode('join');
     $('#nameInput').focus();
   }
+
+  $('#modeToggle').addEventListener('click', function () {
+    setOnboardMode(onboardMode === 'create' ? 'join' : 'create');
+    $('#onboardErr').textContent = '';
+  });
+
+  /* Check the code as it is typed, so nobody discovers a typo after signing up. */
+  var codeCheckTimer;
+  $('#joinCode').addEventListener('input', function () {
+    var v = this.value.trim().toUpperCase();
+    this.value = v;
+    var hint = $('#codeHint');
+    clearTimeout(codeCheckTimer);
+    hint.style.color = '';
+    if (v.length < 6) {
+      hint.className = 'muted small';
+      hint.textContent = 'The 6 characters your friend sent you.';
+      return;
+    }
+    hint.className = 'muted small';
+    hint.textContent = 'Checking…';
+    codeCheckTimer = setTimeout(async function () {
+      try {
+        var pv = await sb.rpc('league_preview', { p_code: v });
+        var l = pv.data && pv.data[0];
+        if (!l) {
+          hint.className = 'err small';
+          hint.textContent = 'No league with that code.';
+        } else if (l.members >= l.max_members) {
+          hint.className = 'err small';
+          hint.textContent = l.name + ' is full (' + l.members + '/' + l.max_members + ').';
+        } else {
+          hint.className = 'small';
+          hint.style.color = 'var(--green)';
+          hint.textContent = '✓ ' + l.name + ' — ' + l.members + '/' + l.max_members + ' fighters';
+        }
+      } catch (e) { /* leave the hint as it is */ }
+    }, 350);
+  });
 
   $('#restoreToggle').addEventListener('click', function () {
     var b = $('#restoreBox'); b.hidden = !b.hidden;
@@ -307,15 +365,21 @@
       if (p.error) throw p.error;
       state.profile = p.data;
 
-      if (state.pendingCode) {
-        var j = await sb.rpc('join_league_by_code', { p_code: state.pendingCode });
-        if (j.error) throw j.error;
-        state.leagueId = j.data.id;
-      } else {
-        var lname = ($('#firstLeague').value || '').trim() || (name.toUpperCase() + "'S LEAGUE");
+      if (onboardMode === 'create') {
+        var lname = ($('#firstLeague').value || '').trim();
+        if (lname.length < 2) throw new Error('Give your new league a name.');
         var c = await sb.rpc('create_league', { p_name: lname.slice(0, 28) });
         if (c.error) throw c.error;
         state.leagueId = c.data.id;
+      } else {
+        var code = state.pendingCode || $('#joinCode').value.trim().toUpperCase();
+        if (!code) {
+          throw new Error('Enter the league code your friend sent you, ' +
+                          'or tap "Start a brand new league" below.');
+        }
+        var j = await sb.rpc('join_league_by_code', { p_code: code });
+        if (j.error) throw j.error;
+        state.leagueId = j.data.id;
       }
       try { sessionStorage.removeItem('ironleague.invite'); } catch (e) {}
       state.pendingCode = null;
@@ -324,7 +388,8 @@
     } catch (e) {
       $('#onboardErr').textContent = niceError(e);
     } finally {
-      btn.disabled = false; btn.textContent = 'ENTER THE ARENA';
+      btn.disabled = false;
+      btn.textContent = (onboardMode === 'create') ? 'CREATE MY LEAGUE' : 'ENTER THE ARENA';
     }
   });
 
@@ -513,7 +578,10 @@
         '<span class="fx">' + esc(ex ? ex.name : w.exercise_key) +
           '<span class="famt"> · ' + num(w.amount) + ' ' + u.short + ' · ' + day + ' ' + hh + '</span></span>' +
         '<span class="fpts">+' + num(w.points) + '</span>' +
-        (w.profile_id === me ? '<button class="del" data-del="' + w.id + '" title="Delete">✕</button>' : '') +
+        (w.profile_id === me
+          ? '<button class="del" data-edit="' + w.id + '" title="Edit">✎</button>' +
+            '<button class="del" data-del="' + w.id + '" title="Delete">✕</button>'
+          : '') +
       '</div>';
     }).join('');
   }
@@ -531,12 +599,22 @@
   }
 
   $('#board').addEventListener('click', async function (e) {
+    var ed = e.target.closest('[data-edit]');
+    if (ed) {
+      e.stopPropagation();
+      openEdit(ed.getAttribute('data-edit'));
+      return;
+    }
     var del = e.target.closest('[data-del]');
     if (del) {
       e.stopPropagation();
       if (!confirm('Delete this entry?')) return;
-      var r = await sb.from('workouts').delete().eq('id', del.getAttribute('data-del'));
+      var r = await sb.from('workouts').delete()
+                .eq('id', del.getAttribute('data-del')).select();
       if (r.error) { toast(niceError(r.error), true); return; }
+      if (!r.data || !r.data.length) {
+        toast('That week is over — its entries are locked.', true); return;
+      }
       state.feeds = {};
       toast('Entry deleted');
       await refreshAll();
@@ -683,9 +761,20 @@
     } catch (e) { toast(niceError(e), true); }
   });
 
+  $('#createToggle').addEventListener('click', function () {
+    var w = $('#createWrap');
+    w.hidden = !w.hidden;
+    this.textContent = w.hidden ? 'SHOW CREATE OPTION' : 'HIDE';
+    if (!w.hidden) $('#newLeagueInput').focus();
+  });
+
   $('#createBtn').addEventListener('click', async function () {
     var name = $('#newLeagueInput').value.trim();
     if (name.length < 2) { toast('Give the league a name.', true); return; }
+    if (state.leagues.length && !confirm(
+      'This creates a SEPARATE league with its own leaderboard.\n\n' +
+      'To add friends to "' + league().name + '", close this and send them ' +
+      'your invite link instead.\n\nCreate a new league anyway?')) return;
     try {
       var c = await sb.rpc('create_league', { p_name: name });
       if (c.error) throw c.error;
@@ -750,7 +839,7 @@
   /* ===================================================================
      13. Log workout modal
      =================================================================== */
-  var modal = { key: null, mode: null };
+  var modal = { key: null, mode: null, editing: null };
 
   function buildExerciseSelect() {
     $('#exSelect').innerHTML = EXERCISES.map(function (ex) {
@@ -822,8 +911,51 @@
     updatePreview();
   }
 
+  function findEntry(id) {
+    for (var pid in state.feeds) {
+      var rows = state.feeds[pid] || [];
+      for (var i = 0; i < rows.length; i++) if (rows[i].id === id) return rows[i];
+    }
+    return null;
+  }
+
+  /* Correcting an entry. Only possible while its week is still running —
+     the database refuses anything older, so this can never rewrite history. */
+  function openEdit(id) {
+    var w = findEntry(id);
+    if (!w) { toast('Entry not found — refresh and try again.', true); return; }
+    selectExercise(w.exercise_key);
+    modal.mode = w.mode;
+    var row = $('#modeRow');
+    if (!row.hidden) {
+      Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) {
+        b.classList.toggle('on', b.getAttribute('data-mode') === w.mode);
+      });
+    }
+    applyMode();
+    $('#amountInput').value = Number(w.amount);
+    updatePreview();
+
+    modal.editing = id;
+    state.session = [];
+    $('#sessionBox').hidden = true;
+    $('#modalErr').textContent = '';
+    $('#sheetTitle').textContent = 'EDIT ENTRY';
+    $('#addBtn').textContent = 'SAVE CHANGES';
+    $('#cancelEditBtn').hidden = false;
+    document.querySelector('.sheet-foot').hidden = true;   // CANCEL EDIT replaces DONE
+    $('#logModal').hidden = false;
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
+  }
+
   function openModal() {
     if (!state.leagueId) { toast('Join or create a league first.', true); switchView('me'); return; }
+    modal.editing = null;
+    $('#sheetTitle').textContent = 'LOG WORKOUT';
+    $('#addBtn').textContent = 'ADD';
+    $('#cancelEditBtn').hidden = true;
+    document.querySelector('.sheet-foot').hidden = false;
     state.session = [];
     $('#sessionBox').hidden = true;
     $('#sessionList').innerHTML = '';
@@ -834,17 +966,19 @@
     document.body.style.overflow = 'hidden';
     document.body.classList.add('modal-open');
   }
-  async function closeModal() {
+  async function closeModal(force) {
     $('#logModal').hidden = true;
     document.body.style.overflow = '';
     document.body.classList.remove('modal-open');
-    if (state.session.length) {
+    modal.editing = null;
+    if (state.session.length || force === true) {
       state.feeds = {};
       await refreshAll();
       Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
     }
   }
   $('#logBtn').addEventListener('click', openModal);
+  $('#cancelEditBtn').addEventListener('click', function () { closeModal(); });
   Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (b) {
     b.addEventListener('click', closeModal);
   });
@@ -856,8 +990,22 @@
     var amount = parseFloat($('#amountInput').value);
     $('#modalErr').textContent = '';
     if (!isFinite(amount) || amount <= 0) { $('#modalErr').textContent = 'Enter a number above zero.'; return; }
-    var btn = this; btn.disabled = true; btn.textContent = 'SAVING…';
+    var btn = this; btn.disabled = true;
+    var label = modal.editing ? 'SAVE CHANGES' : 'ADD';
+    btn.textContent = 'SAVING…';
     try {
+      if (modal.editing) {
+        var up = await sb.from('workouts').update({
+          exercise_key: modal.key, mode: modal.mode, amount: amount
+        }).eq('id', modal.editing).select();
+        if (up.error) throw up.error;
+        if (!up.data || !up.data.length) {
+          throw new Error('That week is over — its entries are locked.');
+        }
+        toast('Updated — now ' + num(up.data[0].points) + ' pts');
+        await closeModal(true);
+        return;
+      }
       var r = await sb.from('workouts').insert({
         league_id: state.leagueId,
         profile_id: state.profile.id,
@@ -874,7 +1022,7 @@
     } catch (e) {
       $('#modalErr').textContent = niceError(e);
     } finally {
-      btn.disabled = false; btn.textContent = 'ADD';
+      btn.disabled = false; btn.textContent = label;
     }
   });
 

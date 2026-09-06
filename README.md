@@ -8,7 +8,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Hall of Fame** — every past week's champion and full standings.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
-- **Personal leagues** — create your own league, share a link, 20 people max.
+- **Personal leagues** — create your own league, share a link, 30 people max.
   Anyone can join at any time; they simply start the current week on 0 points.
 - Free forever on Supabase's + GitHub's free tiers.
 
@@ -169,10 +169,29 @@ Change it in **two** places, then re-run the SQL file:
 
 - Anyone can create a league from the **LEAGUES** tab; they get a 6-character code
   and a share link.
-- **20 people maximum** per league (the database refuses number 21).
+- **30 people maximum** per league (the database refuses number 31).
 - You can be in several leagues at once — tap one in the LEAGUES tab to switch.
   Each league has its own separate leaderboard and history.
 - Joining mid-week is fine: you simply start that week on 0 points.
+
+---
+
+# 🔗 WHICH LINK TO SEND
+
+| Link | Give it to | What they can do |
+|---|---|---|
+| `https://mrcsylver.github.io/Sport-app/` | anyone, safely | Sign up and start **their own** league. They cannot see or join yours. |
+| `https://mrcsylver.github.io/Sport-app/#/join/YOURCODE` | only your own group | Joins your league directly |
+
+The 6-character code is the only thing protecting your league, so keep the invite
+link inside your group chat. Everything else is safe to share publicly: people who
+sign up land in their own empty world and, thanks to the database security rules,
+cannot see your league, your friends' names, or anyone's workouts.
+
+Your GitHub repository is public, so your Supabase URL and `anon` key are visible in
+`config.js`. That is fine and intended — the `anon` key is the public one, which is
+exactly why every table has row level security. Never publish the **service_role**
+key from the Supabase dashboard.
 
 ---
 
@@ -205,8 +224,10 @@ Supabase pauses free projects after ~1 week with no activity. Open your Supabase
 dashboard and click **Restore project** — nothing is lost.
 
 **Somebody logged a wrong number**
-They can delete their own entries: tap their own name on the leaderboard, then the
-✕ next to the entry.
+They fix it themselves: tap their own name on the leaderboard, then ✎ to correct the
+entry or ✕ to delete it. This works **only for the week that is still running** —
+once Sunday 23:59 passes, that week's entries are frozen for everyone, so finished
+standings can never change afterwards.
 
 ---
 

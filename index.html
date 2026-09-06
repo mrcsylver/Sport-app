@@ -54,15 +54,25 @@
     <input id="nameInput" class="input big" maxlength="18" minlength="2"
            placeholder="MAX 18 CHARACTERS" required autocomplete="nickname"
            autocapitalize="characters" spellcheck="false">
+
+    <div id="joinWrap" hidden>
+      <label class="lbl" for="joinCode">LEAGUE CODE</label>
+      <input id="joinCode" class="input big mono" maxlength="6" placeholder="ABC123"
+             autocapitalize="characters" spellcheck="false" autocomplete="off">
+      <p class="muted small" id="codeHint">The 6 characters your friend sent you.</p>
+    </div>
+
     <div id="newLeagueWrap" hidden>
-      <label class="lbl" for="firstLeague">NAME YOUR LEAGUE</label>
+      <label class="lbl" for="firstLeague">NAME YOUR NEW LEAGUE</label>
       <input id="firstLeague" class="input" maxlength="28" placeholder="THE CREW"
              autocapitalize="characters" spellcheck="false">
-      <p class="muted small">You are the first one here. You will get a link to share.</p>
+      <p class="muted small">You will get a link to invite people.</p>
     </div>
+
     <button id="enterBtn" class="btn primary xl" type="submit">ENTER THE ARENA</button>
   </form>
 
+  <button id="modeToggle" class="linkbtn" hidden>No code? Start a brand new league</button>
   <button id="restoreToggle" class="linkbtn">Changed phone? Restore your profile</button>
   <div id="restoreBox" hidden>
     <label class="lbl" for="restoreInput">RESTORE CODE</label>
@@ -133,11 +143,17 @@
       </div>
 
       <div class="panel">
-        <h3>CREATE A LEAGUE</h3>
-        <p class="muted small">Max 20 fighters. Anyone can join later — they just start at 0.</p>
-        <div class="copyrow">
-          <input id="newLeagueInput" class="input" maxlength="28" placeholder="LEAGUE NAME">
-          <button id="createBtn" class="btn ghost sm" type="button">CREATE</button>
+        <h3>CREATE A SEPARATE LEAGUE</h3>
+        <p class="muted small">Only for starting a different group. To get friends into
+          the league you are already in, send them your invite link above.</p>
+        <button id="createToggle" class="btn ghost sm" type="button"
+                style="width:100%;margin-top:4px">SHOW CREATE OPTION</button>
+        <div id="createWrap" hidden style="margin-top:10px">
+          <p class="muted small">Max 30 fighters. Anyone can join later — they start at 0.</p>
+          <div class="copyrow">
+            <input id="newLeagueInput" class="input" maxlength="28" placeholder="LEAGUE NAME">
+            <button id="createBtn" class="btn ghost sm" type="button">CREATE</button>
+          </div>
         </div>
       </div>
 
@@ -181,7 +197,7 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Log workout">
     <div class="sheet-grab"></div>
     <div class="sheet-head">
-      <h2>LOG WORKOUT</h2>
+      <h2 id="sheetTitle">LOG WORKOUT</h2>
       <button class="iconbtn close" data-close type="button" aria-label="Close">✕</button>
     </div>
 
@@ -208,6 +224,7 @@
       </div>
 
       <button id="addBtn" class="btn primary xl" type="button">ADD</button>
+      <button id="cancelEditBtn" class="btn ghost" type="button" hidden>CANCEL EDIT</button>
 
       <div id="sessionBox" hidden>
         <div class="session-head">

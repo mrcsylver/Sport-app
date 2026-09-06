@@ -29,6 +29,7 @@ drop table if exists public.profiles       cascade;
 drop function if exists public.app_timezone()                     cascade;
 drop function if exists public.current_week_start()               cascade;
 drop function if exists public.calc_points(text, text, numeric)   cascade;
+drop function if exists public.workouts_update_guard()             cascade;
 drop function if exists public.my_profile_id()                    cascade;
 drop function if exists public.is_member(uuid)                    cascade;
 drop function if exists public.shares_league_with(uuid)           cascade;
@@ -105,7 +106,7 @@ create table public.leagues (
   code        text not null unique
                 default upper(substr(md5(gen_random_uuid()::text), 1, 6)),
   owner_id    uuid not null references public.profiles(id) on delete cascade,
-  max_members int  not null default 20 check (max_members between 2 and 20),
+  max_members int  not null default 30 check (max_members between 2 and 30),
   created_at  timestamptz not null default now()
 );
 
@@ -151,6 +152,30 @@ end $$;
 create trigger workouts_stamp_trg
   before insert on public.workouts
   for each row execute function public.workouts_stamp();
+
+-- Entries stay correctable while their week is running and freeze afterwards.
+-- An edit may change the numbers only, never the owner, league, or week.
+create or replace function public.workouts_update_guard() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if old.week_start <> public.current_week_start() then
+    raise exception 'WEEK_CLOSED';
+  end if;
+  new.id         := old.id;
+  new.profile_id := old.profile_id;
+  new.league_id  := old.league_id;
+  new.created_at := old.created_at;
+  new.week_start := old.week_start;
+  new.points     := public.calc_points(new.exercise_key, new.mode, new.amount);
+  if new.points <= 0 then
+    raise exception 'Unknown exercise or unit (% / %)', new.exercise_key, new.mode;
+  end if;
+  return new;
+end $$;
+
+create trigger workouts_update_guard_trg
+  before update on public.workouts
+  for each row execute function public.workouts_update_guard();
 
 -- Hard cap on league size (default 20).
 create or replace function public.enforce_league_capacity() returns trigger
@@ -237,7 +262,12 @@ create policy workouts_read on public.workouts for select to authenticated
 create policy workouts_insert on public.workouts for insert to authenticated
   with check (profile_id = public.my_profile_id() and public.is_member(league_id));
 create policy workouts_delete on public.workouts for delete to authenticated
-  using (profile_id = public.my_profile_id());
+  using (profile_id = public.my_profile_id()
+         and week_start = public.current_week_start());
+create policy workouts_update on public.workouts for update to authenticated
+  using      (profile_id = public.my_profile_id()
+              and week_start = public.current_week_start())
+  with check (profile_id = public.my_profile_id());
 
 -- ---------------------------------------------------------------------
 -- 7. The API the app calls

@@ -88,6 +88,7 @@ code{font-family:var(--mono);font-size:.86em;background:#181b23;padding:1px 5px;
 .input:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,46,46,.14)}
 .input.big{font-family:var(--display);font-weight:700;font-size:26px;text-transform:uppercase;
   letter-spacing:.04em;padding:12px 14px}
+.input.big.mono{font-family:var(--mono);letter-spacing:.22em;text-transform:uppercase}
 .input.num{text-align:center;font-size:30px;font-weight:700;padding:10px;-moz-appearance:textfield}
 .input.num::-webkit-outer-spin-button,.input.num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .input::placeholder{color:#4b5464}
