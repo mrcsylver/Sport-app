@@ -65,23 +65,26 @@ Do the parts in order. Every click is written out.
 
 ---
 
-## PART 2 — Put your keys into the app
+## PART 2 — Your keys are already in the app ✅
 
-1. Open your repository file `config.js` in the browser:
-   **https://github.com/mrcsylver/Sport-app/blob/claude/calisthenics-leaderboard-pwa-1gwhov/config.js**
-2. Click the **pencil** icon (top right) to edit.
-3. Replace the two placeholder values, keeping the quotes:
+`config.js` already contains your project URL and your anon key, and the
+timezone is set to **America/Chicago** (week ends Sunday 23:59 Central).
+There is nothing to do here.
 
-   ```js
-   SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
-   SUPABASE_ANON_KEY: "sb_publishable_xxxxxxxxxxxxxxxxxxxx",
-   ```
+> **One SQL line to run**, because `schema.sql` was set to Paris time when you
+> first ran it. In Supabase → **SQL Editor** → **New query**, paste this and
+> press **Run**:
+>
+> ```sql
+> create or replace function public.app_timezone() returns text
+> language sql immutable as $$ select 'America/Chicago'::text $$;
+> ```
+>
+> (It is also saved as `supabase/set-timezone.sql`. It only swaps the
+> timezone — it does not touch any data.)
 
-4. Optional, while you're here: set `TIMEZONE` to your own timezone if you are not
-   in Paris time — for example `"America/New_York"` or `"Europe/London"`.
-   If you change it, also change it in `supabase/schema.sql` (the line marked
-   `>>> CHANGE YOUR TIMEZONE HERE <<<`) and re-run that file in the SQL editor.
-5. Click **Commit changes…** → **Commit changes**.
+If your group is mostly somewhere else, put that timezone in **both**
+the SQL above and the `TIMEZONE` line in `config.js`.
 
 ---
 

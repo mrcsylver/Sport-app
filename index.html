@@ -26,16 +26,17 @@
 
 <!-- ======================== SETUP MISSING ======================= -->
 <div id="setup" class="screen pad" hidden>
-  <h1 class="display">SETUP<br><span class="accent">NEEDED</span></h1>
-  <p class="muted">This app is not connected to a database yet.</p>
-  <ol class="steps">
+  <h1 class="display" id="setupTitle">SETUP<br><span class="accent">NEEDED</span></h1>
+  <p class="muted" id="setupIntro">This app is not connected to a database yet.</p>
+  <ol class="steps" id="setupSteps">
     <li>Create a free project on <b>supabase.com</b></li>
     <li>Run <code>supabase/schema.sql</code> in the SQL editor</li>
     <li>Turn on <b>Anonymous sign-ins</b> in Authentication → Sign In / Providers</li>
     <li>Paste your Project URL + anon key into <code>config.js</code></li>
   </ol>
-  <p class="muted small">Full walkthrough: see <code>README.md</code>.</p>
+  <p class="muted small" id="setupHelp">Full walkthrough: see <code>README.md</code>.</p>
   <p id="setupErr" class="err small"></p>
+  <button id="retryBtn" class="btn ghost xl" type="button" hidden>TRY AGAIN</button>
 </div>
 
 <!-- ========================= ONBOARDING ========================= -->

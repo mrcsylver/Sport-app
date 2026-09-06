@@ -49,7 +49,7 @@ drop function if exists public.my_leagues()                       cascade;
 
 -- >>> CHANGE YOUR TIMEZONE HERE <<<
 create function public.app_timezone() returns text
-language sql immutable as $$ select 'Europe/Paris'::text $$;
+language sql immutable as $$ select 'America/Chicago'::text $$;
 
 -- A "week" runs Monday 00:00 -> Sunday 23:59:59 in the timezone above.
 -- This returns the Monday that the current week started on.

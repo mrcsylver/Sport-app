@@ -230,8 +230,7 @@
         if (anon.error) throw anon.error;
       }
     } catch (e) {
-      show('#setup');
-      $('#setupErr').textContent = niceError(e);
+      failSetup(e);
       return;
     }
 
@@ -240,6 +239,21 @@
     if (!state.profile) { startOnboarding(); return; }
     await enterApp();
   }
+
+  /* The setup screen doubles as the "cannot reach the server" screen. */
+  function failSetup(e) {
+    var msg = niceError(e);
+    show('#setup');
+    if (/connection|reload the page/i.test(msg)) {
+      $('#setupTitle').innerHTML = 'NO<br><span class="accent">SIGNAL</span>';
+      $('#setupIntro').textContent = 'Iron League could not reach the server.';
+      $('#setupSteps').hidden = true;
+      $('#setupHelp').hidden = true;
+      $('#retryBtn').hidden = false;
+    }
+    $('#setupErr').textContent = msg;
+  }
+  $('#retryBtn').addEventListener('click', function () { location.reload(); });
 
   async function loadProfile() {
     var u = await sb.auth.getUser();
