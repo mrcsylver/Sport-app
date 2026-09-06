@@ -49,12 +49,12 @@ drop function if exists public.my_leagues()                       cascade;
 
 -- >>> CHANGE YOUR TIMEZONE HERE <<<
 create function public.app_timezone() returns text
-language sql immutable as $$ select 'America/Chicago'::text $$;
+language sql immutable set search_path = public as $$ select 'Europe/Paris'::text $$;
 
 -- A "week" runs Monday 00:00 -> Sunday 23:59:59 in the timezone above.
 -- This returns the Monday that the current week started on.
 create function public.current_week_start() returns date
-language sql stable as $$
+language sql stable set search_path = public as $$
   select (date_trunc('week', (now() at time zone public.app_timezone())))::date
 $$;
 
@@ -62,7 +62,7 @@ $$;
 -- 2. Points engine  (must stay in sync with EXERCISES in app.js)
 -- ---------------------------------------------------------------------
 create function public.calc_points(p_key text, p_mode text, p_amount numeric)
-returns numeric language sql immutable as $$
+returns numeric language sql immutable set search_path = public as $$
   select round(coalesce(
     case
       when p_key = 'pushups'    and p_mode = 'reps'    then p_amount * 1
@@ -137,7 +137,7 @@ create index members_profile_idx on public.league_members (profile_id);
 -- 4. Triggers: the server (not the phone) decides points and the week
 -- ---------------------------------------------------------------------
 create or replace function public.workouts_stamp() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 begin
   new.created_at := now();
   new.week_start := public.current_week_start();
@@ -154,7 +154,7 @@ create trigger workouts_stamp_trg
 
 -- Hard cap on league size (default 20).
 create or replace function public.enforce_league_capacity() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 declare
   cap int;
   taken int;
@@ -408,6 +408,16 @@ $$;
 -- ---------------------------------------------------------------------
 -- 8. Permissions
 -- ---------------------------------------------------------------------
+-- Internal helpers used by the RLS policies. Signed-in users must keep
+-- EXECUTE (policies call them on the caller's behalf), but there is no
+-- reason to expose them at /rest/v1/rpc/... to logged-out visitors.
+revoke all on function public.my_profile_id()               from public, anon;
+revoke all on function public.is_member(uuid)               from public, anon;
+revoke all on function public.shares_league_with(uuid)      from public, anon;
+grant execute on function public.my_profile_id()            to authenticated;
+grant execute on function public.is_member(uuid)            to authenticated;
+grant execute on function public.shares_league_with(uuid)   to authenticated;
+
 revoke all on function public.create_profile(text)          from public, anon;
 revoke all on function public.rename_profile(text)          from public, anon;
 revoke all on function public.restore_profile(text)         from public, anon;

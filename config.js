@@ -20,7 +20,7 @@ window.APP_CONFIG = {
 
   // The week ends every Sunday 23:59 in this timezone.
   // Must match app_timezone() in supabase/schema.sql
-  TIMEZONE: "America/Chicago",
+  TIMEZONE: "Europe/Paris",
 
   // Optional: paste your main league code here (e.g. "A1B2C3") so that the
   // bare link already points at your group. Leave "" to disable.
