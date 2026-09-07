@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.5.0';
+  var APP_VERSION = '1.6.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -691,8 +691,10 @@
     if (del) {
       e.stopPropagation();
       if (!confirm('Delete this entry?')) return;
+      var target = findEntry(del.getAttribute('data-del'));
       var r = await sb.from('workouts').delete()
-                .eq('id', del.getAttribute('data-del')).select();
+                .eq('group_id', target ? target.group_id : del.getAttribute('data-del'))
+                .select();
       if (r.error) { toast(niceError(r.error), true); return; }
       if (!r.data || !r.data.length) {
         toast('That week is over — its entries are locked.', true); return;
@@ -1437,6 +1439,16 @@
     });
   }
 
+  function applyMultiLeagueNote() {
+    var n = state.leagues.length;
+    var el = $('#multiNote');
+    el.hidden = n < 2;
+    if (n >= 2) {
+      el.innerHTML = 'You are in <b>' + n + ' leagues</b>. Log once — this entry ' +
+                     'counts in all of them.';
+    }
+  }
+
   function applyRestMode() {
     var rest = isRestDay();
     $('#restNote').hidden = !rest;
@@ -1465,6 +1477,7 @@
     $('#logModal').hidden = false;
     document.body.style.overflow = 'hidden';
     document.body.classList.add('modal-open');
+    applyMultiLeagueNote();
     loadRestState().then(applyRestMode);
   }
   async function closeModal(force) {
@@ -1498,9 +1511,10 @@
     btn.textContent = 'SAVING…';
     try {
       if (modal.editing) {
+        var target = findEntry(modal.editing);
         var up = await sb.from('workouts').update({
           exercise_key: modal.key, mode: modal.mode, amount: amount
-        }).eq('id', modal.editing).select();
+        }).eq('group_id', target ? target.group_id : modal.editing).select();
         if (up.error) throw up.error;
         if (!up.data || !up.data.length) {
           throw new Error('That week is over — its entries are locked.');
@@ -1509,18 +1523,20 @@
         await closeModal(true);
         return;
       }
-      var r = await sb.from('workouts').insert({
-        league_id: state.leagueId,
-        profile_id: state.profile.id,
-        exercise_key: modal.key,
-        mode: modal.mode,
-        amount: amount
-      }).select().single();
+      var r = await sb.rpc('log_workout', {
+        p_league: state.leagueId,
+        p_key: modal.key,
+        p_mode: modal.mode,
+        p_amount: amount
+      });
       if (r.error) throw r.error;
-      state.session.push(r.data);
+      var row = r.data && r.data[0];
+      if (!row) throw new Error('Could not save that entry.');
+      state.session.push(row);
       renderSession();
       if (isRestDay()) { state.restDone = true; applyRestMode(); }
-      toast('+' + num(r.data.points) + ' pts');
+      toast('+' + num(row.points) + ' pts' +
+            (row.leagues > 1 ? ' · counted in ' + row.leagues + ' leagues' : ''));
       $('#amountInput').value = unitFor(modal.key, modal.mode).def;
       updatePreview();
     } catch (e) {
@@ -1550,7 +1566,9 @@
   $('#sessionList').addEventListener('click', async function (e) {
     var b = e.target.closest('[data-undo]'); if (!b) return;
     var id = b.getAttribute('data-undo');
-    var r = await sb.from('workouts').delete().eq('id', id);
+    var entry = state.session.filter(function (w) { return w.id === id; })[0];
+    var r = await sb.from('workouts').delete()
+              .eq('group_id', entry ? entry.group_id : id);
     if (r.error) { toast(niceError(r.error), true); return; }
     state.session = state.session.filter(function (w) { return w.id !== id; });
     renderSession();

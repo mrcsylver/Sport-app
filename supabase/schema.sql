@@ -61,6 +61,7 @@ drop function if exists public.weekly_history(p_league uuid) cascade;
 drop function if exists public.workouts_stamp() cascade;
 drop function if exists public.workouts_update_guard() cascade;
 drop function if exists public.is_rest_day() cascade;
+drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric) cascade;
 drop function if exists public.rest_day_check(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 
 -- ---------------------------------------------------------------------
@@ -192,8 +193,13 @@ create table public.league_members (
   primary key (league_id, profile_id)
 );
 
+-- One row per league. A single log action writes one row into every league
+-- the athlete belongs to at that moment; those rows share a group_id so an
+-- edit or a delete moves them together. Joining a league later never
+-- back-fills older workouts, so everyone still starts at zero.
 create table public.workouts (
   id            uuid primary key default gen_random_uuid(),
+  group_id      uuid    not null default gen_random_uuid(),
   league_id     uuid    not null references public.leagues(id)  on delete cascade,
   profile_id    uuid    not null references public.profiles(id) on delete cascade,
   exercise_key  text    not null,
@@ -225,6 +231,7 @@ create index challenges_league_idx on public.challenges (league_id);
 create index challenges_ppl_idx    on public.challenges (challenger_id, opponent_id);
 
 create index workouts_board_idx on public.workouts (league_id, week_start);
+create index workouts_group_idx on public.workouts (group_id);
 create index workouts_feed_idx  on public.workouts (profile_id, week_start);
 create index members_profile_idx on public.league_members (profile_id);
 
@@ -614,6 +621,31 @@ begin
   return p;
 end $$;
 
+-- Log once, counted in every league you belong to.
+create function public.log_workout(
+  p_league uuid, p_key text, p_mode text, p_amount numeric)
+returns table (id uuid, group_id uuid, exercise_key text, mode text,
+               amount numeric, points numeric, leagues int)
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := public.my_profile_id();
+  g  uuid := gen_random_uuid();
+  n  int;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  if not public.is_member(p_league) then raise exception 'NOT_A_MEMBER'; end if;
+  insert into public.workouts (group_id, league_id, profile_id,
+                               exercise_key, mode, amount)
+  select g, m.league_id, me, p_key, p_mode, p_amount
+  from public.league_members m
+  where m.profile_id = me;
+  get diagnostics n = row_count;
+  return query
+  select w.id, w.group_id, w.exercise_key, w.mode, w.amount, w.points, n
+  from public.workouts w
+  where w.group_id = g and w.league_id = p_league;
+end $$;
+
 -- Duels ---------------------------------------------------------------
 create function public.challenge_status(
   p_cancelled timestamptz, p_accepted timestamptz,
@@ -773,6 +805,7 @@ revoke all on function public.my_combo_today(uuid)          from public, anon;
 revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.combo_threshold()             from public, anon;
 revoke all on function public.is_rest_day()                 from public, anon;
+revoke all on function public.log_workout(uuid,text,text,numeric) from public, anon;
 revoke all on function public.create_challenge(uuid)        from public, anon;
 revoke all on function public.accept_challenge(text)        from public, anon;
 revoke all on function public.cancel_challenge(uuid)        from public, anon;
@@ -797,6 +830,7 @@ grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
 grant execute on function public.combo_threshold()             to authenticated;
 grant execute on function public.is_rest_day()                 to authenticated;
+grant execute on function public.log_workout(uuid,text,text,numeric) to authenticated;
 grant execute on function public.create_challenge(uuid)        to authenticated;
 grant execute on function public.accept_challenge(text)        to authenticated;
 grant execute on function public.cancel_challenge(uuid)        to authenticated;

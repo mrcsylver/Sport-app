@@ -14,6 +14,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
 - **Personal leagues** — create your own league, share a link, 30 people max.
+- **Log once** — an entry counts in every league you are in.
   Anyone can join at any time; they simply start the current week on 0 points.
 - Free forever on Supabase's + GitHub's free tiers.
 
@@ -229,6 +230,15 @@ when a duel ends the tab clears itself and the result drops into *Past duels*.
 ---
 
 # 🧩 LEAGUES
+
+You can be in **as many leagues as you like** (you can create up to 10 of your
+own). Tap one in the LEAGUES tab to switch; each has its own leaderboard,
+history, combo bonus and duels.
+
+**You only ever log a workout once.** It is counted in *every* league you
+belong to at that moment, and editing or deleting it updates all of them
+together. Joining a new league never back-fills your older workouts, so
+everybody genuinely starts that league on zero.
 
 - Anyone can create a league from the **LEAGUES** tab; they get a 6-character code
   and a share link.

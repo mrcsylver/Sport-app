@@ -207,6 +207,9 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .restnote{border:1px solid var(--line-2);border-left:3px solid #9b7bff;background:var(--panel);
   padding:11px 13px;border-radius:4px;font-size:12.5px;color:var(--muted);margin:12px 0 0}
 .restnote b{color:var(--txt)}
+.multinote{border:1px solid var(--line-2);border-left:3px solid var(--green);background:var(--panel);
+  padding:10px 13px;border-radius:4px;font-size:12.5px;color:var(--muted);margin:12px 0 0}
+.multinote b{color:var(--txt)}
 .btn:disabled{opacity:.45}
 
 /* ---------- daily combo ---------- */
