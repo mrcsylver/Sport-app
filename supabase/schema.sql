@@ -66,21 +66,45 @@ create function public.calc_points(p_key text, p_mode text, p_amount numeric)
 returns numeric language sql immutable set search_path = public as $$
   select round(coalesce(
     case
+      -- PUSH
       when p_key = 'pushups'    and p_mode = 'reps'    then p_amount * 1
-      when p_key = 'handstand'  and p_mode = 'reps'    then p_amount * 3
-      when p_key = 'handstand'  and p_mode = 'seconds' then p_amount / 5
       when p_key = 'dips'       and p_mode = 'reps'    then p_amount * 1.5
-      when p_key = 'pullups'    and p_mode = 'reps'    then p_amount * 3
-      when p_key = 'muscleup'   and p_mode = 'reps'    then p_amount * 8
-      when p_key = 'muscleup'   and p_mode = 'seconds' then p_amount * 2
+      when p_key = 'handstand'  and p_mode = 'reps'    then p_amount * 2.5
+      when p_key = 'handstand'  and p_mode = 'seconds' then p_amount / 5
+      -- PULL
+      when p_key = 'rows'       and p_mode = 'reps'    then p_amount * 1
+      when p_key = 'pullups'    and p_mode = 'reps'    then p_amount * 2
+      when p_key = 'muscleup'   and p_mode = 'reps'    then p_amount * 3.5
+      when p_key = 'muscleup'   and p_mode = 'seconds' then p_amount * 1
+      -- LEGS
       when p_key = 'airsquats'  and p_mode = 'reps'    then p_amount * 0.5
-      when p_key = 'pistols'    and p_mode = 'reps'    then p_amount * 3
+      when p_key = 'pistols'    and p_mode = 'reps'    then p_amount * 2
+      -- CORE
       when p_key = 'kneeraises' and p_mode = 'reps'    then p_amount * 1
       when p_key = 'lsit'       and p_mode = 'seconds' then p_amount / 3
-      when p_key = 'run'        and p_mode = 'km'      then p_amount * 10
-      when p_key = 'sprints'    and p_mode = 'minutes' then p_amount * 5
+      -- CARDIO
+      when p_key = 'run'        and p_mode = 'km'      then p_amount * 5
+      when p_key = 'sprints'    and p_mode = 'minutes' then p_amount * 4
+      when p_key = 'bike'       and p_mode = 'km'      then p_amount * 1.5
+      when p_key = 'swim'       and p_mode = 'minutes' then p_amount * 8 / 15
+      when p_key = 'walk'       and p_mode = 'km'      then p_amount * 2.5
+      -- RECOVERY
       when p_key = 'stretch'    and p_mode = 'flat'    then p_amount * 2
     end, 0), 2)
+$$;
+
+-- Muscle group of an exercise (used by the stats tab).
+create or replace function public.exercise_category(p_key text) returns text
+language sql immutable set search_path = public as $$
+  select case p_key
+    when 'pushups' then 'PUSH'  when 'dips' then 'PUSH'  when 'handstand' then 'PUSH'
+    when 'rows' then 'PULL'     when 'pullups' then 'PULL' when 'muscleup' then 'PULL'
+    when 'airsquats' then 'LEGS' when 'pistols' then 'LEGS'
+    when 'kneeraises' then 'CORE' when 'lsit' then 'CORE'
+    when 'run' then 'CARDIO'    when 'sprints' then 'CARDIO' when 'bike' then 'CARDIO'
+    when 'swim' then 'CARDIO'   when 'walk' then 'CARDIO'
+    when 'stretch' then 'RECOVERY'
+  end
 $$;
 
 -- ---------------------------------------------------------------------
@@ -435,6 +459,24 @@ language sql stable security definer set search_path = public as $$
   order by w.week_start desc, 4 desc
 $$;
 
+-- Personal totals for the stats tab.
+create function public.my_stats(p_league uuid, p_all boolean default false)
+returns table (exercise_key text, category text, mode text,
+               total_amount numeric, total_points numeric, entries bigint,
+               active_days bigint)
+language sql stable security definer set search_path = public as $$
+  select w.exercise_key, public.exercise_category(w.exercise_key), w.mode,
+         sum(w.amount)::numeric, sum(w.points)::numeric, count(*),
+         count(distinct (w.created_at at time zone public.app_timezone())::date)
+  from public.workouts w
+  where w.league_id  = p_league
+    and w.profile_id = public.my_profile_id()
+    and (p_all or w.week_start = public.current_week_start())
+    and public.is_member(p_league)
+  group by 1, 2, 3
+  order by 5 desc
+$$;
+
 -- ---------------------------------------------------------------------
 -- 8. Permissions
 -- ---------------------------------------------------------------------
@@ -458,6 +500,8 @@ revoke all on function public.leave_league(uuid)            from public, anon;
 revoke all on function public.my_leagues()                  from public, anon;
 revoke all on function public.league_leaderboard(uuid,date) from public, anon;
 revoke all on function public.weekly_history(uuid)          from public, anon;
+revoke all on function public.my_stats(uuid, boolean)       from public, anon;
+revoke all on function public.exercise_category(text)       from public, anon;
 revoke all on function public.current_week_start()          from public, anon;
 
 grant execute on function public.create_profile(text)          to authenticated;
@@ -470,4 +514,6 @@ grant execute on function public.leave_league(uuid)            to authenticated;
 grant execute on function public.my_leagues()                  to authenticated;
 grant execute on function public.league_leaderboard(uuid,date) to authenticated;
 grant execute on function public.weekly_history(uuid)          to authenticated;
+grant execute on function public.my_stats(uuid, boolean)       to authenticated;
+grant execute on function public.exercise_category(text)       to authenticated;
 grant execute on function public.current_week_start()          to authenticated;

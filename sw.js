@@ -1,6 +1,6 @@
 /* Iron League service worker — offline app shell.
    Bump CACHE when you change any file so phones pick up the new version. */
-var CACHE = 'ironleague-v2';
+var CACHE = 'ironleague-v3';
 var SHELL = [
   './', './index.html', './styles.css', './app.js',
   './vendor/supabase.js', './manifest.webmanifest',

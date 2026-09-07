@@ -118,6 +118,26 @@
       <div id="hall"></div>
     </section>
 
+    <!-- STATS -->
+    <section id="view-stats" class="view" hidden>
+      <div class="section-head">
+        <h2>MY NUMBERS</h2>
+        <span class="muted small mono" id="statsWho"></span>
+      </div>
+      <div class="segmented" id="statsRange">
+        <button type="button" data-range="week" class="on">THIS WEEK</button>
+        <button type="button" data-range="all">ALL TIME</button>
+      </div>
+      <div class="bigstat">
+        <span class="bigstat-n" id="statPoints">0</span>
+        <span class="bigstat-l">POINTS</span>
+        <span class="bigstat-sub" id="statSub"></span>
+      </div>
+      <div id="statBar" class="statbar"></div>
+      <div id="statLegend" class="statlegend"></div>
+      <div id="statList" class="stack tight"></div>
+    </section>
+
     <!-- LEAGUES / ME -->
     <section id="view-me" class="view" hidden>
       <div class="section-head"><h2>MY LEAGUES</h2></div>
@@ -166,6 +186,12 @@
         <p class="muted small" style="margin-top:14px">
           Restore code — write it down. It moves your profile to a new phone.</p>
         <div class="codebox mono" id="restoreCode">--------</div>
+        <p class="muted small" style="margin-top:14px">Appearance</p>
+        <div class="segmented" id="themeRow">
+          <button type="button" data-theme="dark">DARK</button>
+          <button type="button" data-theme="light">LIGHT</button>
+          <button type="button" data-theme="auto">AUTO</button>
+        </div>
         <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
       </div>
 
@@ -186,6 +212,8 @@
       <span class="tab-i">▲</span>LIVE</button>
     <button class="tab" data-view="hall" type="button">
       <span class="tab-i">★</span>HALL OF FAME</button>
+    <button class="tab" data-view="stats" type="button">
+      <span class="tab-i">◆</span>STATS</button>
     <button class="tab" data-view="me" type="button">
       <span class="tab-i">☰</span>LEAGUES</button>
   </nav>
@@ -206,6 +234,7 @@
       <div class="selwrap">
         <select id="exSelect" class="input select"></select>
       </div>
+      <p class="exvar" id="exVariants"></p>
 
       <div id="modeRow" class="segmented" hidden></div>
 

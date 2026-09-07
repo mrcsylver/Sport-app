@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.1.0';
+  var APP_VERSION = '1.2.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -15,33 +15,66 @@
      The server always recalculates, so this is only for the preview.
      =================================================================== */
   var EXERCISES = [
-    { key: 'pushups',    tag: 'PSH', name: 'Push-ups',
+    { key: 'pushups',    cat: 'PUSH',     name: 'Push-ups',
+      variants: 'Incline · Standard · Diamond',
       modes: [{ mode: 'reps', rate: 1, label: '1 pt / rep' }] },
-    { key: 'handstand',  tag: 'HSP', name: 'Handstand Push-ups / Hold',
-      modes: [{ mode: 'reps', rate: 3, label: '3 pts / rep' },
-              { mode: 'seconds', rate: 1 / 5, label: '1 pt / 5 sec' }] },
-    { key: 'dips',       tag: 'DIP', name: 'Dips',
+    { key: 'dips',       cat: 'PUSH',     name: 'Dips',
+      variants: 'Bench · Parallel bars · Rings',
       modes: [{ mode: 'reps', rate: 1.5, label: '1.5 pts / rep' }] },
-    { key: 'pullups',    tag: 'PUL', name: 'Strict Pull-ups',
-      modes: [{ mode: 'reps', rate: 3, label: '3 pts / rep' }] },
-    { key: 'muscleup',   tag: 'MU',  name: 'Muscle-up / Flag',
-      modes: [{ mode: 'reps', rate: 8, label: '8 pts / rep' },
-              { mode: 'seconds', rate: 2, label: '2 pts / sec' }] },
-    { key: 'airsquats',  tag: 'SQT', name: 'Air Squats',
-      modes: [{ mode: 'reps', rate: 0.5, label: '0.5 pt / rep' }] },
-    { key: 'pistols',    tag: 'PST', name: 'Pistol Squats',
-      modes: [{ mode: 'reps', rate: 3, label: '3 pts / rep' }] },
-    { key: 'kneeraises', tag: 'KNE', name: 'Knee Raises',
+    { key: 'handstand',  cat: 'PUSH',     name: 'Handstand Push-up / Hold',
+      variants: 'Wall-assisted · Freestanding',
+      modes: [{ mode: 'reps', rate: 2.5, label: '2.5 pts / rep' },
+              { mode: 'seconds', rate: 1 / 5, label: '1 pt / 5 sec' }] },
+
+    { key: 'rows',       cat: 'PULL',     name: 'Inverted Rows',
+      variants: 'Table · Low bar · Rings',
       modes: [{ mode: 'reps', rate: 1, label: '1 pt / rep' }] },
-    { key: 'lsit',       tag: 'LST', name: 'L-Sit Hold',
+    { key: 'pullups',    cat: 'PULL',     name: 'Pull-ups',
+      variants: 'Pronated · Supinated · Neutral — full range only',
+      modes: [{ mode: 'reps', rate: 2, label: '2 pts / rep' }] },
+    { key: 'muscleup',   cat: 'PULL',     name: 'Muscle-up / Flag Hold',
+      variants: 'Bar · Rings · Human flag',
+      modes: [{ mode: 'reps', rate: 3.5, label: '3.5 pts / rep' },
+              { mode: 'seconds', rate: 1, label: '1 pt / sec' }] },
+
+    { key: 'airsquats',  cat: 'LEGS',     name: 'Air Squats',
+      variants: 'Bodyweight squats',
+      modes: [{ mode: 'reps', rate: 0.5, label: '0.5 pt / rep' }] },
+    { key: 'pistols',    cat: 'LEGS',     name: 'Pistol Squats',
+      variants: 'Assisted · Full — counted per leg',
+      modes: [{ mode: 'reps', rate: 2, label: '2 pts / rep' }] },
+
+    { key: 'kneeraises', cat: 'CORE',     name: 'Knee / Leg Raises',
+      variants: 'Floor · Hanging',
+      modes: [{ mode: 'reps', rate: 1, label: '1 pt / rep' }] },
+    { key: 'lsit',       cat: 'CORE',     name: 'L-Sit Hold',
+      variants: 'Tuck · Advanced tuck · Full',
       modes: [{ mode: 'seconds', rate: 1 / 3, label: '1 pt / 3 sec' }] },
-    { key: 'run',        tag: 'RUN', name: 'Run',
-      modes: [{ mode: 'km', rate: 10, label: '10 pts / km' }] },
-    { key: 'sprints',    tag: 'SPR', name: 'Sprint Intervals',
-      modes: [{ mode: 'minutes', rate: 5, label: '5 pts / min' }] },
-    { key: 'stretch',    tag: 'STR', name: 'Stretching Session',
+
+    { key: 'run',        cat: 'CARDIO',   name: 'Run',
+      variants: 'Outdoor or treadmill',
+      modes: [{ mode: 'km', rate: 5, label: '5 pts / km' }] },
+    { key: 'sprints',    cat: 'CARDIO',   name: 'Sprint Intervals',
+      variants: 'Active sprint time only, not the rests',
+      modes: [{ mode: 'minutes', rate: 4, label: '4 pts / min' }] },
+    { key: 'bike',       cat: 'CARDIO',   name: 'Biking',
+      variants: 'Road · Trail · Stationary',
+      modes: [{ mode: 'km', rate: 1.5, label: '1.5 pts / km' }] },
+    { key: 'swim',       cat: 'CARDIO',   name: 'Swim',
+      variants: 'Any stroke · active swim time',
+      modes: [{ mode: 'minutes', rate: 8 / 15, label: '8 pts / 15 min',
+                quick: [15, 30, 45, 60] }] },
+    { key: 'walk',       cat: 'CARDIO',   name: 'Walking',
+      variants: 'Hiking counts too',
+      modes: [{ mode: 'km', rate: 2.5, label: '2.5 pts / km' }] },
+
+    { key: 'stretch',    cat: 'RECOVERY', name: 'Stretching Session',
+      variants: '15 minutes or more · mobility, yoga',
       modes: [{ mode: 'flat', rate: 2, label: '2 pts flat' }] }
   ];
+
+  /* Order the categories appear in menus and on the scoring card. */
+  var CATEGORIES = ['PUSH', 'PULL', 'LEGS', 'CORE', 'CARDIO', 'RECOVERY'];
 
   var UNITS = {
     reps:    { label: 'REPS',       short: 'reps', step: 1,   def: 10, quick: [5, 10, 20, 50] },
@@ -171,7 +204,8 @@
     feeds: {},
     session: [],       // items logged inside the currently open modal
     pendingCode: null,
-    view: 'live'
+    view: 'live',
+    statsRange: 'week'
   };
   var LS = {
     league: 'ironleague.league'
@@ -802,24 +836,127 @@
   });
 
   function buildPointsTable() {
-    $('#pointsTable').innerHTML = EXERCISES.map(function (ex) {
-      return '<div><span>' + esc(ex.name) + '</span><b>' +
-        ex.modes.map(function (m) { return m.label; }).join(' / ') + '</b></div>';
+    $('#pointsTable').innerHTML = CATEGORIES.map(function (cat) {
+      var list = EXERCISES.filter(function (e) { return e.cat === cat; });
+      if (!list.length) return '';
+      return '<div class="pcat">' + cat + '</div>' + list.map(function (ex) {
+        return '<div class="pex">' +
+          '<div class="pex-n">' + esc(ex.name) + '</div>' +
+          '<div class="pex-v">' + esc(ex.variants) + '</div>' +
+          ex.modes.map(function (m) {
+            return '<div class="pex-r">' + m.label + '</div>';
+          }).join('') +
+        '</div>';
+      }).join('');
     }).join('');
   }
+
+  /* ===================================================================
+     11b. Personal stats
+     =================================================================== */
+  var CAT_COLOR = { PUSH: '#ff2e2e', PULL: '#ff8a1f', LEGS: '#ffc93c',
+                    CORE: '#26d07c', CARDIO: '#3aa8ff', RECOVERY: '#9b7bff' };
+
+  async function loadStats() {
+    if (!state.leagueId) return;
+    $('#statsWho').textContent = state.profile ? state.profile.display_name : '';
+    var r = await sb.rpc('my_stats', {
+      p_league: state.leagueId, p_all: state.statsRange === 'all'
+    });
+    if (r.error) { toast(niceError(r.error), true); return; }
+    renderStats(r.data || []);
+  }
+
+  function renderStats(rows) {
+    var total = rows.reduce(function (a, r) { return a + Number(r.total_points); }, 0);
+    var entries = rows.reduce(function (a, r) { return a + Number(r.entries); }, 0);
+    var days = rows.reduce(function (a, r) { return Math.max(a, Number(r.active_days)); }, 0);
+    $('#statPoints').textContent = num(total);
+    $('#statSub').textContent = entries + (entries === 1 ? ' entry' : ' entries') +
+      (days ? ' · ' + days + (days === 1 ? ' active day' : ' active days') : '') +
+      (league() ? ' · ' + league().name : '');
+
+    /* share of points per muscle group */
+    var byCat = {};
+    rows.forEach(function (r) {
+      byCat[r.category] = (byCat[r.category] || 0) + Number(r.total_points);
+    });
+    var cats = CATEGORIES.filter(function (c) { return byCat[c] > 0; });
+    $('#statBar').innerHTML = total > 0 ? cats.map(function (c) {
+      return '<span style="width:' + (byCat[c] / total * 100).toFixed(2) + '%;background:' +
+        CAT_COLOR[c] + '" title="' + c + '"></span>';
+    }).join('') : '';
+    $('#statLegend').innerHTML = cats.map(function (c) {
+      return '<span><i style="background:' + CAT_COLOR[c] + '"></i>' + c +
+             ' ' + num(byCat[c]) + '</span>';
+    }).join('');
+
+    if (!rows.length) {
+      $('#statList').innerHTML = '<div class="empty">Nothing logged ' +
+        (state.statsRange === 'all' ? 'yet.' : 'this week yet.') + '</div>';
+      return;
+    }
+    $('#statList').innerHTML = rows.map(function (r) {
+      var ex = exercise(r.exercise_key);
+      var u = UNITS[r.mode] || { short: '' };
+      return '<div class="srow">' +
+        '<span class="sdot" style="background:' + (CAT_COLOR[r.category] || '#666') + '"></span>' +
+        '<span class="sname">' + esc(ex ? ex.name : r.exercise_key) +
+          '<span class="ssub">' + num(r.total_amount) + ' ' + u.short +
+          ' · ' + r.entries + 'x</span></span>' +
+        '<span class="spts">' + num(r.total_points) + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  $('#statsRange').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-range]'); if (!b) return;
+    state.statsRange = b.getAttribute('data-range');
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) {
+      x.classList.toggle('on', x === b);
+    });
+    loadStats();
+  });
+
+  /* ===================================================================
+     11c. Light / dark
+     =================================================================== */
+  function applyTheme(pref) {
+    var root = document.documentElement;
+    if (pref === 'auto') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', pref);
+    try { localStorage.setItem('ironleague.theme', pref); } catch (e) {}
+    var dark = pref === 'dark' || (pref === 'auto' &&
+      !window.matchMedia('(prefers-color-scheme: light)').matches);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#08090c' : '#f4f5f7');
+    Array.prototype.forEach.call(document.querySelectorAll('#themeRow button'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-theme') === pref);
+    });
+  }
+  function savedTheme() {
+    try { return localStorage.getItem('ironleague.theme') || 'dark'; } catch (e) { return 'dark'; }
+  }
+  $('#themeRow').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-theme]'); if (!b) return;
+    applyTheme(b.getAttribute('data-theme'));
+  });
+  applyTheme(savedTheme());
 
   /* ===================================================================
      12. Tabs
      =================================================================== */
   function switchView(v) {
     state.view = v;
-    $('#view-live').hidden = v !== 'live';
-    $('#view-hall').hidden = v !== 'hall';
-    $('#view-me').hidden = v !== 'me';
+    $('#view-live').hidden  = v !== 'live';
+    $('#view-hall').hidden  = v !== 'hall';
+    $('#view-stats').hidden = v !== 'stats';
+    $('#view-me').hidden    = v !== 'me';
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
       t.classList.toggle('is-active', t.getAttribute('data-view') === v);
     });
     if (v === 'me') renderMe();
+    if (v === 'stats') loadStats();
     window.scrollTo(0, 0);
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
@@ -832,6 +969,7 @@
     await loadLeagues();
     await refreshAll();
     Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
+    if (state.view === 'stats') await loadStats();
     b.classList.remove('spin');
     toast('Refreshed');
   });
@@ -842,8 +980,12 @@
   var modal = { key: null, mode: null, editing: null };
 
   function buildExerciseSelect() {
-    $('#exSelect').innerHTML = EXERCISES.map(function (ex) {
-      return '<option value="' + ex.key + '">' + esc(ex.name) + '</option>';
+    $('#exSelect').innerHTML = CATEGORIES.map(function (cat) {
+      var list = EXERCISES.filter(function (e) { return e.cat === cat; });
+      if (!list.length) return '';
+      return '<optgroup label="' + cat + '">' + list.map(function (ex) {
+        return '<option value="' + ex.key + '">' + esc(ex.name) + '</option>';
+      }).join('') + '</optgroup>';
     }).join('');
     selectExercise(EXERCISES[0].key);
   }
@@ -871,11 +1013,13 @@
     $('#amountLbl').textContent = u.label;
     $('#amountInput').value = u.def;
     $('#amountInput').step = u.step;
-    $('#quickRow').innerHTML = u.quick.map(function (q) {
-      return '<button type="button" data-q="' + q + '">' + q + ' ' + u.short + '</button>';
-    }).join('');
     var ex = exercise(modal.key);
     var m = ex.modes.filter(function (x) { return x.mode === modal.mode; })[0];
+    var quick = (m && m.quick) || u.quick;
+    $('#quickRow').innerHTML = quick.map(function (q) {
+      return '<button type="button" data-q="' + q + '">' + q + ' ' + u.short + '</button>';
+    }).join('');
+    $('#exVariants').textContent = ex.cat + ' · ' + ex.variants;
     $('#rateLbl').textContent = m ? m.label : '';
     updatePreview();
   }
@@ -975,6 +1119,7 @@
       state.feeds = {};
       await refreshAll();
       Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
+      if (state.view === 'stats') loadStats();
     }
   }
   $('#logBtn').addEventListener('click', openModal);

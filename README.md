@@ -139,20 +139,27 @@ loads when you have no signal (you just can't post until you're back online).
 
 # 🏋️ HOW SCORING WORKS
 
-| Exercise | Points |
-|---|---|
-| Standard Push-ups | 1 pt / rep |
-| Handstand Push-ups / Holds | 3 pts / rep **or** 1 pt / 5 sec |
-| Dips | 1.5 pts / rep |
-| Strict Pull-ups | 3 pts / rep |
-| Muscle-up / Flag | 8 pts / rep **or** 2 pts / sec |
-| Air Squats | 0.5 pt / rep |
-| Pistol Squats | 3 pts / rep |
-| Knee Raises | 1 pt / rep |
-| L-Sit Hold | 1 pt / 3 sec |
-| Run | 10 pts / km |
-| Sprint Intervals | 5 pts / min |
-| Stretching Session | 2 pts flat |
+| Category | Exercise | Points |
+|---|---|---|
+| **Push** | Push-ups *(incline · standard · diamond)* | 1 pt / rep |
+| | Dips *(bench · bars · rings)* | 1.5 pts / rep |
+| | Handstand Push-up / Hold | 2.5 pts / rep · 1 pt / 5 sec |
+| **Pull** | Inverted Rows *(table · low bar · rings)* | 1 pt / rep |
+| | Pull-ups *(full range only)* | 2 pts / rep |
+| | Muscle-up / Flag Hold | 3.5 pts / rep · 1 pt / sec |
+| **Legs** | Air Squats | 0.5 pt / rep |
+| | Pistol Squats *(per leg)* | 2 pts / rep |
+| **Core** | Knee / Leg Raises *(floor · hanging)* | 1 pt / rep |
+| | L-Sit Hold *(tuck → full)* | 1 pt / 3 sec |
+| **Cardio** | Run | 5 pts / km |
+| | Sprint Intervals *(active time only)* | 4 pts / min |
+| | Biking | 1.5 pts / km |
+| | Swim *(active swim time)* | 8 pts / 15 min |
+| | Walking | 2.5 pts / km |
+| **Recovery** | Stretching Session *(15 min+)* | 2 pts flat |
+
+Variations of the same movement are worth the same. The point is to train and
+progress, not to farm the easiest option.
 
 Points are always calculated **on the server**, so nobody can fake a score by
 fiddling with their phone. A week runs **Monday 00:00 → Sunday 23:59**; when it
@@ -162,6 +169,11 @@ ends, the standings freeze into the Hall of Fame and everyone restarts at 0.
 Change it in **two** places, then re-run the SQL file:
 1. `supabase/schema.sql` → the `calc_points` function
 2. `app.js` → the `EXERCISES` list at the top
+
+Changing values does **not** rewrite history: every entry stores the points it
+scored at the time. If you change the scale mid-week, re-score just the running
+week with `update public.workouts set amount = amount where week_start =
+public.current_week_start();` so everyone in that week is measured the same way.
 
 ---
 
