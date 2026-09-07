@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.7.0';
+  var APP_VERSION = '1.8.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -621,7 +621,7 @@
      9. Live leaderboard
      =================================================================== */
   async function refreshAll() {
-    await Promise.all([loadBoard(), loadHistory(), loadCombo()]);
+    await Promise.all([loadBoard(), loadHistory(), loadCombo(), loadBounty()]);
     renderBoard();   // divisions come from last week, which may land after the board
     renderHeader();
   }
@@ -1175,6 +1175,40 @@
       await loadDuels();
     }
   });
+
+  /* ===================================================================
+     10c. Weekly bounty — one side quest, always the same weekday.
+     Completion is read from the logs, so there is nothing to claim.
+     =================================================================== */
+  async function loadBounty() {
+    if (!state.leagueId) return;
+    var r = await sb.rpc('current_bounty', { p_league: state.leagueId });
+    if (r.error) { $('#bountyCard').hidden = true; return; }
+    var b = r.data && r.data[0];
+    if (!b) { $('#bountyCard').hidden = true; return; }
+
+    var day = new Date(b.on_date + 'T12:00:00Z');
+    var dayLabel = new Intl.DateTimeFormat('en-GB',
+      { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
+      .format(day).toUpperCase();
+
+    $('#bountyCard').hidden = false;
+    $('#bountyCard').className = 'bounty' + (b.mine ? ' got' : '');
+    $('#bountyCard').innerHTML =
+      '<div class="bo-top">' +
+        '<span class="bo-tag">' + dayLabel + ' BOUNTY</span>' +
+        '<span class="bo-pts">' + (b.mine ? '✓ +' + num(b.points) : '+' + num(b.points)) + '</span>' +
+      '</div>' +
+      '<div class="bo-name">' + esc(b.name) + '</div>' +
+      '<div class="bo-desc">' + esc(b.descr) + '</div>' +
+      '<div class="bo-foot">' +
+        (b.winners > 0
+          ? b.winners + (b.winners === 1 ? ' has ' : ' have ') + 'done it' +
+            (b.first_name ? ' · first ' + (b.first_avatar ? esc(b.first_avatar) + ' ' : '') +
+              esc(b.first_name) + ' 🩸' : '')
+          : 'Nobody has claimed it yet') +
+      '</div>';
+  }
 
   /* ===================================================================
      11a. Daily combo

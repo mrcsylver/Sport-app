@@ -21,6 +21,7 @@
 -- ---------------------------------------------------------------------
 -- 0. Clean slate (safe to re-run)
 -- ---------------------------------------------------------------------
+drop table if exists public.bounties       cascade;
 drop table if exists public.challenges     cascade;
 drop table if exists public.workouts       cascade;
 drop table if exists public.league_members cascade;
@@ -29,6 +30,11 @@ drop table if exists public.profiles       cascade;
 
 drop function if exists public.accept_challenge(p_code text) cascade;
 drop function if exists public.app_timezone() cascade;
+drop function if exists public.bounty_date(p_week date) cascade;
+drop function if exists public.bounty_done(p_profile uuid, p_league uuid, p_spec jsonb, p_day date) cascade;
+drop function if exists public.bounty_dow() cascade;
+drop function if exists public.bounty_index(p_week date) cascade;
+drop function if exists public.bounty_req(p_profile uuid, p_league uuid, p_req jsonb, p_day date) cascade;
 drop function if exists public.calc_points(p_key text, p_mode text, p_amount numeric) cascade;
 drop function if exists public.cancel_challenge(p_id uuid) cascade;
 drop function if exists public.challenge_points(p_league uuid, p_profile uuid, p_from timestamptz, p_to timestamptz) cascade;
@@ -38,31 +44,33 @@ drop function if exists public.combo_threshold() cascade;
 drop function if exists public.create_challenge(p_league uuid) cascade;
 drop function if exists public.create_league(p_name text) cascade;
 drop function if exists public.create_profile(p_name text) cascade;
+drop function if exists public.current_bounty(p_league uuid) cascade;
 drop function if exists public.current_week_start() cascade;
 drop function if exists public.enforce_league_capacity() cascade;
 drop function if exists public.exercise_category(p_key text) cascade;
 drop function if exists public.has_open_challenge(p_profile uuid) cascade;
 drop function if exists public.is_member(p_league uuid) cascade;
+drop function if exists public.is_rest_day() cascade;
 drop function if exists public.join_league_by_code(p_code text) cascade;
 drop function if exists public.league_leaderboard(p_league uuid, p_week date) cascade;
 drop function if exists public.league_preview(p_code text) cascade;
 drop function if exists public.leave_league(p_league uuid) cascade;
+drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric) cascade;
 drop function if exists public.my_challenges() cascade;
 drop function if exists public.my_combo_today(p_league uuid) cascade;
 drop function if exists public.my_leagues() cascade;
 drop function if exists public.my_profile_id() cascade;
 drop function if exists public.my_stats(p_league uuid, p_all boolean) cascade;
 drop function if exists public.rename_profile(p_name text) cascade;
+drop function if exists public.rest_day_check(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 drop function if exists public.restore_profile(p_code text) cascade;
 drop function if exists public.set_avatar(p_avatar text) cascade;
 drop function if exists public.shares_league_with(p_profile uuid) cascade;
+drop function if exists public.week_bounty_points(p_league uuid, p_week date) cascade;
 drop function if exists public.week_combo_bonus(p_league uuid, p_week date) cascade;
 drop function if exists public.weekly_history(p_league uuid) cascade;
 drop function if exists public.workouts_stamp() cascade;
 drop function if exists public.workouts_update_guard() cascade;
-drop function if exists public.is_rest_day() cascade;
-drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric) cascade;
-drop function if exists public.rest_day_check(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 
 -- ---------------------------------------------------------------------
 -- 1. Timezone + week helpers
@@ -232,6 +240,17 @@ create table public.challenges (
   constraint no_self_duel check (opponent_id is null or opponent_id <> challenger_id)
 );
 create index challenges_league_idx on public.challenges (league_id);
+
+-- One side quest per week, always on the same weekday. Everyone who does it
+-- scores; the first to finish also takes a badge worth nothing. Completion is
+-- read from the workouts already logged, so there is nothing to claim.
+create table public.bounties (
+  idx    int primary key,
+  name   text    not null,
+  descr  text    not null,
+  points numeric not null check (points > 0),
+  spec   jsonb   not null
+);
 create index challenges_ppl_idx    on public.challenges (challenger_id, opponent_id);
 
 create index workouts_board_idx on public.workouts (league_id, week_start);
@@ -351,6 +370,7 @@ alter table public.leagues        enable row level security;
 alter table public.league_members enable row level security;
 alter table public.workouts       enable row level security;
 alter table public.challenges     enable row level security;
+alter table public.bounties       enable row level security;
 
 -- profiles: you can read your own, plus anyone you share a league with.
 create policy profiles_read on public.profiles for select to authenticated
@@ -386,6 +406,8 @@ create policy workouts_update on public.workouts for update to authenticated
               and week_start = public.current_week_start()
               and not public.is_rest_day())
   with check (profile_id = public.my_profile_id());
+
+create policy bounties_read on public.bounties for select to authenticated using (true);
 
 create policy challenges_read on public.challenges for select to authenticated
   using (challenger_id = public.my_profile_id() or opponent_id = public.my_profile_id());
@@ -527,11 +549,13 @@ returns table (profile_id uuid, display_name text, avatar text,
                entries bigint, joined_at timestamptz)
 language sql stable security definer set search_path = public as $$
   with wk as (select coalesce(p_week, public.current_week_start()) as w),
-  cb as (select * from public.week_combo_bonus(p_league, (select w from wk)))
+  cb as (select * from public.week_combo_bonus(p_league, (select w from wk))),
+  bb as (select * from public.week_bounty_points(p_league, (select w from wk)))
   select p.id, p.display_name, p.avatar,
-         (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0))::numeric,
+         (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0)
+                                     + coalesce(max(bb.bounty), 0))::numeric,
          coalesce(sum(w.points), 0)::numeric,
-         coalesce(max(cb.bonus), 0)::numeric,
+         (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
          count(w.id), m.joined_at
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
@@ -539,6 +563,7 @@ language sql stable security definer set search_path = public as $$
          on w.profile_id = p.id and w.league_id = p_league
         and w.week_start = (select w from wk)
   left join cb on cb.profile_id = p.id
+  left join bb on bb.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
   group by p.id, p.display_name, p.avatar, m.joined_at
   order by 4 desc, 8 asc
@@ -781,6 +806,189 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- ---------------------------------------------------------------------
+-- 7b. Weekly bounty
+-- ---------------------------------------------------------------------
+
+-- >>> WHICH DAY THE BOUNTY RUNS <<<  1=Monday … 6=Saturday
+create function public.bounty_dow() returns int
+language sql immutable set search_path = public as $$ select 4 $$;   -- Thursday
+
+create function public.bounty_index(p_week date) returns int
+language sql immutable set search_path = public as $$
+  select ((floor((p_week - date '2026-01-05') / 7)::int % 52) + 52) % 52
+$$;
+
+create function public.bounty_date(p_week date) returns date
+language sql immutable set search_path = public as $$
+  select p_week + (public.bounty_dow() - 1)
+$$;
+
+-- One requirement: "at least N of X, optionally inside an hour window".
+create function public.bounty_req(
+  p_profile uuid, p_league uuid, p_req jsonb, p_day date) returns boolean
+language sql stable set search_path = public as $$
+  select coalesce(sum(w.amount), 0) >= (p_req->>'min')::numeric
+  from public.workouts w
+  where w.profile_id = p_profile
+    and w.league_id  = p_league
+    and (w.created_at at time zone public.app_timezone())::date = p_day
+    and (p_req->>'ex'   is null or w.exercise_key = p_req->>'ex')
+    and (p_req->>'mode' is null or w.mode         = p_req->>'mode')
+    and (p_req->>'from_h' is null or
+         extract(hour from (w.created_at at time zone public.app_timezone())) >= (p_req->>'from_h')::int)
+    and (p_req->>'to_h'   is null or
+         extract(hour from (w.created_at at time zone public.app_timezone())) <  (p_req->>'to_h')::int)
+$$;
+
+create function public.bounty_done(
+  p_profile uuid, p_league uuid, p_spec jsonb, p_day date) returns boolean
+language plpgsql stable set search_path = public as $$
+declare
+  tz   text := public.app_timezone();
+  kind text := coalesce(p_spec->>'kind', 'reqs');
+  r    jsonb;
+  n    int;
+begin
+  if kind = 'reqs' then
+    for r in select * from jsonb_array_elements(p_spec->'reqs') loop
+      if not public.bounty_req(p_profile, p_league, r, p_day) then return false; end if;
+    end loop;
+    return true;
+
+  elsif kind = 'any' then
+    for r in select * from jsonb_array_elements(p_spec->'any') loop
+      if public.bounty_req(p_profile, p_league, r, p_day) then return true; end if;
+    end loop;
+    return false;
+
+  elsif kind = 'distinct' then
+    select count(distinct case when p_spec->>'what' = 'cat'
+                               then public.exercise_category(w.exercise_key)
+                               else w.exercise_key end)
+      into n
+    from public.workouts w
+    where w.profile_id = p_profile and w.league_id = p_league
+      and (w.created_at at time zone tz)::date = p_day
+      and (p_spec->>'from_h' is null or
+           extract(hour from (w.created_at at time zone tz)) >= (p_spec->>'from_h')::int)
+      and (p_spec->>'to_h' is null or
+           extract(hour from (w.created_at at time zone tz)) <  (p_spec->>'to_h')::int);
+    return coalesce(n, 0) >= (p_spec->>'min')::int;
+
+  elsif kind = 'reps_across' then
+    select count(distinct w.exercise_key) into n
+    from public.workouts w
+    where w.profile_id = p_profile and w.league_id = p_league
+      and w.mode = 'reps' and (w.created_at at time zone tz)::date = p_day;
+    if coalesce(n, 0) < (p_spec->>'exercises')::int then return false; end if;
+    return (select coalesce(sum(w.amount), 0) from public.workouts w
+            where w.profile_id = p_profile and w.league_id = p_league
+              and w.mode = 'reps' and (w.created_at at time zone tz)::date = p_day)
+           >= (p_spec->>'min')::numeric;
+
+  elsif kind = 'split' then
+    return public.bounty_req(p_profile, p_league,
+             jsonb_build_object('ex', p_spec->>'ex', 'min', p_spec->>'min', 'to_h', 12), p_day)
+       and public.bounty_req(p_profile, p_league,
+             jsonb_build_object('ex', p_spec->>'ex', 'min', p_spec->>'min', 'from_h', 12), p_day);
+
+  elsif kind = 'hourly' then
+    select count(*) into n from (
+      select extract(hour from (w.created_at at time zone tz)) as h, sum(w.amount) as a
+      from public.workouts w
+      where w.profile_id = p_profile and w.league_id = p_league
+        and w.exercise_key = p_spec->>'ex'
+        and (w.created_at at time zone tz)::date = p_day
+      group by 1
+    ) t where t.a >= (p_spec->>'each')::numeric;
+    return coalesce(n, 0) >= (p_spec->>'hours')::int;
+
+  elsif kind = 'pr' then
+    return (select coalesce(sum(w.points), 0) from public.workouts w
+            where w.profile_id = p_profile and w.league_id = p_league
+              and (w.created_at at time zone tz)::date = p_day)
+         > coalesce((select max(d.p) from (
+             select (w.created_at at time zone tz)::date as d, sum(w.points) as p
+             from public.workouts w
+             where w.profile_id = p_profile and w.league_id = p_league
+               and (w.created_at at time zone tz)::date < p_day
+             group by 1) d), 0);
+
+  elsif kind = 'team' then
+    select count(distinct w.profile_id) into n
+    from public.workouts w
+    where w.league_id = p_league and (w.created_at at time zone tz)::date = p_day;
+    return coalesce(n, 0) >= (p_spec->>'members')::int;
+
+  elsif kind = 'duo' then
+    return exists (
+      select 1 from public.workouts a
+      join public.workouts b on b.league_id = a.league_id
+                            and b.profile_id <> a.profile_id
+                            and abs(extract(epoch from (b.created_at - a.created_at))) <= 3600
+      where a.profile_id = p_profile and a.league_id = p_league
+        and (a.created_at at time zone tz)::date = p_day);
+
+  elsif kind = 'underdog' then
+    if not exists (select 1 from public.workouts w
+                   where w.profile_id = p_profile and w.league_id = p_league
+                     and (w.created_at at time zone tz)::date = p_day) then
+      return false;
+    end if;
+    return (select coalesce(sum(w.points), 0) from public.workouts w
+            where w.profile_id = p_profile and w.league_id = p_league
+              and w.week_start = date_trunc('week', p_day)::date)
+        <= (select min(t.p) from (
+              select w.profile_id, coalesce(sum(w.points), 0) as p
+              from public.workouts w
+              where w.league_id = p_league
+                and w.week_start = date_trunc('week', p_day)::date
+                and exists (select 1 from public.workouts x
+                            where x.profile_id = w.profile_id and x.league_id = p_league
+                              and (x.created_at at time zone tz)::date = p_day)
+              group by w.profile_id) t);
+  end if;
+  return false;
+end $$;
+
+create function public.week_bounty_points(p_league uuid, p_week date)
+returns table (profile_id uuid, bounty numeric)
+language sql stable set search_path = public as $$
+  with b as (select * from public.bounties where idx = public.bounty_index(p_week)),
+       d as (select public.bounty_date(p_week) as day)
+  select m.profile_id, (select points from b)::numeric
+  from public.league_members m
+  where m.league_id = p_league
+    and (select count(*) from b) = 1
+    and public.bounty_done(m.profile_id, p_league, (select spec from b), (select day from d))
+$$;
+
+create function public.current_bounty(p_league uuid)
+returns table (idx int, name text, descr text, points numeric,
+               on_date date, mine boolean, winners int, first_name text,
+               first_avatar text)
+language sql stable security definer set search_path = public as $$
+  with wk as (select public.current_week_start() as w),
+       b  as (select * from public.bounties where idx = public.bounty_index((select w from wk))),
+       d  as (select public.bounty_date((select w from wk)) as day),
+       done as (select profile_id from public.week_bounty_points(p_league, (select w from wk))),
+       firsts as (
+         select w2.profile_id, min(w2.created_at) as t
+         from public.workouts w2
+         where w2.league_id = p_league
+           and (w2.created_at at time zone public.app_timezone())::date = (select day from d)
+           and w2.profile_id in (select profile_id from done)
+         group by 1 order by 2 limit 1)
+  select b.idx, b.name, b.descr, b.points, (select day from d),
+         exists (select 1 from done where profile_id = public.my_profile_id()),
+         (select count(*)::int from done),
+         (select p.display_name from firsts f join public.profiles p on p.id = f.profile_id),
+         (select p.avatar from firsts f join public.profiles p on p.id = f.profile_id)
+  from b
+  where public.is_member(p_league)
+$$;
+
+-- ---------------------------------------------------------------------
 -- 8. Permissions
 -- ---------------------------------------------------------------------
 -- Internal helpers used by the RLS policies. Signed-in users must keep
@@ -809,6 +1017,10 @@ revoke all on function public.my_combo_today(uuid)          from public, anon;
 revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.combo_threshold()             from public, anon;
 revoke all on function public.is_rest_day()                 from public, anon;
+revoke all on function public.week_bounty_points(uuid,date) from public, anon;
+revoke all on function public.current_bounty(uuid)          from public, anon;
+revoke all on function public.bounty_done(uuid,uuid,jsonb,date) from public, anon;
+revoke all on function public.bounty_req(uuid,uuid,jsonb,date)  from public, anon;
 revoke all on function public.log_workout(uuid,text,text,numeric) from public, anon;
 revoke all on function public.create_challenge(uuid)        from public, anon;
 revoke all on function public.accept_challenge(text)        from public, anon;
@@ -834,6 +1046,13 @@ grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
 grant execute on function public.combo_threshold()             to authenticated;
 grant execute on function public.is_rest_day()                 to authenticated;
+grant execute on function public.bounty_dow()                  to authenticated;
+grant execute on function public.bounty_index(date)            to authenticated;
+grant execute on function public.bounty_date(date)             to authenticated;
+grant execute on function public.week_bounty_points(uuid,date) to authenticated;
+grant execute on function public.current_bounty(uuid)          to authenticated;
+grant execute on function public.bounty_done(uuid,uuid,jsonb,date) to authenticated;
+grant execute on function public.bounty_req(uuid,uuid,jsonb,date)  to authenticated;
 grant execute on function public.log_workout(uuid,text,text,numeric) to authenticated;
 grant execute on function public.create_challenge(uuid)        to authenticated;
 grant execute on function public.accept_challenge(text)        to authenticated;
@@ -842,3 +1061,61 @@ grant execute on function public.challenge_preview(text)       to authenticated;
 grant execute on function public.my_challenges()               to authenticated;
 grant execute on function public.exercise_category(text)       to authenticated;
 grant execute on function public.current_week_start()          to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 9. The 52 weekly bounties (one per week, rotating)
+-- ---------------------------------------------------------------------
+delete from public.bounties;
+insert into public.bounties (idx, name, descr, points, spec) values
+(0,'DAWN PRESS','40 push-ups before 09:00',10,'{"reqs":[{"ex":"pushups","mode":"reps","min":40,"to_h":9}]}'),
+(1,'CENTURY PUSH','100 push-ups across the day',15,'{"reqs":[{"ex":"pushups","mode":"reps","min":100}]}'),
+(2,'DIP MASTER','30 dips',15,'{"reqs":[{"ex":"dips","mode":"reps","min":30}]}'),
+(3,'DIP CENTURY','50 dips',20,'{"reqs":[{"ex":"dips","mode":"reps","min":50}]}'),
+(4,'INVERTED WORLD','60 seconds of handstand hold',15,'{"reqs":[{"ex":"handstand","mode":"seconds","min":60}]}'),
+(5,'CEILING PRESS','5 handstand push-ups',12,'{"reqs":[{"ex":"handstand","mode":"reps","min":5}]}'),
+(6,'LUNCH PRESS','30 push-ups between 12:00 and 14:00',8,'{"reqs":[{"ex":"pushups","mode":"reps","min":30,"from_h":12,"to_h":14}]}'),
+(7,'NIGHTCAP PUSH','40 push-ups after 20:00',10,'{"reqs":[{"ex":"pushups","mode":"reps","min":40,"from_h":20}]}'),
+(8,'CLOCK PUNCHER','10 push-ups in each of 5 different hours',15,'{"kind":"hourly","ex":"pushups","each":10,"hours":5}'),
+(9,'SPLIT CENTURY','50 push-ups before noon and 50 after',15,'{"kind":"split","ex":"pushups","min":50}'),
+(10,'FIRST PULL','10 pull-ups before 10:00',10,'{"reqs":[{"ex":"pullups","mode":"reps","min":10,"to_h":10}]}'),
+(11,'ROW COLLECTOR','50 inverted rows',15,'{"reqs":[{"ex":"rows","mode":"reps","min":50}]}'),
+(12,'PULL CENTURY','30 pull-ups across the day',20,'{"reqs":[{"ex":"pullups","mode":"reps","min":30}]}'),
+(13,'BAR SURGE','20 pull-ups',12,'{"reqs":[{"ex":"pullups","mode":"reps","min":20}]}'),
+(14,'PULL AND ROW','15 pull-ups and 30 rows',18,'{"reqs":[{"ex":"pullups","mode":"reps","min":15},{"ex":"rows","mode":"reps","min":30}]}'),
+(15,'MIDDAY PULL','15 pull-ups between 12:00 and 15:00',10,'{"reqs":[{"ex":"pullups","mode":"reps","min":15,"from_h":12,"to_h":15}]}'),
+(16,'SKILL WORK','3 muscle-ups, or a 10 second flag hold',20,'{"kind":"any","any":[{"ex":"muscleup","mode":"reps","min":3},{"ex":"muscleup","mode":"seconds","min":10}]}'),
+(17,'EVENING LATS','20 pull-ups after 18:00',12,'{"reqs":[{"ex":"pullups","mode":"reps","min":20,"from_h":18}]}'),
+(18,'GREASE THE GROOVE','1 pull-up in each of 8 different hours',15,'{"kind":"hourly","ex":"pullups","each":1,"hours":8}'),
+(19,'PULL DOUBLE','15 pull-ups before noon and 15 after',18,'{"kind":"split","ex":"pullups","min":15}'),
+(20,'MORNING LEGS','100 air squats before 10:00',12,'{"reqs":[{"ex":"airsquats","mode":"reps","min":100,"to_h":10}]}'),
+(21,'PISTOL PURSUIT','10 pistol squats',15,'{"reqs":[{"ex":"pistols","mode":"reps","min":10}]}'),
+(22,'PISTOL BURNER','16 pistol squats',18,'{"reqs":[{"ex":"pistols","mode":"reps","min":16}]}'),
+(23,'CORE LOCK','2 minutes of plank',10,'{"reqs":[{"ex":"plank","mode":"minutes","min":2}]}'),
+(24,'KNEE RAISE SURGE','60 knee raises',12,'{"reqs":[{"ex":"kneeraises","mode":"reps","min":60}]}'),
+(25,'THE L','30 seconds of L-sit',12,'{"reqs":[{"ex":"lsit","mode":"seconds","min":30}]}'),
+(26,'SQUAT CENTURY','100 air squats',10,'{"reqs":[{"ex":"airsquats","mode":"reps","min":100}]}'),
+(27,'AFTERNOON LEGS','80 air squats between 13:00 and 17:00',10,'{"reqs":[{"ex":"airsquats","mode":"reps","min":80,"from_h":13,"to_h":17}]}'),
+(28,'CORE AND SQUAT','50 air squats and 30 knee raises',12,'{"reqs":[{"ex":"airsquats","mode":"reps","min":50},{"ex":"kneeraises","mode":"reps","min":30}]}'),
+(29,'TWIST AND PISTOL','60 Russian twists and 6 pistol squats',15,'{"reqs":[{"ex":"twists","mode":"reps","min":60},{"ex":"pistols","mode":"reps","min":6}]}'),
+(30,'EARLY RUN','3 km before 09:00',12,'{"reqs":[{"ex":"run","mode":"km","min":3,"to_h":9}]}'),
+(31,'BIKE TOUR','10 km on the bike',12,'{"reqs":[{"ex":"bike","mode":"km","min":10}]}'),
+(32,'SPRINT FINISHER','10 sprints',12,'{"reqs":[{"ex":"sprints","mode":"reps","min":10}]}'),
+(33,'LUNCH WALK','3 km walk between 11:00 and 14:00',8,'{"reqs":[{"ex":"walk","mode":"km","min":3,"from_h":11,"to_h":14}]}'),
+(34,'POOL SESSION','30 minutes of swimming',15,'{"reqs":[{"ex":"swim","mode":"minutes","min":30}]}'),
+(35,'FIVE K','Run 5 km',15,'{"reqs":[{"ex":"run","mode":"km","min":5}]}'),
+(36,'DOUBLE MOBILITY','Two separate stretching sessions',8,'{"reqs":[{"ex":"stretch","mode":"flat","min":2}]}'),
+(37,'NIGHT WALK','4 km walk after 19:00',10,'{"reqs":[{"ex":"walk","mode":"km","min":4,"from_h":19}]}'),
+(38,'SWIM AND STRETCH','20 minutes swimming and a stretching session',12,'{"reqs":[{"ex":"swim","mode":"minutes","min":20},{"ex":"stretch","mode":"flat","min":1}]}'),
+(39,'CYCLE CENTURY','15 km on the bike',15,'{"reqs":[{"ex":"bike","mode":"km","min":15}]}'),
+(40,'MORNING DISTANCE','4 km run or 12 km bike before 11:00',15,'{"kind":"any","any":[{"ex":"run","mode":"km","min":4,"to_h":11},{"ex":"bike","mode":"km","min":12,"to_h":11}]}'),
+(41,'FULL BODY TRIAD','30 push-ups, 15 pull-ups and 30 air squats',18,'{"reqs":[{"ex":"pushups","mode":"reps","min":30},{"ex":"pullups","mode":"reps","min":15},{"ex":"airsquats","mode":"reps","min":30}]}'),
+(42,'DUO SYNC','Train within an hour of somebody else in the league',10,'{"kind":"duo"}'),
+(43,'IRON TRIFECTA','20 dips, 10 pull-ups and 50 air squats',18,'{"reqs":[{"ex":"dips","mode":"reps","min":20},{"ex":"pullups","mode":"reps","min":10},{"ex":"airsquats","mode":"reps","min":50}]}'),
+(44,'UNDERDOG BOOST','Last in the league this week? Log anything today',20,'{"kind":"underdog"}'),
+(45,'MINI MURPH','1.5 km run, 30 push-ups, 15 pull-ups, 45 air squats',25,'{"reqs":[{"ex":"run","mode":"km","min":1.5},{"ex":"pushups","mode":"reps","min":30},{"ex":"pullups","mode":"reps","min":15},{"ex":"airsquats","mode":"reps","min":45}]}'),
+(46,'MIDDAY MADNESS','Two different exercises between 12:00 and 13:00',10,'{"kind":"distinct","what":"ex","min":2,"from_h":12,"to_h":13}'),
+(47,'CENTURY CLUB','100 reps spread across 3 different exercises',15,'{"kind":"reps_across","exercises":3,"min":100}'),
+(48,'PERSONAL RECORD','Beat your own best single day of points',20,'{"kind":"pr"}'),
+(49,'TEAM SURGE','If 4 of you log today, everybody scores',10,'{"kind":"team","members":4}'),
+(50,'TRIPLE THREAT','Train three different muscle groups today',15,'{"kind":"distinct","what":"cat","min":3}'),
+(51,'NIGHT OWL','Log anything between 21:00 and midnight',8,'{"kind":"distinct","what":"ex","min":1,"from_h":21}');

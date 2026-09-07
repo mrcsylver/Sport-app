@@ -6,6 +6,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 
 - **Live weekly leaderboard** — tap any name to see everything that person logged.
 - **Daily combo bonus** — small rewards for training more than one muscle group in a day.
+- **Weekly bounty** — a rotating Thursday side quest, verified automatically.
 - **Sunday rest day** — the league closes Saturday night; only a stretch counts.
 - **Stats tab** — your own totals, this week or all time, split by muscle group.
 - **Duels** — 24 hour head to head against anyone in your league, by code.
@@ -188,6 +189,22 @@ competed the week before to win it, so it cannot be won by simply showing up.
 The stats tab tracks lifetime points against nine ranks, from SPARK at 25 up to
 IMMORTAL at 5000. They are personal, so they are worth chasing no matter where
 you sit in the table.
+
+### Weekly bounty
+
+Every week has one side quest, and it always runs on the **same weekday
+(Thursday)** so it is easy to plan around. It rotates through 52 of them, so
+the same quest does not come back for a year.
+
+- **Everybody who completes it earns the points** — it is not a race you can
+  lose by being busy in the morning.
+- The first person to finish also gets a 🩸 next to their name. Worth nothing,
+  purely for bragging.
+- **There is nothing to claim and nothing to tap.** The app reads your normal
+  logs and works out whether you did it, so a bounty cannot be faked.
+
+To change the day, edit `bounty_dow()` in `supabase/schema.sql` (1 = Monday).
+To change the quests themselves, edit the list at the bottom of that file.
 
 ### Sunday is a rest day 😴
 

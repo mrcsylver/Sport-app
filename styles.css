@@ -212,6 +212,22 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .multinote b{color:var(--txt)}
 .btn:disabled{opacity:.45}
 
+/* ---------- weekly bounty ---------- */
+.bounty{border:1px solid var(--line);border-left:3px solid var(--red-2);background:var(--panel);
+  border-radius:4px;padding:11px 12px;margin-bottom:10px}
+.bounty.got{border-left-color:var(--green);
+  background:linear-gradient(90deg,rgba(38,208,124,.10),var(--panel) 60%)}
+.bo-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.bo-tag{font-family:var(--display);font-weight:800;letter-spacing:.16em;font-size:11px;color:var(--red-2)}
+.bounty.got .bo-tag{color:var(--green)}
+.bo-pts{font-family:var(--display);font-weight:800;font-size:15px;color:var(--red-2)}
+.bounty.got .bo-pts{color:var(--green)}
+.bo-name{font-family:var(--display);font-weight:800;font-style:italic;font-size:21px;
+  text-transform:uppercase;line-height:1.1;margin-top:5px}
+.bo-desc{font-size:12.5px;color:#c2cad8;margin-top:2px}
+:root[data-theme="light"] .bo-desc{color:#3a4150}
+.bo-foot{font-size:11px;color:var(--muted);margin-top:7px;font-family:var(--mono)}
+
 /* ---------- daily combo ---------- */
 .combo{border:1px solid var(--line);border-left:3px solid var(--gold);background:var(--panel);
   border-radius:4px;padding:11px 12px;margin-bottom:10px}
