@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.4.0';
+  var APP_VERSION = '1.5.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -150,7 +150,9 @@
     OWN_CHALLENGE: 'That is your own duel code.',
     NO_SUCH_CHALLENGE: 'No duel found with that code.',
     CHALLENGE_UNAVAILABLE: 'That duel is no longer open.',
-    NOT_A_MEMBER: 'That duel belongs to a league you are not in.'
+    NOT_A_MEMBER: 'That duel belongs to a league you are not in.',
+    REST_DAY: 'Sunday is a rest day — a stretching session is the only thing that counts.',
+    REST_DAY_DONE: 'You already logged your recovery today. Rest.'
   };
   function niceError(e) {
     if (!e) return 'Something went wrong.';
@@ -194,6 +196,15 @@
     var back = (w.getUTCDay() + 6) % 7;
     return iso(new Date(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate() - back)));
   }
+  /* Sunday is a rest day: the league is closed and only recovery counts. */
+  function isRestDay() { return wallNow().getUTCDay() === 0; }
+
+  /* Instant of Saturday 23:59:59.999 — when the competition stops. */
+  function competitionEndMs(weekStartIso) {
+    var p = weekStartIso.split('-');
+    return wallToUtcMs(Date.UTC(+p[0], +p[1] - 1, +p[2] + 5, 23, 59, 59, 999));
+  }
+
   /* Instant of Sunday 23:59:59.999 that closes the given week. */
   function weekDeadlineMs(weekStartIso) {
     var p = weekStartIso.split('-');
@@ -230,7 +241,8 @@
     pendingCode: null,
     view: 'live',
     statsRange: 'week',
-    duels: []
+    duels: [],
+    restDone: false
   };
   var LS = {
     league: 'ironleague.league'
@@ -500,6 +512,7 @@
     buildExerciseSelect();
     buildPointsTable();
     buildComboRules();
+    loadRestState();
 
     if (!state.leagues.length) { renderMe(); switchView('me'); tick(); return; }
 
@@ -539,7 +552,8 @@
   var lastWeekSeen = state.week;
   function tick() {
     var wk = currentWeekStart();
-    var ms = weekDeadlineMs(wk) - Date.now();
+    var rest = isRestDay();
+    var ms = (rest ? weekDeadlineMs(wk) : competitionEndMs(wk)) - Date.now();
     if (ms < 0) ms = 0;
     var s = Math.floor(ms / 1000);
     var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
@@ -547,7 +561,10 @@
     var pad = function (n) { return String(n).padStart(2, '0'); };
     var t = $('#cdTimer');
     t.textContent = (d > 0 ? d + 'D ' : '') + pad(h) + ':' + pad(m) + ':' + pad(sec);
-    t.classList.toggle('urgent', s < 3600 * 6);
+    t.classList.toggle('urgent', s < 3600 * 6 && !rest);
+    document.querySelector('.cd-label').textContent =
+      rest ? 'REST DAY · OPENS IN' : 'LEAGUE CLOSES IN';
+    $('#countdown').classList.toggle('resting', rest);
 
     if (state.view === 'duel') tickDuel();
 
@@ -643,7 +660,7 @@
         '<span class="fx">' + esc(ex ? ex.name : w.exercise_key) +
           '<span class="famt"> · ' + num(w.amount) + ' ' + u.short + ' · ' + day + ' ' + hh + '</span></span>' +
         '<span class="fpts">+' + num(w.points) + '</span>' +
-        (w.profile_id === me
+        (w.profile_id === me && !isRestDay()
           ? '<button class="del" data-edit="' + w.id + '" title="Edit">✎</button>' +
             '<button class="del" data-del="' + w.id + '" title="Delete">✕</button>'
           : '') +
@@ -1062,6 +1079,18 @@
 
   async function loadCombo() {
     if (!state.leagueId) return;
+    if (isRestDay()) {
+      $('#comboCard').hidden = false;
+      $('#comboCard').className = 'combo rest';
+      $('#comboCard').innerHTML =
+        '<div class="combo-top"><span class="combo-t">REST DAY</span>' +
+          '<span class="combo-p">LEAGUE CLOSED</span></div>' +
+        '<div class="combo-hint">Saturday night closed the week — nothing can be ' +
+        'added, edited or deleted today. One <b>stretching session</b> is the only ' +
+        'thing that still counts. Recover, and come back Monday.</div>';
+      return;
+    }
+    $('#comboCard').className = 'combo';
     var r = await sb.rpc('my_combo_today', { p_league: state.leagueId });
     if (r.error) return;
     var got = {};
@@ -1257,6 +1286,14 @@
   var modal = { key: null, mode: null, editing: null };
 
   function buildExerciseSelect() {
+    if (isRestDay()) {
+      $('#exSelect').innerHTML = EXERCISES.filter(function (e) { return e.cat === 'RECOVERY'; })
+        .map(function (ex) {
+          return '<option value="' + ex.key + '">' + esc(ex.name) + '</option>';
+        }).join('');
+      selectExercise('stretch');
+      return;
+    }
     $('#exSelect').innerHTML = CATEGORIES.map(function (cat) {
       var list = EXERCISES.filter(function (e) { return e.cat === cat; });
       if (!list.length) return '';
@@ -1384,6 +1421,34 @@
     document.body.classList.add('modal-open');
   }
 
+  /* On a rest day, has this athlete already taken their one session? */
+  async function loadRestState() {
+    state.restDone = false;
+    if (!isRestDay() || !state.leagueId || !state.profile) return;
+    var r = await sb.from('workouts').select('created_at')
+      .eq('league_id', state.leagueId)
+      .eq('profile_id', state.profile.id)
+      .eq('week_start', state.week);
+    if (r.error || !r.data) return;
+    var today = iso(wallNow());
+    state.restDone = r.data.some(function (w) {
+      return iso(new Date(new Date(w.created_at).getTime() +
+             tzOffsetMs(new Date(w.created_at), TZ))) === today;
+    });
+  }
+
+  function applyRestMode() {
+    var rest = isRestDay();
+    $('#restNote').hidden = !rest;
+    if (!rest) { $('#addBtn').disabled = false; return; }
+    $('#restNote').innerHTML = state.restDone
+      ? '<b>Recovery already logged.</b> That is your one session for today — ' +
+        'the league opens again on Monday.'
+      : '<b>Rest day.</b> The league closed on Saturday night. One stretching ' +
+        'session is all that counts today, and only once.';
+    $('#addBtn').disabled = state.restDone;
+  }
+
   function openModal() {
     if (!state.leagueId) { toast('Join or create a league first.', true); switchView('me'); return; }
     modal.editing = null;
@@ -1400,6 +1465,7 @@
     $('#logModal').hidden = false;
     document.body.style.overflow = 'hidden';
     document.body.classList.add('modal-open');
+    loadRestState().then(applyRestMode);
   }
   async function closeModal(force) {
     $('#logModal').hidden = true;
@@ -1453,13 +1519,15 @@
       if (r.error) throw r.error;
       state.session.push(r.data);
       renderSession();
+      if (isRestDay()) { state.restDone = true; applyRestMode(); }
       toast('+' + num(r.data.points) + ' pts');
       $('#amountInput').value = unitFor(modal.key, modal.mode).def;
       updatePreview();
     } catch (e) {
       $('#modalErr').textContent = niceError(e);
     } finally {
-      btn.disabled = false; btn.textContent = label;
+      btn.textContent = label;
+      btn.disabled = isRestDay() && state.restDone;   // keep the rest lock on
     }
   });
 

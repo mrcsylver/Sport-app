@@ -6,6 +6,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 
 - **Live weekly leaderboard** — tap any name to see everything that person logged.
 - **Daily combo bonus** — small rewards for training more than one muscle group in a day.
+- **Sunday rest day** — the league closes Saturday night; only a stretch counts.
 - **Stats tab** — your own totals, this week or all time, split by muscle group.
 - **Duels** — 24 hour head to head against anyone in your league, by code.
 - **Animal avatars, light or dark theme** — set in the Leagues tab.
@@ -164,6 +165,18 @@ loads when you have no signal (you just can't post until you're back online).
 
 Variations of the same movement are worth the same. The point is to train and
 progress, not to farm the easiest option.
+
+### Sunday is a rest day 😴
+
+The league runs **Monday 00:00 → Saturday 23:59**. Saturday night it closes:
+
+- Nothing can be logged, edited or deleted on Sunday.
+- The single exception is **one stretching session** (5 pts), once, to reward
+  actually recovering.
+- The week still settles Sunday 23:59, which is the moment the new week opens.
+
+The rule is enforced by the database, not just hidden in the app, so it cannot
+be worked around.
 
 ### Daily combo
 

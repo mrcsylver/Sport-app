@@ -60,6 +60,8 @@ drop function if exists public.week_combo_bonus(p_league uuid, p_week date) casc
 drop function if exists public.weekly_history(p_league uuid) cascade;
 drop function if exists public.workouts_stamp() cascade;
 drop function if exists public.workouts_update_guard() cascade;
+drop function if exists public.is_rest_day() cascade;
+drop function if exists public.rest_day_check(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 
 -- ---------------------------------------------------------------------
 -- 1. Timezone + week helpers
@@ -75,6 +77,37 @@ create function public.current_week_start() returns date
 language sql stable set search_path = public as $$
   select (date_trunc('week', (now() at time zone public.app_timezone())))::date
 $$;
+
+-- Sunday is a rest day. The competition runs Monday 00:00 -> Saturday 23:59;
+-- on Sunday the only thing that counts is one stretching session, and nothing
+-- can be edited or deleted, so Saturday night's standings are final. The week
+-- itself is unchanged and still settles Sunday 23:59.
+create function public.is_rest_day() returns boolean
+language sql stable set search_path = public as $$
+  select extract(isodow from (now() at time zone public.app_timezone())) = 7
+$$;
+
+-- Raises if an entry breaks the rest day rule. p_at is the day the entry
+-- belongs to, so an edit is judged on its own date, not on today.
+create function public.rest_day_check(
+  p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid)
+returns void language plpgsql stable set search_path = public as $$
+declare
+  tz text := public.app_timezone();
+  d  date;
+begin
+  if extract(isodow from (p_at at time zone tz)) <> 7 then return; end if;
+  if p_key <> 'stretch' then raise exception 'REST_DAY'; end if;
+  d := (p_at at time zone tz)::date;
+  if exists (
+    select 1 from public.workouts w
+    where w.profile_id = p_profile and w.league_id = p_league
+      and (w.created_at at time zone tz)::date = d
+      and (p_exclude is null or w.id <> p_exclude)
+  ) then
+    raise exception 'REST_DAY_DONE';
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------
 -- 2. Points engine  (must stay in sync with EXERCISES in app.js)
@@ -203,7 +236,12 @@ language plpgsql set search_path = public as $$
 begin
   new.created_at := now();
   new.week_start := public.current_week_start();
-  new.points     := public.calc_points(new.exercise_key, new.mode, new.amount);
+  perform public.rest_day_check(new.profile_id, new.league_id,
+                                new.exercise_key, new.created_at, null);
+  if public.is_rest_day() then
+    new.amount := 1;                       -- one session, no stacking
+  end if;
+  new.points := public.calc_points(new.exercise_key, new.mode, new.amount);
   if new.points <= 0 then
     raise exception 'Unknown exercise or unit (% / %)', new.exercise_key, new.mode;
   end if;
@@ -227,7 +265,12 @@ begin
   new.league_id  := old.league_id;
   new.created_at := old.created_at;
   new.week_start := old.week_start;
-  new.points     := public.calc_points(new.exercise_key, new.mode, new.amount);
+  perform public.rest_day_check(new.profile_id, new.league_id,
+                                new.exercise_key, old.created_at, old.id);
+  if extract(isodow from (old.created_at at time zone public.app_timezone())) = 7 then
+    new.amount := 1;
+  end if;
+  new.points := public.calc_points(new.exercise_key, new.mode, new.amount);
   if new.points <= 0 then
     raise exception 'Unknown exercise or unit (% / %)', new.exercise_key, new.mode;
   end if;
@@ -325,10 +368,12 @@ create policy workouts_insert on public.workouts for insert to authenticated
   with check (profile_id = public.my_profile_id() and public.is_member(league_id));
 create policy workouts_delete on public.workouts for delete to authenticated
   using (profile_id = public.my_profile_id()
-         and week_start = public.current_week_start());
+         and week_start = public.current_week_start()
+         and not public.is_rest_day());
 create policy workouts_update on public.workouts for update to authenticated
   using      (profile_id = public.my_profile_id()
-              and week_start = public.current_week_start())
+              and week_start = public.current_week_start()
+              and not public.is_rest_day())
   with check (profile_id = public.my_profile_id());
 
 create policy challenges_read on public.challenges for select to authenticated
@@ -727,6 +772,7 @@ revoke all on function public.set_avatar(text)              from public, anon;
 revoke all on function public.my_combo_today(uuid)          from public, anon;
 revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.combo_threshold()             from public, anon;
+revoke all on function public.is_rest_day()                 from public, anon;
 revoke all on function public.create_challenge(uuid)        from public, anon;
 revoke all on function public.accept_challenge(text)        from public, anon;
 revoke all on function public.cancel_challenge(uuid)        from public, anon;
@@ -750,6 +796,7 @@ grant execute on function public.set_avatar(text)              to authenticated;
 grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
 grant execute on function public.combo_threshold()             to authenticated;
+grant execute on function public.is_rest_day()                 to authenticated;
 grant execute on function public.create_challenge(uuid)        to authenticated;
 grant execute on function public.accept_challenge(text)        to authenticated;
 grant execute on function public.cancel_challenge(uuid)        to authenticated;

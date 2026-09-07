@@ -199,6 +199,16 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .empty{text-align:center;color:var(--muted);padding:26px 10px;border:1px dashed var(--line-2);
   border-radius:4px;font-size:13.5px}
 
+/* ---------- rest day ---------- */
+.countdown.resting{background:linear-gradient(90deg,rgba(155,123,255,.20),rgba(155,123,255,.03))}
+.countdown.resting .cd-label{color:#b9a3ff}
+.combo.rest{border-left-color:#9b7bff}
+.combo.rest .combo-t{color:#b9a3ff}
+.restnote{border:1px solid var(--line-2);border-left:3px solid #9b7bff;background:var(--panel);
+  padding:11px 13px;border-radius:4px;font-size:12.5px;color:var(--muted);margin:12px 0 0}
+.restnote b{color:var(--txt)}
+.btn:disabled{opacity:.45}
+
 /* ---------- daily combo ---------- */
 .combo{border:1px solid var(--line);border-left:3px solid var(--gold);background:var(--panel);
   border-radius:4px;padding:11px 12px;margin-bottom:10px}
