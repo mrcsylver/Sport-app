@@ -186,6 +186,14 @@ Each finished week crowns two people: the **champion** on points, and **Most
 Improved** — the biggest gain on your own previous week. You have to have
 competed the week before to win it, so it cannot be won by simply showing up.
 
+### Duel record
+
+The stats tab keeps a lifetime **W / L / D** and your best winning run. Duel
+results are worked out from the workouts inside each duel's window rather than
+stored, and challenge rows are never deleted, so the record is permanent. It is
+lifetime regardless of the week / all-time toggle, and stays hidden until your
+first duel has been settled.
+
 ### Milestones
 
 The stats tab tracks lifetime points against nine ranks, from SPARK at 25 up to

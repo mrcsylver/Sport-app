@@ -283,6 +283,20 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cl-g{margin-left:auto;font-family:var(--display);font-weight:800;color:var(--green);font-size:15px}
 
+.drec{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);
+  border-radius:4px;padding:10px 12px;margin:0 0 16px}
+.dr-t{font-family:var(--display);font-weight:800;letter-spacing:.14em;font-size:11px;
+  color:var(--muted);margin-right:auto}
+.dr-t i{display:block;font-style:normal;font-family:var(--sans);font-weight:400;
+  letter-spacing:0;font-size:10px;opacity:.7}
+.dr-c{font-family:var(--display);font-weight:800;font-size:19px;line-height:1;
+  display:flex;align-items:baseline;gap:2px}
+.dr-c i{font-style:normal;font-size:10px;letter-spacing:.1em;opacity:.8}
+.dr-c.w{color:var(--green)}
+.dr-c.l{color:var(--muted)}
+.dr-c.d{color:var(--muted);opacity:.7}
+.dr-s{font-family:var(--mono);font-size:10px;color:var(--gold);margin-left:4px}
+
 /* ---------- milestones ---------- */
 .ms-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
 .ms-rank{font-family:var(--display);font-weight:800;font-style:italic;font-size:24px}

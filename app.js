@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.8.2';
+  var APP_VERSION = '1.9.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1283,6 +1283,9 @@
     if (r.error) { toast(niceError(r.error), true); return; }
     renderStats(r.data || []);
 
+    var rec = await sb.rpc('my_duel_record', { p_league: state.leagueId });
+    renderDuelRecord(!rec.error && rec.data && rec.data[0]);
+
     var all = state.statsRange === 'all' ? r
             : await sb.rpc('my_stats', { p_league: state.leagueId, p_all: true });
     if (!all.error) {
@@ -1331,6 +1334,21 @@
         '<span class="spts">' + num(r.total_points) + '</span>' +
       '</div>';
     }).join('');
+  }
+
+  /* Duel record is lifetime and does not follow the week/all-time toggle,
+     so it says so. Hidden entirely until the first duel has been settled. */
+  function renderDuelRecord(rec) {
+    var box = $('#duelRecord');
+    if (!rec || Number(rec.played) === 0) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML =
+      '<span class="dr-t">DUELS<i>all time</i></span>' +
+      '<span class="dr-c w">' + rec.won + '<i>W</i></span>' +
+      '<span class="dr-c l">' + rec.lost + '<i>L</i></span>' +
+      '<span class="dr-c d">' + rec.drawn + '<i>D</i></span>' +
+      (Number(rec.best_streak) > 1
+        ? '<span class="dr-s">best run ' + rec.best_streak + '</span>' : '');
   }
 
   function renderMilestones(lifetime) {

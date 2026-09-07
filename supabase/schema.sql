@@ -57,6 +57,7 @@ drop function if exists public.league_preview(p_code text) cascade;
 drop function if exists public.leave_league(p_league uuid) cascade;
 drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric) cascade;
 drop function if exists public.my_challenges() cascade;
+drop function if exists public.my_duel_record(p_league uuid) cascade;
 drop function if exists public.my_combo_today(p_league uuid) cascade;
 drop function if exists public.my_leagues() cascade;
 drop function if exists public.my_profile_id() cascade;
@@ -757,6 +758,42 @@ begin
   update public.challenges set cancelled_at = now()
    where id = p_id and challenger_id = me and accepted_at is null and cancelled_at is null;
 end $$;
+
+-- Lifetime duel record for the stats tab. Results are derived from the
+-- workouts inside each duel's window rather than stored, and the challenge
+-- rows themselves are never deleted, so the record is permanent.
+create function public.my_duel_record(p_league uuid)
+returns table (played int, won int, lost int, drawn int, best_streak int)
+language sql stable security definer set search_path = public as $$
+  with me as (select public.my_profile_id() as pid),
+  fin as (
+    select c.ends_at,
+           public.challenge_points(c.league_id, (select pid from me),
+                                   c.accepted_at, c.ends_at) as mine,
+           public.challenge_points(c.league_id,
+             case when c.challenger_id = (select pid from me)
+                  then c.opponent_id else c.challenger_id end,
+             c.accepted_at, c.ends_at) as theirs
+    from public.challenges c
+    where c.league_id = p_league
+      and (c.challenger_id = (select pid from me) or c.opponent_id = (select pid from me))
+      and public.challenge_status(c.cancelled_at, c.accepted_at,
+                                  c.ends_at, c.created_at) = 'FINISHED'
+      and public.is_member(p_league)
+  ),
+  runs as (
+    select mine > theirs as w,
+           row_number() over (order by ends_at)
+             - row_number() over (partition by mine > theirs order by ends_at) as grp
+    from fin
+  )
+  select (select count(*)::int from fin),
+         (select count(*) filter (where mine >  theirs)::int from fin),
+         (select count(*) filter (where mine <  theirs)::int from fin),
+         (select count(*) filter (where mine =  theirs)::int from fin),
+         coalesce((select max(c)::int from (
+            select count(*) as c from runs where w group by grp) s), 0)
+$$;
 
 create function public.my_challenges()
 returns table (id uuid, code text, status text, league_name text,
