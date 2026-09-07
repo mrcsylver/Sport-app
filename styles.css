@@ -237,6 +237,45 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
   padding:6px 0;font-size:21px;line-height:1.2}
 .av-opt.on{border-color:var(--red);background:rgba(255,46,46,.14)}
 
+/* ---------- divisions ---------- */
+.tierhead{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:800;
+  letter-spacing:.2em;font-size:11px;margin:16px 0 7px;padding-bottom:5px;
+  border-bottom:1px solid var(--line)}
+.tierhead:first-child{margin-top:0}
+.tierhead i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--muted);
+  letter-spacing:0;margin-left:auto}
+.tierhead.t-gold{color:var(--gold)}
+.tierhead.t-silver{color:var(--silver)}
+.tierhead.t-bronze{color:var(--bronze)}
+.row.lead-gold{border-color:rgba(255,201,60,.55);box-shadow:inset 0 0 34px -14px rgba(255,201,60,.55)}
+.row.lead-gold .rank{color:var(--gold)}
+.row.lead-silver{border-color:rgba(201,211,226,.4)}
+.row.lead-silver .rank{color:var(--silver)}
+.row.lead-bronze{border-color:rgba(208,132,66,.45)}
+.row.lead-bronze .rank{color:var(--bronze)}
+
+/* ---------- most improved ---------- */
+.climber{display:flex;align-items:center;gap:8px;padding:8px 13px;
+  border-top:1px dashed var(--line-2);background:var(--panel-2);font-size:12.5px}
+.cl-i{font-size:14px}
+.cl-t{font-family:var(--display);font-weight:800;letter-spacing:.14em;font-size:10px;color:var(--green)}
+.cl-n{font-family:var(--display);font-weight:700;font-size:15px;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl-g{margin-left:auto;font-family:var(--display);font-weight:800;color:var(--green);font-size:15px}
+
+/* ---------- milestones ---------- */
+.ms-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
+.ms-rank{font-family:var(--display);font-weight:800;font-style:italic;font-size:24px}
+.ms-next{font-size:11.5px;color:var(--muted);text-align:right}
+.ms-bar{height:10px;border-radius:2px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden}
+.ms-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--red-2),var(--red))}
+.ms-pips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.ms-pip{border:1px solid var(--line);background:var(--panel);border-radius:3px;padding:7px 4px;
+  text-align:center;font-family:var(--display);font-weight:700;font-size:10px;letter-spacing:.06em;
+  color:#4a5162}
+.ms-pip i{display:block;font-style:normal;font-family:var(--mono);font-size:10.5px;margin-bottom:2px}
+.ms-pip.on{color:var(--txt);border-color:var(--red);background:rgba(255,46,46,.10)}
+
 /* ---------- hall of fame ---------- */
 .week{border:1px solid var(--line);background:var(--panel);border-radius:4px;margin-bottom:10px;overflow:hidden}
 .week-top{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;

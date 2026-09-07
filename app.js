@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.6.0';
+  var APP_VERSION = '1.7.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -43,6 +43,10 @@
     { key: 'pistols',    cat: 'LEGS',     name: 'Pistol Squats',
       variants: 'Assisted · Full — counted per leg',
       modes: [{ mode: 'reps', rate: 2, label: '2 pts / rep' }] },
+    { key: 'calves',     cat: 'LEGS',     name: 'Calf Raises',
+      variants: 'Standing · single or double leg · full range',
+      modes: [{ mode: 'reps', rate: 0.2, label: '0.2 pt / rep',
+                def: 50, quick: [25, 50, 100, 150] }] },
 
     { key: 'kneeraises', cat: 'CORE',     name: 'Knee / Leg Raises',
       variants: 'Floor · Hanging',
@@ -50,6 +54,14 @@
     { key: 'lsit',       cat: 'CORE',     name: 'L-Sit Hold',
       variants: 'Tuck · Advanced tuck · Full',
       modes: [{ mode: 'seconds', rate: 1 / 3, label: '1 pt / 3 sec' }] },
+    { key: 'plank',      cat: 'CORE',     name: 'Plank',
+      variants: 'Forearm · High · Side — total time held',
+      modes: [{ mode: 'minutes', rate: 2, label: '2 pts / min',
+                def: 2, quick: [1, 2, 3, 5] }] },
+    { key: 'twists',     cat: 'CORE',     name: 'Russian Twists',
+      variants: 'Feet down or up · one rep = one side',
+      modes: [{ mode: 'reps', rate: 0.25, label: '0.25 pt / rep',
+                def: 40, quick: [20, 40, 60, 100] }] },
 
     { key: 'run',        cat: 'CARDIO',   name: 'Run',
       variants: 'Outdoor or treadmill',
@@ -83,6 +95,23 @@
   var COMBO_CATS = ['PUSH', 'PULL', 'LEGS', 'CORE', 'CARDIO'];
   var COMBO_MIN = 10;
   var COMBO_TIERS = [{ n: 5, pts: 12 }, { n: 4, pts: 8 }, { n: 3, pts: 5 }];
+
+  /* Divisions. Your finishing position last week decides this week's tier,
+     so it maintains itself with no bookkeeping. Ten per tier, always. */
+  var TIERS = [
+    { key: 'GOLD',   size: 10, color: 'var(--gold)' },
+    { key: 'SILVER', size: 10, color: 'var(--silver)' },
+    { key: 'BRONZE', size: 10, color: 'var(--bronze)' }
+  ];
+
+  /* Lifetime point milestones, shown on the stats tab. */
+  var MILESTONES = [
+    { at: 25,   name: 'SPARK' },     { at: 50,   name: 'ROOKIE' },
+    { at: 100,  name: 'REGULAR' },   { at: 300,  name: 'GRINDER' },
+    { at: 700,  name: 'MACHINE' },   { at: 1000, name: 'BEAST' },
+    { at: 2000, name: 'WARLORD' },   { at: 3500, name: 'TITAN' },
+    { at: 5000, name: 'IMMORTAL' }
+  ];
 
   /* Avatars: animal emoji only. Nothing to upload, nothing to host. */
   var ANIMALS = (
@@ -593,6 +622,7 @@
      =================================================================== */
   async function refreshAll() {
     await Promise.all([loadBoard(), loadHistory(), loadCombo()]);
+    renderBoard();   // divisions come from last week, which may land after the board
     renderHeader();
   }
 
@@ -614,35 +644,92 @@
     return out;
   }
 
+  /* Where everybody finished in the last completed week. */
+  function lastWeekOrder() {
+    if (!state.history.length) return null;
+    var wk = state.history[0].week_start;
+    var rows = state.history.filter(function (r) { return r.week_start === wk; })
+                 .slice().sort(function (a, b) { return b.points - a.points; });
+    if (!rows.length) return null;
+    var order = {};
+    rows.forEach(function (r, i) { order[r.profile_id] = i; });
+    return order;
+  }
+
+  /* Split the board into divisions of ten, seeded by last week's result.
+     Anyone with no result last week starts in the bottom division. */
+  function withTiers(rows) {
+    var order = lastWeekOrder();
+    if (!order) return null;
+    var seated = rows.slice().sort(function (a, b) {
+      var ai = order[a.profile_id], bi = order[b.profile_id];
+      if (ai === undefined && bi === undefined) return b.points - a.points;
+      if (ai === undefined) return 1;
+      if (bi === undefined) return -1;
+      return ai - bi;
+    });
+    var tierOf = {}, i = 0;
+    TIERS.forEach(function (t) {
+      seated.slice(i, i + t.size).forEach(function (r) { tierOf[r.profile_id] = t.key; });
+      i += t.size;
+    });
+    seated.slice(i).forEach(function (r) { tierOf[r.profile_id] = 'BRONZE'; });
+
+    return TIERS.map(function (t) {
+      var members = rows.filter(function (r) { return tierOf[r.profile_id] === t.key; })
+                        .sort(function (a, b) { return b.points - a.points; });
+      return { tier: t, rows: members };
+    }).filter(function (g) { return g.rows.length; });
+  }
+
+  function boardRow(p, rank, tierKey) {
+    var me = state.profile ? state.profile.id : null;
+    var pts = Number(p.points) || 0;
+    var lead = rank === 1 && pts > 0;
+    var cls = 'row' + (tierKey
+        ? (lead ? ' lead-' + tierKey.toLowerCase() : '')
+        : (rank && rank <= 3 && pts > 0 ? ' r' + rank : '')) +
+      (p.profile_id === me ? ' me' : '');
+    var open = !!state.open[p.profile_id];
+    return '<div class="' + cls + '" data-id="' + p.profile_id + '">' +
+      '<button class="rowbtn" type="button" data-toggle="' + p.profile_id + '">' +
+        '<span class="rank">' + (rank && pts > 0 ? rank : '–') + '</span>' +
+        (p.avatar ? '<span class="av">' + esc(p.avatar) + '</span>' : '') +
+        '<span class="who"><span class="nm">' + esc(p.display_name) +
+          (p.profile_id === me ? ' <span class="muted" style="font-size:11px">(YOU)</span>' : '') +
+        '</span>' +
+        '<span class="sub">' + p.entries + (Number(p.entries) === 1 ? ' entry' : ' entries') +
+          (Number(p.bonus) > 0 ? ' · <b class="cbadge">+' + num(p.bonus) + ' combo</b>' : '') +
+        '</span></span>' +
+        '<span class="pts">' + num(pts) + '<small>PTS</small></span>' +
+        '<span class="chev">' + (open ? '▲' : '▼') + '</span>' +
+      '</button>' +
+      (open ? '<div class="feed" data-feed="' + p.profile_id + '">' +
+                (state.feeds[p.profile_id] ? feedHtml(state.feeds[p.profile_id]) :
+                 '<div class="muted small" style="padding:8px 0">Loading…</div>') +
+              '</div>' : '') +
+    '</div>';
+  }
+
   function renderBoard() {
     var box = $('#board');
     if (!state.board.length) {
       box.innerHTML = '<div class="empty">Nobody here yet. Share your link!</div>';
       return;
     }
+    var groups = withTiers(state.board);
+    if (groups) {
+      box.innerHTML = groups.map(function (g) {
+        return '<div class="tierhead t-' + g.tier.key.toLowerCase() + '">' + g.tier.key +
+               '<i>' + g.rows.length + '</i></div>' +
+               g.rows.map(function (p, i) { return boardRow(p, i + 1, g.tier.key); }).join('');
+      }).join('') +
+      '<p class="hint">Your division is set by where you finished last week.</p>';
+      return;
+    }
     var me = state.profile ? state.profile.id : null;
     var html = ranked(state.board).map(function (r) {
-      var p = r.row, pts = Number(p.points) || 0;
-      var cls = 'row' + (r.rank && r.rank <= 3 ? ' r' + r.rank : '') + (p.profile_id === me ? ' me' : '');
-      var open = !!state.open[p.profile_id];
-      return '<div class="' + cls + '" data-id="' + p.profile_id + '">' +
-        '<button class="rowbtn" type="button" data-toggle="' + p.profile_id + '">' +
-          '<span class="rank">' + (r.rank ? r.rank : '–') + '</span>' +
-          (p.avatar ? '<span class="av">' + esc(p.avatar) + '</span>' : '') +
-          '<span class="who"><span class="nm">' + esc(p.display_name) +
-            (p.profile_id === me ? ' <span class="muted" style="font-size:11px">(YOU)</span>' : '') +
-          '</span>' +
-          '<span class="sub">' + p.entries + (Number(p.entries) === 1 ? ' entry' : ' entries') +
-            (Number(p.bonus) > 0 ? ' · <b class="cbadge">+' + num(p.bonus) + ' combo</b>' : '') +
-          '</span></span>' +
-          '<span class="pts">' + num(pts) + '<small>PTS</small></span>' +
-          '<span class="chev">' + (open ? '▲' : '▼') + '</span>' +
-        '</button>' +
-        (open ? '<div class="feed" data-feed="' + p.profile_id + '">' +
-                  (state.feeds[p.profile_id] ? feedHtml(state.feeds[p.profile_id]) :
-                   '<div class="muted small" style="padding:8px 0">Loading…</div>') +
-                '</div>' : '') +
-      '</div>';
+      return boardRow(r.row, r.rank, null);
     }).join('');
     box.innerHTML = html;
   }
@@ -736,10 +823,25 @@
       if (!byWeek[r.week_start]) { byWeek[r.week_start] = []; weeks.push(r.week_start); }
       byWeek[r.week_start].push(r);
     });
-    box.innerHTML = weeks.map(function (wk) {
+    box.innerHTML = weeks.map(function (wk, wi) {
       var rows = byWeek[wk].slice().sort(function (a, b) { return b.points - a.points; });
       var win = rows[0];
       var open = !!state.openWeeks[wk];
+
+      /* Most improved: biggest gain on your own previous week. You have to
+         have been there the week before, so nobody wins it by appearing. */
+      var prevWk = weeks[wi + 1], climber = null;
+      if (prevWk) {
+        var prev = {};
+        byWeek[prevWk].forEach(function (r) { prev[r.profile_id] = Number(r.points); });
+        rows.forEach(function (r) {
+          if (prev[r.profile_id] === undefined) return;
+          var gain = Number(r.points) - prev[r.profile_id];
+          if (gain > 0 && (!climber || gain > climber.gain)) {
+            climber = { row: r, gain: gain };
+          }
+        });
+      }
       return '<div class="week">' +
         '<button class="week-top" type="button" data-week="' + wk + '">' +
           '<span class="crown">👑</span>' +
@@ -750,6 +852,11 @@
             '<span class="muted" style="font-size:10px;letter-spacing:.14em">PTS</span></span>' +
           '<span class="week-chev">' + (open ? '▲' : '▼') + '</span>' +
         '</button>' +
+        (climber ? '<div class="climber"><span class="cl-i">📈</span>' +
+            '<span class="cl-t">MOST IMPROVED</span>' +
+            '<span class="cl-n">' + (climber.row.avatar ? esc(climber.row.avatar) + ' ' : '') +
+              esc(climber.row.display_name) + '</span>' +
+            '<span class="cl-g">+' + num(climber.gain) + '</span></div>' : '') +
         (open ? '<div class="week-body">' + rows.map(function (r, i) {
             return '<div class="mini"><span class="mn">' + (i + 1) + '. ' + esc(r.display_name) +
                    '</span><span class="mp">' + num(r.points) + ' pts · ' + r.entries + '</span></div>';
@@ -1147,6 +1254,13 @@
     });
     if (r.error) { toast(niceError(r.error), true); return; }
     renderStats(r.data || []);
+
+    var all = state.statsRange === 'all' ? r
+            : await sb.rpc('my_stats', { p_league: state.leagueId, p_all: true });
+    if (!all.error) {
+      renderMilestones((all.data || []).reduce(function (a2, x) {
+        return a2 + Number(x.total_points); }, 0));
+    }
   }
 
   function renderStats(rows) {
@@ -1189,6 +1303,28 @@
         '<span class="spts">' + num(r.total_points) + '</span>' +
       '</div>';
     }).join('');
+  }
+
+  function renderMilestones(lifetime) {
+    var next = null, done = [];
+    MILESTONES.forEach(function (m) {
+      if (lifetime >= m.at) done.push(m); else if (!next) next = m;
+    });
+    var last = done.length ? done[done.length - 1] : null;
+    var from = last ? last.at : 0;
+    var pct = next ? Math.min(100, (lifetime - from) / (next.at - from) * 100) : 100;
+    $('#milestones').innerHTML =
+      '<div class="ms-top">' +
+        '<span class="ms-rank">' + (last ? last.name : 'UNRANKED') + '</span>' +
+        '<span class="ms-next">' + (next
+          ? num(Math.max(0, next.at - lifetime)) + ' pts to ' + next.name
+          : 'every milestone taken') + '</span>' +
+      '</div>' +
+      '<div class="ms-bar"><span style="width:' + pct.toFixed(1) + '%"></span></div>' +
+      '<div class="ms-pips">' + MILESTONES.map(function (m) {
+        return '<span class="ms-pip' + (lifetime >= m.at ? ' on' : '') + '">' +
+               '<i>' + m.at + '</i>' + m.name + '</span>';
+      }).join('') + '</div>';
   }
 
   $('#statsRange').addEventListener('click', function (e) {

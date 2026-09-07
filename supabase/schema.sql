@@ -130,9 +130,12 @@ returns numeric language sql immutable set search_path = public as $$
       -- LEGS
       when p_key = 'airsquats'  and p_mode = 'reps'    then p_amount * 0.5
       when p_key = 'pistols'    and p_mode = 'reps'    then p_amount * 2
+      when p_key = 'calves'     and p_mode = 'reps'    then p_amount * 0.2
       -- CORE
       when p_key = 'kneeraises' and p_mode = 'reps'    then p_amount * 1
       when p_key = 'lsit'       and p_mode = 'seconds' then p_amount / 3
+      when p_key = 'plank'      and p_mode = 'minutes' then p_amount * 2
+      when p_key = 'twists'     and p_mode = 'reps'    then p_amount * 0.25
       -- CARDIO   (a "sprint" is one 15 sec / 100 m effort)
       when p_key = 'run'        and p_mode = 'km'      then p_amount * 5
       when p_key = 'sprints'    and p_mode = 'reps'    then p_amount * 2
@@ -150,8 +153,9 @@ language sql immutable set search_path = public as $$
   select case p_key
     when 'pushups' then 'PUSH'  when 'dips' then 'PUSH'  when 'handstand' then 'PUSH'
     when 'rows' then 'PULL'     when 'pullups' then 'PULL' when 'muscleup' then 'PULL'
-    when 'airsquats' then 'LEGS' when 'pistols' then 'LEGS'
+    when 'airsquats' then 'LEGS' when 'pistols' then 'LEGS' when 'calves' then 'LEGS'
     when 'kneeraises' then 'CORE' when 'lsit' then 'CORE'
+    when 'plank' then 'CORE'     when 'twists' then 'CORE'
     when 'run' then 'CARDIO'    when 'sprints' then 'CARDIO' when 'bike' then 'CARDIO'
     when 'swim' then 'CARDIO'   when 'walk' then 'CARDIO'
     when 'stretch' then 'RECOVERY'

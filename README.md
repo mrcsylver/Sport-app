@@ -155,8 +155,11 @@ loads when you have no signal (you just can't post until you're back online).
 | | Muscle-up / Flag Hold | 3.5 pts / rep · 2 pts / sec |
 | **Legs** | Air Squats | 0.5 pt / rep |
 | | Pistol Squats *(per leg)* | 2 pts / rep |
+| | Calf Raises | 0.2 pt / rep |
 | **Core** | Knee / Leg Raises *(floor · hanging)* | 1 pt / rep |
 | | L-Sit Hold *(tuck → full)* | 1 pt / 3 sec |
+| | Plank *(forearm · high · side)* | 2 pts / min |
+| | Russian Twists *(one rep = one side)* | 0.25 pt / rep |
 | **Cardio** | Run | 5 pts / km |
 | | Sprint Intervals *(one sprint = 15 sec / 100 m)* | 2 pts / sprint |
 | | Biking | 1.5 pts / km |
@@ -166,6 +169,25 @@ loads when you have no signal (you just can't post until you're back online).
 
 Variations of the same movement are worth the same. The point is to train and
 progress, not to farm the easiest option.
+
+### Divisions
+
+From the second week on, the standings are split into **Gold / Silver / Bronze,
+ten athletes each**. Your division is simply where you finished last week, so
+it maintains itself — finish top ten and you are in Gold next week. Anyone who
+did not compete last week starts in the bottom division.
+
+### Hall of Fame
+
+Each finished week crowns two people: the **champion** on points, and **Most
+Improved** — the biggest gain on your own previous week. You have to have
+competed the week before to win it, so it cannot be won by simply showing up.
+
+### Milestones
+
+The stats tab tracks lifetime points against nine ranks, from SPARK at 25 up to
+IMMORTAL at 5000. They are personal, so they are worth chasing no matter where
+you sit in the table.
 
 ### Sunday is a rest day 😴
 
