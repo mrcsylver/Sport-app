@@ -75,21 +75,21 @@ returns numeric language sql immutable set search_path = public as $$
       when p_key = 'rows'       and p_mode = 'reps'    then p_amount * 1
       when p_key = 'pullups'    and p_mode = 'reps'    then p_amount * 2
       when p_key = 'muscleup'   and p_mode = 'reps'    then p_amount * 3.5
-      when p_key = 'muscleup'   and p_mode = 'seconds' then p_amount * 1
+      when p_key = 'muscleup'   and p_mode = 'seconds' then p_amount * 2
       -- LEGS
       when p_key = 'airsquats'  and p_mode = 'reps'    then p_amount * 0.5
       when p_key = 'pistols'    and p_mode = 'reps'    then p_amount * 2
       -- CORE
       when p_key = 'kneeraises' and p_mode = 'reps'    then p_amount * 1
       when p_key = 'lsit'       and p_mode = 'seconds' then p_amount / 3
-      -- CARDIO
+      -- CARDIO   (a "sprint" is one 15 sec / 100 m effort)
       when p_key = 'run'        and p_mode = 'km'      then p_amount * 5
-      when p_key = 'sprints'    and p_mode = 'minutes' then p_amount * 4
+      when p_key = 'sprints'    and p_mode = 'reps'    then p_amount * 2
       when p_key = 'bike'       and p_mode = 'km'      then p_amount * 1.5
-      when p_key = 'swim'       and p_mode = 'minutes' then p_amount * 8 / 15
+      when p_key = 'swim'       and p_mode = 'minutes' then p_amount * 8 / 60
       when p_key = 'walk'       and p_mode = 'km'      then p_amount * 2.5
-      -- RECOVERY
-      when p_key = 'stretch'    and p_mode = 'flat'    then p_amount * 2
+      -- RECOVERY (10 minutes minimum)
+      when p_key = 'stretch'    and p_mode = 'flat'    then p_amount * 5
     end, 0), 2)
 $$;
 
@@ -121,6 +121,7 @@ create table public.profiles (
                  check (char_length(btrim(display_name)) between 2 and 18),
   restore_code text not null unique
                  default upper(substr(md5(gen_random_uuid()::text), 1, 8)),
+  avatar       text check (avatar is null or char_length(avatar) between 1 and 8),
   created_at   timestamptz not null default now()
 );
 
@@ -422,42 +423,111 @@ language sql stable security definer set search_path = public as $$
   order by m.joined_at
 $$;
 
--- The live board. Every member appears, even on 0 points.
+-- The live board. Every member appears, even on 0 points, and each total
+-- already includes that week's daily combo bonuses.
 create function public.league_leaderboard(p_league uuid, p_week date default null)
-returns table (profile_id uuid, display_name text, points numeric,
+returns table (profile_id uuid, display_name text, avatar text,
+               points numeric, base_points numeric, bonus numeric,
                entries bigint, joined_at timestamptz)
 language sql stable security definer set search_path = public as $$
-  select p.id, p.display_name,
+  with wk as (select coalesce(p_week, public.current_week_start()) as w),
+  cb as (select * from public.week_combo_bonus(p_league, (select w from wk)))
+  select p.id, p.display_name, p.avatar,
+         (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0))::numeric,
          coalesce(sum(w.points), 0)::numeric,
-         count(w.id),
-         m.joined_at
+         coalesce(max(cb.bonus), 0)::numeric,
+         count(w.id), m.joined_at
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
   left join public.workouts w
-         on w.profile_id = p.id
-        and w.league_id  = p_league
-        and w.week_start = coalesce(p_week, public.current_week_start())
-  where m.league_id = p_league
-    and public.is_member(p_league)
-  group by p.id, p.display_name, m.joined_at
-  order by 3 desc, 5 asc
+         on w.profile_id = p.id and w.league_id = p_league
+        and w.week_start = (select w from wk)
+  left join cb on cb.profile_id = p.id
+  where m.league_id = p_league and public.is_member(p_league)
+  group by p.id, p.display_name, p.avatar, m.joined_at
+  order by 4 desc, 8 asc
 $$;
 
 -- Every finished week, best first — used by the Hall of Fame tab.
 create function public.weekly_history(p_league uuid)
-returns table (week_start date, profile_id uuid, display_name text,
+returns table (week_start date, profile_id uuid, display_name text, avatar text,
                points numeric, entries bigint)
 language sql stable security definer set search_path = public as $$
-  select w.week_start, p.id, p.display_name,
-         sum(w.points)::numeric, count(*)
-  from public.workouts w
-  join public.profiles p on p.id = w.profile_id
-  where w.league_id = p_league
-    and w.week_start < public.current_week_start()
-    and public.is_member(p_league)
-  group by w.week_start, p.id, p.display_name
-  order by w.week_start desc, 4 desc
+  select t.week_start, t.profile_id, t.display_name, t.avatar,
+         (t.pts + coalesce(cb.bonus, 0))::numeric, t.n
+  from (
+    select w.week_start, p.id as profile_id, p.display_name, p.avatar,
+           sum(w.points) as pts, count(*) as n
+    from public.workouts w
+    join public.profiles p on p.id = w.profile_id
+    where w.league_id = p_league
+      and w.week_start < public.current_week_start()
+      and public.is_member(p_league)
+    group by w.week_start, p.id, p.display_name, p.avatar
+  ) t
+  left join lateral (
+    select bonus from public.week_combo_bonus(p_league, t.week_start) b
+    where b.profile_id = t.profile_id
+  ) cb on true
+  order by t.week_start desc, 5 desc
 $$;
+
+-- Daily combo: cover several muscle groups in one day for a small bonus.
+-- Recovery is excluded so a stretch cannot buy a group.
+create function public.combo_threshold() returns numeric
+language sql immutable set search_path = public as $$ select 10::numeric $$;
+
+create function public.week_combo_bonus(p_league uuid, p_week date)
+returns table (profile_id uuid, bonus numeric, best_day int)
+language sql stable set search_path = public as $$
+  with daily as (
+    select w.profile_id,
+           (w.created_at at time zone public.app_timezone())::date as d,
+           public.exercise_category(w.exercise_key) as cat,
+           sum(w.points) as pts
+    from public.workouts w
+    where w.league_id  = p_league
+      and w.week_start = p_week
+      and public.exercise_category(w.exercise_key) <> 'RECOVERY'
+    group by 1, 2, 3
+  ),
+  cov as (
+    select profile_id, d, count(*)::int as cats
+    from daily where pts >= public.combo_threshold() group by 1, 2
+  )
+  select profile_id,
+         sum(case when cats >= 5 then 12
+                  when cats  = 4 then 8
+                  when cats  = 3 then 5
+                  else 0 end)::numeric,
+         max(cats)
+  from cov group by 1
+$$;
+
+create function public.my_combo_today(p_league uuid)
+returns table (category text, points numeric)
+language sql stable security definer set search_path = public as $$
+  select public.exercise_category(w.exercise_key), sum(w.points)::numeric
+  from public.workouts w
+  where w.league_id  = p_league
+    and w.profile_id = public.my_profile_id()
+    and (w.created_at at time zone public.app_timezone())::date
+        = (now() at time zone public.app_timezone())::date
+    and public.exercise_category(w.exercise_key) <> 'RECOVERY'
+    and public.is_member(p_league)
+  group by 1
+$$;
+
+create function public.set_avatar(p_avatar text)
+returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare p public.profiles;
+begin
+  update public.profiles set avatar = nullif(btrim(p_avatar), '')
+   where user_id = auth.uid() returning * into p;
+  if not found then raise exception 'NO_PROFILE'; end if;
+  return p;
+end $$;
 
 -- Personal totals for the stats tab.
 create function public.my_stats(p_league uuid, p_all boolean default false)
@@ -501,6 +571,10 @@ revoke all on function public.my_leagues()                  from public, anon;
 revoke all on function public.league_leaderboard(uuid,date) from public, anon;
 revoke all on function public.weekly_history(uuid)          from public, anon;
 revoke all on function public.my_stats(uuid, boolean)       from public, anon;
+revoke all on function public.set_avatar(text)              from public, anon;
+revoke all on function public.my_combo_today(uuid)          from public, anon;
+revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
+revoke all on function public.combo_threshold()             from public, anon;
 revoke all on function public.exercise_category(text)       from public, anon;
 revoke all on function public.current_week_start()          from public, anon;
 
@@ -515,5 +589,9 @@ grant execute on function public.my_leagues()                  to authenticated;
 grant execute on function public.league_leaderboard(uuid,date) to authenticated;
 grant execute on function public.weekly_history(uuid)          to authenticated;
 grant execute on function public.my_stats(uuid, boolean)       to authenticated;
+grant execute on function public.set_avatar(text)              to authenticated;
+grant execute on function public.my_combo_today(uuid)          to authenticated;
+grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
+grant execute on function public.combo_threshold()             to authenticated;
 grant execute on function public.exercise_category(text)       to authenticated;
 grant execute on function public.current_week_start()          to authenticated;

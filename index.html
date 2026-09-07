@@ -108,6 +108,7 @@
         <h2>LIVE STANDINGS</h2>
         <span class="muted small mono" id="weekLabel"></span>
       </div>
+      <div id="comboCard" class="combo" hidden></div>
       <div id="board" class="board"></div>
       <p class="hint">Tap a name to see everything they logged this week.</p>
     </section>
@@ -193,6 +194,19 @@
           <button type="button" data-theme="auto">AUTO</button>
         </div>
         <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
+      </div>
+
+      <div class="panel">
+        <h3>PICK YOUR ANIMAL</h3>
+        <p class="muted small">Shown next to your name on the board.</p>
+        <div id="avatarGrid" class="avgrid"></div>
+        <button id="avatarClear" class="btn ghost sm" type="button"
+                style="width:100%;margin-top:10px">NO ANIMAL</button>
+      </div>
+
+      <div class="panel">
+        <h3>DAILY COMBO</h3>
+        <div id="comboRules"></div>
       </div>
 
       <div class="panel">

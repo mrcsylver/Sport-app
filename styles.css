@@ -199,6 +199,31 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .empty{text-align:center;color:var(--muted);padding:26px 10px;border:1px dashed var(--line-2);
   border-radius:4px;font-size:13.5px}
 
+/* ---------- daily combo ---------- */
+.combo{border:1px solid var(--line);border-left:3px solid var(--gold);background:var(--panel);
+  border-radius:4px;padding:11px 12px;margin-bottom:10px}
+.combo-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+.combo-t{font-family:var(--display);font-weight:800;letter-spacing:.16em;font-size:12px}
+.combo-p{font-family:var(--display);font-weight:800;font-size:12px;letter-spacing:.1em;color:var(--muted)}
+.combo-p.on{color:var(--gold)}
+.combo-pips{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.pip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:3px;
+  border:1px solid var(--line);background:var(--panel-2);
+  font-family:var(--display);font-weight:700;font-size:9.5px;letter-spacing:.06em;color:var(--muted)}
+.pip i{font-family:var(--mono);font-style:normal;font-size:9px;opacity:.75}
+.pip.done{border-color:var(--gold);color:var(--gold);
+  background:linear-gradient(180deg,rgba(255,201,60,.16),transparent)}
+.combo-hint{margin-top:8px;font-size:11.5px;color:var(--muted)}
+.cbadge{color:var(--gold);font-family:var(--display);font-weight:800;letter-spacing:.04em}
+.av{font-size:22px;line-height:1;flex:0 0 auto;margin-right:-3px}
+
+/* ---------- avatar picker ---------- */
+.avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:6px;
+  max-height:230px;overflow-y:auto;padding:3px;-webkit-overflow-scrolling:touch}
+.av-opt{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
+  padding:6px 0;font-size:21px;line-height:1.2}
+.av-opt.on{border-color:var(--red);background:rgba(255,46,46,.14)}
+
 /* ---------- hall of fame ---------- */
 .week{border:1px solid var(--line);background:var(--panel);border-radius:4px;margin-bottom:10px;overflow:hidden}
 .week-top{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;

@@ -5,6 +5,9 @@ real app) where you and up to 19 friends log calisthenics work, score points, an
 fight for the weekly crown. The week resets **every Sunday at 23:59**.
 
 - **Live weekly leaderboard** — tap any name to see everything that person logged.
+- **Daily combo bonus** — small rewards for training more than one muscle group in a day.
+- **Stats tab** — your own totals, this week or all time, split by muscle group.
+- **Animal avatars, light or dark theme** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
@@ -143,23 +146,38 @@ loads when you have no signal (you just can't post until you're back online).
 |---|---|---|
 | **Push** | Push-ups *(incline · standard · diamond)* | 1 pt / rep |
 | | Dips *(bench · bars · rings)* | 1.5 pts / rep |
-| | Handstand Push-up / Hold | 2.5 pts / rep · 1 pt / 5 sec |
+| | Handstand Push-up / Hold *(wall · hanging · free)* | 2.5 pts / rep · 1 pt / 5 sec |
 | **Pull** | Inverted Rows *(table · low bar · rings)* | 1 pt / rep |
 | | Pull-ups *(full range only)* | 2 pts / rep |
-| | Muscle-up / Flag Hold | 3.5 pts / rep · 1 pt / sec |
+| | Muscle-up / Flag Hold | 3.5 pts / rep · 2 pts / sec |
 | **Legs** | Air Squats | 0.5 pt / rep |
 | | Pistol Squats *(per leg)* | 2 pts / rep |
 | **Core** | Knee / Leg Raises *(floor · hanging)* | 1 pt / rep |
 | | L-Sit Hold *(tuck → full)* | 1 pt / 3 sec |
 | **Cardio** | Run | 5 pts / km |
-| | Sprint Intervals *(active time only)* | 4 pts / min |
+| | Sprint Intervals *(one sprint = 15 sec / 100 m)* | 2 pts / sprint |
 | | Biking | 1.5 pts / km |
-| | Swim *(active swim time)* | 8 pts / 15 min |
+| | Swim *(active swim time)* | 8 pts / hour |
 | | Walking | 2.5 pts / km |
-| **Recovery** | Stretching Session *(15 min+)* | 2 pts flat |
+| **Recovery** | Stretching Session *(10 min minimum)* | 5 pts flat |
 
 Variations of the same movement are worth the same. The point is to train and
 progress, not to farm the easiest option.
+
+### Daily combo
+
+Score at least **10 points in different muscle groups on the same day** and a
+bonus is added automatically:
+
+| Groups covered in one day | Bonus |
+|---|---|
+| 3 | +5 |
+| 4 | +8 |
+| 5 | +12 |
+
+Only the highest tier counts. Eligible groups are Push, Pull, Legs, Core and
+Cardio — **Recovery does not count**, so stretching cannot be used to buy a
+group. The live tab shows which groups you have already covered today.
 
 Points are always calculated **on the server**, so nobody can fake a score by
 fiddling with their phone. A week runs **Monday 00:00 → Sunday 23:59**; when it

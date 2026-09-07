@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.2.0';
+  var APP_VERSION = '1.3.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -22,7 +22,7 @@
       variants: 'Bench · Parallel bars · Rings',
       modes: [{ mode: 'reps', rate: 1.5, label: '1.5 pts / rep' }] },
     { key: 'handstand',  cat: 'PUSH',     name: 'Handstand Push-up / Hold',
-      variants: 'Wall-assisted · Freestanding',
+      variants: 'Against a wall · Hanging · Freestanding',
       modes: [{ mode: 'reps', rate: 2.5, label: '2.5 pts / rep' },
               { mode: 'seconds', rate: 1 / 5, label: '1 pt / 5 sec' }] },
 
@@ -35,7 +35,7 @@
     { key: 'muscleup',   cat: 'PULL',     name: 'Muscle-up / Flag Hold',
       variants: 'Bar · Rings · Human flag',
       modes: [{ mode: 'reps', rate: 3.5, label: '3.5 pts / rep' },
-              { mode: 'seconds', rate: 1, label: '1 pt / sec' }] },
+              { mode: 'seconds', rate: 2, label: '2 pts / sec' }] },
 
     { key: 'airsquats',  cat: 'LEGS',     name: 'Air Squats',
       variants: 'Bodyweight squats',
@@ -55,26 +55,45 @@
       variants: 'Outdoor or treadmill',
       modes: [{ mode: 'km', rate: 5, label: '5 pts / km' }] },
     { key: 'sprints',    cat: 'CARDIO',   name: 'Sprint Intervals',
-      variants: 'Active sprint time only, not the rests',
-      modes: [{ mode: 'minutes', rate: 4, label: '4 pts / min' }] },
+      variants: 'One sprint = 15 sec flat out, 100 m minimum',
+      modes: [{ mode: 'reps', rate: 2, label: '2 pts / sprint',
+                short: 'sprints', unitLabel: 'SPRINTS', step: 1, def: 6,
+                quick: [4, 6, 8, 12] }] },
     { key: 'bike',       cat: 'CARDIO',   name: 'Biking',
       variants: 'Road · Trail · Stationary',
       modes: [{ mode: 'km', rate: 1.5, label: '1.5 pts / km' }] },
     { key: 'swim',       cat: 'CARDIO',   name: 'Swim',
       variants: 'Any stroke · active swim time',
-      modes: [{ mode: 'minutes', rate: 8 / 15, label: '8 pts / 15 min',
-                quick: [15, 30, 45, 60] }] },
+      modes: [{ mode: 'minutes', rate: 8 / 60, label: '8 pts / hour',
+                def: 30, quick: [30, 45, 60, 90] }] },
     { key: 'walk',       cat: 'CARDIO',   name: 'Walking',
       variants: 'Hiking counts too',
       modes: [{ mode: 'km', rate: 2.5, label: '2.5 pts / km' }] },
 
     { key: 'stretch',    cat: 'RECOVERY', name: 'Stretching Session',
-      variants: '15 minutes or more · mobility, yoga',
-      modes: [{ mode: 'flat', rate: 2, label: '2 pts flat' }] }
+      variants: 'At least 10 minutes of stretching · mobility, yoga',
+      modes: [{ mode: 'flat', rate: 5, label: '5 pts / session' }] }
   ];
 
   /* Order the categories appear in menus and on the scoring card. */
   var CATEGORIES = ['PUSH', 'PULL', 'LEGS', 'CORE', 'CARDIO', 'RECOVERY'];
+
+  /* Muscle groups that count towards the daily combo (recovery is excluded
+     so a stretch cannot buy a group). Mirrors week_combo_bonus() in SQL. */
+  var COMBO_CATS = ['PUSH', 'PULL', 'LEGS', 'CORE', 'CARDIO'];
+  var COMBO_MIN = 10;
+  var COMBO_TIERS = [{ n: 5, pts: 12 }, { n: 4, pts: 8 }, { n: 3, pts: 5 }];
+
+  /* Avatars: animal emoji only. Nothing to upload, nothing to host. */
+  var ANIMALS = (
+    '🐶🐱🐭🐹🐰🦊🐻🐼🐨🐯🦁🐮🐷🐸🐵🙈🙉🙊🐒🦍🦧' +
+    '🐔🐧🐦🐤🦆🦅🦉🦇🦜🦚🦢🦩🐓🦃🕊️' +
+    '🐺🐗🐴🦄🦓🦌🐪🐫🦒🦘🐘🦛🦏🐃🐂🐄🐎🐖🐏🐑🦙🐐' +
+    '🐕🐩🦮🐈🐇🦝🦨🦡🦦🦥🐁🐀🐿️🦔' +
+    '🐝🐛🦋🐌🐞🐜🦗🕷️🦂' +
+    '🐢🐍🦎🦖🦕🐊' +
+    '🐙🦑🦐🦞🦀🐡🐠🐟🐬🐳🐋🦈'
+  ).match(/\p{Extended_Pictographic}\uFE0F?/gu) || [];
 
   var UNITS = {
     reps:    { label: 'REPS',       short: 'reps', step: 1,   def: 10, quick: [5, 10, 20, 50] },
@@ -474,6 +493,7 @@
 
     buildExerciseSelect();
     buildPointsTable();
+    buildComboRules();
 
     if (!state.leagues.length) { renderMe(); switchView('me'); tick(); return; }
 
@@ -547,7 +567,7 @@
      9. Live leaderboard
      =================================================================== */
   async function refreshAll() {
-    await Promise.all([loadBoard(), loadHistory()]);
+    await Promise.all([loadBoard(), loadHistory(), loadCombo()]);
     renderHeader();
   }
 
@@ -583,10 +603,13 @@
       return '<div class="' + cls + '" data-id="' + p.profile_id + '">' +
         '<button class="rowbtn" type="button" data-toggle="' + p.profile_id + '">' +
           '<span class="rank">' + (r.rank ? r.rank : '–') + '</span>' +
+          (p.avatar ? '<span class="av">' + esc(p.avatar) + '</span>' : '') +
           '<span class="who"><span class="nm">' + esc(p.display_name) +
             (p.profile_id === me ? ' <span class="muted" style="font-size:11px">(YOU)</span>' : '') +
           '</span>' +
-          '<span class="sub">' + p.entries + (Number(p.entries) === 1 ? ' entry' : ' entries') + '</span></span>' +
+          '<span class="sub">' + p.entries + (Number(p.entries) === 1 ? ' entry' : ' entries') +
+            (Number(p.bonus) > 0 ? ' · <b class="cbadge">+' + num(p.bonus) + ' combo</b>' : '') +
+          '</span></span>' +
           '<span class="pts">' + num(pts) + '<small>PTS</small></span>' +
           '<span class="chev">' + (open ? '▲' : '▼') + '</span>' +
         '</button>' +
@@ -604,7 +627,7 @@
     var me = state.profile ? state.profile.id : null;
     return rows.map(function (w) {
       var ex = exercise(w.exercise_key);
-      var u = UNITS[w.mode] || { short: '' };
+      var u = unitFor(w.exercise_key, w.mode);
       var when = new Date(w.created_at);
       var day = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: TZ }).format(when).toUpperCase();
       var hh = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ }).format(when);
@@ -694,7 +717,8 @@
         '<button class="week-top" type="button" data-week="' + wk + '">' +
           '<span class="crown">👑</span>' +
           '<span><span class="week-when">' + weekRangeLabel(wk) + '</span>' +
-            '<span class="week-who" style="display:block">' + esc(win.display_name) + '</span></span>' +
+            '<span class="week-who" style="display:block">' +
+              (win.avatar ? esc(win.avatar) + ' ' : '') + esc(win.display_name) + '</span></span>' +
           '<span class="week-pts">' + num(win.points) + '<br>' +
             '<span class="muted" style="font-size:10px;letter-spacing:.14em">PTS</span></span>' +
           '<span class="week-chev">' + (open ? '▲' : '▼') + '</span>' +
@@ -744,6 +768,7 @@
     if (state.profile) {
       $('#renameInput').value = state.profile.display_name;
       $('#restoreCode').textContent = state.profile.restore_code;
+      buildAvatarGrid();
     }
     if (navigator.share) $('#shareBtn').hidden = !l;
   }
@@ -852,6 +877,58 @@
   }
 
   /* ===================================================================
+     11a. Daily combo
+     =================================================================== */
+  function comboReward(n) {
+    for (var i = 0; i < COMBO_TIERS.length; i++) {
+      if (n >= COMBO_TIERS[i].n) return COMBO_TIERS[i].pts;
+    }
+    return 0;
+  }
+
+  async function loadCombo() {
+    if (!state.leagueId) return;
+    var r = await sb.rpc('my_combo_today', { p_league: state.leagueId });
+    if (r.error) return;
+    var got = {};
+    (r.data || []).forEach(function (x) { got[x.category] = Number(x.points); });
+    var hit = COMBO_CATS.filter(function (c) { return (got[c] || 0) >= COMBO_MIN; });
+    var earned = comboReward(hit.length);
+    var next = null;
+    for (var i = COMBO_TIERS.length - 1; i >= 0; i--) {
+      if (COMBO_TIERS[i].n > hit.length) { next = COMBO_TIERS[i]; break; }
+    }
+    $('#comboCard').hidden = false;
+    $('#comboCard').innerHTML =
+      '<div class="combo-top"><span class="combo-t">DAILY COMBO</span>' +
+        '<span class="combo-p' + (earned ? ' on' : '') + '">' +
+          (earned ? '+' + earned + ' TODAY' : 'NO BONUS YET') + '</span></div>' +
+      '<div class="combo-pips">' + COMBO_CATS.map(function (c) {
+        var v = got[c] || 0, done = v >= COMBO_MIN;
+        return '<span class="pip' + (done ? ' done' : '') + '">' + c +
+               '<i>' + num(Math.min(v, COMBO_MIN)) + '/' + COMBO_MIN + '</i></span>';
+      }).join('') + '</div>' +
+      '<div class="combo-hint">' + (next
+        ? (next.n - hit.length) + ' more group' + (next.n - hit.length > 1 ? 's' : '') +
+          ' today for +' + next.pts
+        : 'Maximum combo reached today. ') + '</div>';
+  }
+
+  function buildComboRules() {
+    $('#comboRules').innerHTML =
+      '<p class="muted small">Score at least <b>' + COMBO_MIN + ' points</b> in ' +
+      'different muscle groups on the <b>same day</b> and the bonus is added ' +
+      'automatically. Only the highest tier counts.</p>' +
+      '<div class="ptable">' + COMBO_TIERS.slice().reverse().map(function (t) {
+        return '<div class="pex" style="display:flex;justify-content:space-between">' +
+          '<span>' + t.n + ' groups in one day</span>' +
+          '<b style="color:var(--red);font-family:var(--display)">+' + t.pts + '</b></div>';
+      }).join('') + '</div>' +
+      '<p class="muted small" style="margin-top:8px">Groups: ' + COMBO_CATS.join(' · ') +
+      '. Recovery does not count.</p>';
+  }
+
+  /* ===================================================================
      11b. Personal stats
      =================================================================== */
   var CAT_COLOR = { PUSH: '#ff2e2e', PULL: '#ff8a1f', LEGS: '#ffc93c',
@@ -898,7 +975,7 @@
     }
     $('#statList').innerHTML = rows.map(function (r) {
       var ex = exercise(r.exercise_key);
-      var u = UNITS[r.mode] || { short: '' };
+      var u = unitFor(r.exercise_key, r.mode);
       return '<div class="srow">' +
         '<span class="sdot" style="background:' + (CAT_COLOR[r.category] || '#666') + '"></span>' +
         '<span class="sname">' + esc(ex ? ex.name : r.exercise_key) +
@@ -937,6 +1014,29 @@
   function savedTheme() {
     try { return localStorage.getItem('ironleague.theme') || 'dark'; } catch (e) { return 'dark'; }
   }
+  function buildAvatarGrid() {
+    var mine = state.profile && state.profile.avatar;
+    $('#avatarGrid').innerHTML = ANIMALS.map(function (e) {
+      return '<button type="button" class="av-opt' + (e === mine ? ' on' : '') +
+             '" data-av="' + e + '">' + e + '</button>';
+    }).join('');
+  }
+  async function saveAvatar(v) {
+    try {
+      var r = await sb.rpc('set_avatar', { p_avatar: v });
+      if (r.error) throw r.error;
+      state.profile = r.data;
+      buildAvatarGrid();
+      toast(v ? 'You are now ' + v : 'Animal removed');
+      await refreshAll();
+    } catch (e) { toast(niceError(e), true); }
+  }
+  $('#avatarGrid').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-av]'); if (!b) return;
+    saveAvatar(b.getAttribute('data-av'));
+  });
+  $('#avatarClear').addEventListener('click', function () { saveAvatar(''); });
+
   $('#themeRow').addEventListener('click', function (e) {
     var b = e.target.closest('[data-theme]'); if (!b) return;
     applyTheme(b.getAttribute('data-theme'));
@@ -1008,15 +1108,29 @@
     applyMode();
   }
 
+  /* A mode may override how its unit is named and stepped
+     (a "sprint" is a rep, but nobody calls it that). */
+  function unitFor(key, mode) {
+    var base = UNITS[mode] || {};
+    var ex = exercise(key);
+    var m = ex && ex.modes.filter(function (x) { return x.mode === mode; })[0];
+    return {
+      label: (m && m.unitLabel) || base.label,
+      short: (m && m.short) || base.short,
+      step:  (m && m.step)  || base.step,
+      def:   (m && m.def)   || base.def,
+      quick: (m && m.quick) || base.quick
+    };
+  }
+
   function applyMode() {
-    var u = UNITS[modal.mode];
+    var u = unitFor(modal.key, modal.mode);
     $('#amountLbl').textContent = u.label;
     $('#amountInput').value = u.def;
     $('#amountInput').step = u.step;
     var ex = exercise(modal.key);
     var m = ex.modes.filter(function (x) { return x.mode === modal.mode; })[0];
-    var quick = (m && m.quick) || u.quick;
-    $('#quickRow').innerHTML = quick.map(function (q) {
+    $('#quickRow').innerHTML = u.quick.map(function (q) {
       return '<button type="button" data-q="' + q + '">' + q + ' ' + u.short + '</button>';
     }).join('');
     $('#exVariants').textContent = ex.cat + ' · ' + ex.variants;
@@ -1048,7 +1162,7 @@
   $('#plusBtn').addEventListener('click', function () { bump(1); });
   $('#minusBtn').addEventListener('click', function () { bump(-1); });
   function bump(dir) {
-    var u = UNITS[modal.mode];
+    var u = unitFor(modal.key, modal.mode);
     var v = parseFloat($('#amountInput').value); if (!isFinite(v)) v = 0;
     v = Math.max(0, Math.round((v + dir * u.step) * 100) / 100);
     $('#amountInput').value = v;
@@ -1162,7 +1276,7 @@
       state.session.push(r.data);
       renderSession();
       toast('+' + num(r.data.points) + ' pts');
-      $('#amountInput').value = UNITS[modal.mode].def;
+      $('#amountInput').value = unitFor(modal.key, modal.mode).def;
       updatePreview();
     } catch (e) {
       $('#modalErr').textContent = niceError(e);
@@ -1177,7 +1291,7 @@
     var total = state.session.reduce(function (a, w) { return a + Number(w.points); }, 0);
     $('#sessionTotal').textContent = num(total);
     $('#sessionList').innerHTML = state.session.slice().reverse().map(function (w) {
-      var ex = exercise(w.exercise_key), u = UNITS[w.mode];
+      var ex = exercise(w.exercise_key), u = unitFor(w.exercise_key, w.mode);
       return '<div class="sitem">' +
         '<span class="sx">' + esc(ex ? ex.name : w.exercise_key) +
         ' <span class="muted">· ' + num(w.amount) + ' ' + u.short + '</span></span>' +
