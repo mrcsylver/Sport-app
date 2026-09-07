@@ -198,6 +198,11 @@ Every week has one side quest, and it always runs on the **same weekday
 (Thursday)** so it is easy to plan around. It rotates through 52 of them, so
 the same quest does not come back for a year.
 
+**It has to be done ON that day** — not by that day. Only workouts logged on the
+Thursday itself count, from 00:00 to 23:59. The card says which state it is in:
+*counts on Thursday only* before the day, *today only, until midnight* on the
+day, and *closed* afterwards.
+
 - **Everybody who completes it earns the points** — it is not a race you can
   lose by being busy in the morning.
 - The first person to finish also gets a 🩸 next to their name. Worth nothing,

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.8.1';
+  var APP_VERSION = '1.8.2';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1174,21 +1174,33 @@
       { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
       .format(day).toUpperCase();
 
+    /* A bounty counts on its day only — never before, never after. Say so. */
+    var today = iso(wallNow());
+    var when  = b.on_date > today ? 'soon' : (b.on_date === today ? 'today' : 'past');
+    var tag   = when === 'today' ? 'BOUNTY · TODAY ONLY'
+              : when === 'soon'  ? 'BOUNTY · ' + dayLabel
+              :                    'BOUNTY · CLOSED';
+    var rule  = when === 'today' ? 'Counts today only, until midnight.'
+              : when === 'soon'  ? 'Counts on ' + dayLabel + ' only — not before, not after.'
+              :                    'This one is over.';
+
     $('#bountyCard').hidden = false;
-    $('#bountyCard').className = 'bounty' + (b.mine ? ' got' : '');
+    $('#bountyCard').className = 'bounty' + (b.mine ? ' got' : '') +
+      (when === 'today' ? ' now' : '') + (when === 'past' ? ' shut' : '');
     $('#bountyCard').innerHTML =
       '<div class="bo-top">' +
-        '<span class="bo-tag">' + dayLabel + ' BOUNTY</span>' +
+        '<span class="bo-tag">' + tag + '</span>' +
         '<span class="bo-pts">' + (b.mine ? '✓ +' + num(b.points) : '+' + num(b.points)) + '</span>' +
       '</div>' +
       '<div class="bo-name">' + esc(b.name) + '</div>' +
       '<div class="bo-desc">' + esc(b.descr) + '</div>' +
+      '<div class="bo-rule">' + rule + '</div>' +
       '<div class="bo-foot">' +
         (b.winners > 0
           ? b.winners + (b.winners === 1 ? ' has ' : ' have ') + 'done it' +
             (b.first_name ? ' · first ' + (b.first_avatar ? esc(b.first_avatar) + ' ' : '') +
               esc(b.first_name) + ' 🩸' : '')
-          : 'Nobody has claimed it yet') +
+          : when === 'past' ? 'Nobody got it' : 'Nobody has claimed it yet') +
       '</div>';
   }
 

@@ -1,10 +1,10 @@
 /* Iron League service worker — offline app shell.
    Bump CACHE when you change any file so phones pick up the new version. */
-var CACHE = 'ironleague-v10';
+var CACHE = 'ironleague-v11';
 var SHELL = [
   './', './index.html', './styles.css', './app.js',
   './vendor/supabase.js', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png',
+  './icons/icon-192.png', './icons/icon-512.png', './icons/icon-1024.png',
   './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png',
   './fonts/barlow-condensed-latin-600-normal.woff2',
   './fonts/barlow-condensed-latin-700-normal.woff2',
