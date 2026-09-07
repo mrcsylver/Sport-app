@@ -21,28 +21,45 @@
 -- ---------------------------------------------------------------------
 -- 0. Clean slate (safe to re-run)
 -- ---------------------------------------------------------------------
+drop table if exists public.challenges     cascade;
 drop table if exists public.workouts       cascade;
 drop table if exists public.league_members cascade;
 drop table if exists public.leagues        cascade;
 drop table if exists public.profiles       cascade;
 
-drop function if exists public.app_timezone()                     cascade;
-drop function if exists public.current_week_start()               cascade;
-drop function if exists public.calc_points(text, text, numeric)   cascade;
-drop function if exists public.workouts_update_guard()             cascade;
-drop function if exists public.my_profile_id()                    cascade;
-drop function if exists public.is_member(uuid)                    cascade;
-drop function if exists public.shares_league_with(uuid)           cascade;
-drop function if exists public.create_profile(text)               cascade;
-drop function if exists public.restore_profile(text)              cascade;
-drop function if exists public.rename_profile(text)               cascade;
-drop function if exists public.league_preview(text)               cascade;
-drop function if exists public.create_league(text)                cascade;
-drop function if exists public.join_league_by_code(text)          cascade;
-drop function if exists public.leave_league(uuid)                 cascade;
-drop function if exists public.league_leaderboard(uuid, date)     cascade;
-drop function if exists public.weekly_history(uuid)               cascade;
-drop function if exists public.my_leagues()                       cascade;
+drop function if exists public.accept_challenge(p_code text) cascade;
+drop function if exists public.app_timezone() cascade;
+drop function if exists public.calc_points(p_key text, p_mode text, p_amount numeric) cascade;
+drop function if exists public.cancel_challenge(p_id uuid) cascade;
+drop function if exists public.challenge_points(p_league uuid, p_profile uuid, p_from timestamptz, p_to timestamptz) cascade;
+drop function if exists public.challenge_preview(p_code text) cascade;
+drop function if exists public.challenge_status(p_cancelled timestamptz, p_accepted timestamptz, p_ends timestamptz, p_created timestamptz) cascade;
+drop function if exists public.combo_threshold() cascade;
+drop function if exists public.create_challenge(p_league uuid) cascade;
+drop function if exists public.create_league(p_name text) cascade;
+drop function if exists public.create_profile(p_name text) cascade;
+drop function if exists public.current_week_start() cascade;
+drop function if exists public.enforce_league_capacity() cascade;
+drop function if exists public.exercise_category(p_key text) cascade;
+drop function if exists public.has_open_challenge(p_profile uuid) cascade;
+drop function if exists public.is_member(p_league uuid) cascade;
+drop function if exists public.join_league_by_code(p_code text) cascade;
+drop function if exists public.league_leaderboard(p_league uuid, p_week date) cascade;
+drop function if exists public.league_preview(p_code text) cascade;
+drop function if exists public.leave_league(p_league uuid) cascade;
+drop function if exists public.my_challenges() cascade;
+drop function if exists public.my_combo_today(p_league uuid) cascade;
+drop function if exists public.my_leagues() cascade;
+drop function if exists public.my_profile_id() cascade;
+drop function if exists public.my_stats(p_league uuid, p_all boolean) cascade;
+drop function if exists public.rename_profile(p_name text) cascade;
+drop function if exists public.restore_profile(p_code text) cascade;
+drop function if exists public.set_avatar(p_avatar text) cascade;
+drop function if exists public.shares_league_with(p_profile uuid) cascade;
+drop function if exists public.week_combo_bonus(p_league uuid, p_week date) cascade;
+drop function if exists public.weekly_history(p_league uuid) cascade;
+drop function if exists public.workouts_stamp() cascade;
+drop function if exists public.workouts_update_guard() cascade;
 
 -- ---------------------------------------------------------------------
 -- 1. Timezone + week helpers
@@ -155,6 +172,25 @@ create table public.workouts (
   created_at    timestamptz not null default now()
 );
 
+-- A duel is 24 hours, one on one, inside a league you both belong to. It
+-- stores no workouts of its own: it reads what you already logged for the
+-- league inside its window, so nothing is ever entered twice.
+create table public.challenges (
+  id            uuid primary key default gen_random_uuid(),
+  code          text not null unique
+                  default upper(substr(md5(gen_random_uuid()::text), 1, 6)),
+  league_id     uuid not null references public.leagues(id)  on delete cascade,
+  challenger_id uuid not null references public.profiles(id) on delete cascade,
+  opponent_id   uuid          references public.profiles(id) on delete cascade,
+  created_at    timestamptz not null default now(),
+  accepted_at   timestamptz,
+  ends_at       timestamptz,
+  cancelled_at  timestamptz,
+  constraint no_self_duel check (opponent_id is null or opponent_id <> challenger_id)
+);
+create index challenges_league_idx on public.challenges (league_id);
+create index challenges_ppl_idx    on public.challenges (challenger_id, opponent_id);
+
 create index workouts_board_idx on public.workouts (league_id, week_start);
 create index workouts_feed_idx  on public.workouts (profile_id, week_start);
 create index members_profile_idx on public.league_members (profile_id);
@@ -260,6 +296,7 @@ alter table public.profiles       enable row level security;
 alter table public.leagues        enable row level security;
 alter table public.league_members enable row level security;
 alter table public.workouts       enable row level security;
+alter table public.challenges     enable row level security;
 
 -- profiles: you can read your own, plus anyone you share a league with.
 create policy profiles_read on public.profiles for select to authenticated
@@ -293,6 +330,9 @@ create policy workouts_update on public.workouts for update to authenticated
   using      (profile_id = public.my_profile_id()
               and week_start = public.current_week_start())
   with check (profile_id = public.my_profile_id());
+
+create policy challenges_read on public.challenges for select to authenticated
+  using (challenger_id = public.my_profile_id() or opponent_id = public.my_profile_id());
 
 -- ---------------------------------------------------------------------
 -- 7. The API the app calls
@@ -529,6 +569,118 @@ begin
   return p;
 end $$;
 
+-- Duels ---------------------------------------------------------------
+create function public.challenge_status(
+  p_cancelled timestamptz, p_accepted timestamptz,
+  p_ends timestamptz, p_created timestamptz)
+returns text language sql stable set search_path = public as $$
+  select case
+    when p_cancelled is not null then 'CANCELLED'
+    when p_accepted is null and p_created < now() - interval '24 hours' then 'EXPIRED'
+    when p_accepted is null then 'PENDING'
+    when now() < p_ends then 'LIVE'
+    else 'FINISHED'
+  end
+$$;
+
+create function public.challenge_points(
+  p_league uuid, p_profile uuid, p_from timestamptz, p_to timestamptz)
+returns numeric language sql stable set search_path = public as $$
+  select coalesce(sum(w.points), 0)::numeric
+  from public.workouts w
+  where w.league_id = p_league and w.profile_id = p_profile
+    and p_from is not null and w.created_at >= p_from and w.created_at < p_to
+$$;
+
+create function public.has_open_challenge(p_profile uuid) returns boolean
+language sql stable set search_path = public as $$
+  select exists (
+    select 1 from public.challenges c
+    where (c.challenger_id = p_profile or c.opponent_id = p_profile)
+      and public.challenge_status(c.cancelled_at, c.accepted_at, c.ends_at, c.created_at)
+          in ('PENDING', 'LIVE')
+  )
+$$;
+
+create function public.create_challenge(p_league uuid) returns public.challenges
+language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); c public.challenges;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  if not public.is_member(p_league) then raise exception 'NOT_A_MEMBER'; end if;
+  if public.has_open_challenge(me) then raise exception 'ALREADY_IN_CHALLENGE'; end if;
+  insert into public.challenges (league_id, challenger_id)
+  values (p_league, me) returning * into c;
+  return c;
+end $$;
+
+create function public.challenge_preview(p_code text)
+returns table (code text, league_name text, challenger_name text,
+               challenger_avatar text, status text)
+language sql security definer set search_path = public as $$
+  select c.code, l.name, p.display_name, p.avatar,
+         public.challenge_status(c.cancelled_at, c.accepted_at, c.ends_at, c.created_at)
+  from public.challenges c
+  join public.leagues  l on l.id = c.league_id
+  join public.profiles p on p.id = c.challenger_id
+  where c.code = upper(btrim(p_code))
+$$;
+
+create function public.accept_challenge(p_code text) returns public.challenges
+language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); c public.challenges;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  select * into c from public.challenges where code = upper(btrim(p_code));
+  if not found then raise exception 'NO_SUCH_CHALLENGE'; end if;
+  if c.challenger_id = me then raise exception 'OWN_CHALLENGE'; end if;
+  if public.challenge_status(c.cancelled_at, c.accepted_at, c.ends_at, c.created_at)
+     <> 'PENDING' then raise exception 'CHALLENGE_UNAVAILABLE'; end if;
+  if not public.is_member(c.league_id) then raise exception 'NOT_A_MEMBER'; end if;
+  if public.has_open_challenge(me) then raise exception 'ALREADY_IN_CHALLENGE'; end if;
+  update public.challenges
+     set opponent_id = me, accepted_at = now(), ends_at = now() + interval '24 hours'
+   where id = c.id returning * into c;
+  return c;
+end $$;
+
+create function public.cancel_challenge(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id();
+begin
+  update public.challenges set cancelled_at = now()
+   where id = p_id and challenger_id = me and accepted_at is null and cancelled_at is null;
+end $$;
+
+create function public.my_challenges()
+returns table (id uuid, code text, status text, league_name text,
+               me_name text, me_avatar text, me_points numeric,
+               foe_name text, foe_avatar text, foe_points numeric,
+               created_at timestamptz, ends_at timestamptz, i_started boolean)
+language sql stable security definer set search_path = public as $$
+  with me as (select public.my_profile_id() as pid)
+  select c.id, c.code,
+         public.challenge_status(c.cancelled_at, c.accepted_at, c.ends_at, c.created_at),
+         l.name, mp.display_name, mp.avatar,
+         public.challenge_points(c.league_id, (select pid from me), c.accepted_at, c.ends_at),
+         fp.display_name, fp.avatar,
+         public.challenge_points(c.league_id,
+           case when c.challenger_id = (select pid from me) then c.opponent_id
+                else c.challenger_id end, c.accepted_at, c.ends_at),
+         c.created_at, c.ends_at, (c.challenger_id = (select pid from me))
+  from public.challenges c
+  join public.leagues l on l.id = c.league_id
+  join public.profiles mp on mp.id = (select pid from me)
+  left join public.profiles fp on fp.id =
+       (case when c.challenger_id = (select pid from me) then c.opponent_id
+             else c.challenger_id end)
+  where c.challenger_id = (select pid from me) or c.opponent_id = (select pid from me)
+  order by case public.challenge_status(c.cancelled_at, c.accepted_at, c.ends_at, c.created_at)
+             when 'LIVE' then 0 when 'PENDING' then 1 else 2 end,
+           c.created_at desc
+  limit 12
+$$;
+
 -- Personal totals for the stats tab.
 create function public.my_stats(p_league uuid, p_all boolean default false)
 returns table (exercise_key text, category text, mode text,
@@ -575,6 +727,11 @@ revoke all on function public.set_avatar(text)              from public, anon;
 revoke all on function public.my_combo_today(uuid)          from public, anon;
 revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.combo_threshold()             from public, anon;
+revoke all on function public.create_challenge(uuid)        from public, anon;
+revoke all on function public.accept_challenge(text)        from public, anon;
+revoke all on function public.cancel_challenge(uuid)        from public, anon;
+revoke all on function public.challenge_preview(text)       from public, anon;
+revoke all on function public.my_challenges()               from public, anon;
 revoke all on function public.exercise_category(text)       from public, anon;
 revoke all on function public.current_week_start()          from public, anon;
 
@@ -593,5 +750,10 @@ grant execute on function public.set_avatar(text)              to authenticated;
 grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
 grant execute on function public.combo_threshold()             to authenticated;
+grant execute on function public.create_challenge(uuid)        to authenticated;
+grant execute on function public.accept_challenge(text)        to authenticated;
+grant execute on function public.cancel_challenge(uuid)        to authenticated;
+grant execute on function public.challenge_preview(text)       to authenticated;
+grant execute on function public.my_challenges()               to authenticated;
 grant execute on function public.exercise_category(text)       to authenticated;
 grant execute on function public.current_week_start()          to authenticated;

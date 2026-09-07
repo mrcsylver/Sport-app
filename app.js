@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.3.0';
+  var APP_VERSION = '1.4.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -145,7 +145,12 @@
     NO_PROFILE: 'Pick your name first.',
     TOO_MANY_LEAGUES: 'You already own 10 leagues.',
     NOT_SIGNED_IN: 'Connection lost — reload the page.',
-    WEEK_CLOSED: 'That week is over — its entries are locked.'
+    WEEK_CLOSED: 'That week is over — its entries are locked.',
+    ALREADY_IN_CHALLENGE: 'You already have a duel open. Finish or cancel it first.',
+    OWN_CHALLENGE: 'That is your own duel code.',
+    NO_SUCH_CHALLENGE: 'No duel found with that code.',
+    CHALLENGE_UNAVAILABLE: 'That duel is no longer open.',
+    NOT_A_MEMBER: 'That duel belongs to a league you are not in.'
   };
   function niceError(e) {
     if (!e) return 'Something went wrong.';
@@ -224,7 +229,8 @@
     session: [],       // items logged inside the currently open modal
     pendingCode: null,
     view: 'live',
-    statsRange: 'week'
+    statsRange: 'week',
+    duels: []
   };
   var LS = {
     league: 'ironleague.league'
@@ -542,6 +548,8 @@
     var t = $('#cdTimer');
     t.textContent = (d > 0 ? d + 'D ' : '') + pad(h) + ':' + pad(m) + ':' + pad(sec);
     t.classList.toggle('urgent', s < 3600 * 6);
+
+    if (state.view === 'duel') tickDuel();
 
     if (wk !== lastWeekSeen) {          // a new week just started
       lastWeekSeen = wk;
@@ -877,6 +885,172 @@
   }
 
   /* ===================================================================
+     10b. Duels — 24h head to head. A duel never stores its own workouts;
+     it simply reads what you already logged for the league in its window,
+     so nothing is ever entered twice.
+     =================================================================== */
+  function hhmmss(ms) {
+    if (ms < 0) ms = 0;
+    var s = Math.floor(ms / 1000), pad = function (n) { return String(n).padStart(2, '0'); };
+    return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60);
+  }
+
+  async function loadDuels() {
+    if (!state.leagueId) return;
+    var r = await sb.rpc('my_challenges');
+    if (r.error) { toast(niceError(r.error), true); return; }
+    state.duels = r.data || [];
+    renderDuels();
+  }
+
+  function renderDuels() {
+    var open = state.duels.filter(function (d) {
+      return d.status === 'LIVE' || d.status === 'PENDING';
+    })[0];
+    var past = state.duels.filter(function (d) {
+      return d.status === 'FINISHED' || d.status === 'CANCELLED' || d.status === 'EXPIRED';
+    });
+
+    $('#duelStart').hidden = !!open;
+    $('#duelActive').innerHTML = open ? (open.status === 'LIVE' ? liveDuel(open) : pendingDuel(open)) : '';
+    $('#duelPastHead').hidden = !past.length;
+    $('#duelPast').innerHTML = past.map(pastDuel).join('');
+    tickDuel();
+  }
+
+  function liveDuel(d) {
+    var me = Number(d.me_points), foe = Number(d.foe_points);
+    return '<div class="duel live">' +
+      '<div class="duel-top"><span class="duel-tag">DUEL LIVE</span>' +
+        '<span class="duel-clock" data-ends="' + d.ends_at + '">--:--:--</span></div>' +
+      '<div class="duel-body">' +
+        '<div class="duel-side' + (me > foe ? ' lead' : '') + '">' +
+          '<div class="duel-av">' + (d.me_avatar || '🔥') + '</div>' +
+          '<div class="duel-name">YOU</div>' +
+          '<div class="duel-pts">' + num(me) + '</div></div>' +
+        '<div class="duel-vs">VS</div>' +
+        '<div class="duel-side' + (foe > me ? ' lead' : '') + '">' +
+          '<div class="duel-av">' + (d.foe_avatar || '🔥') + '</div>' +
+          '<div class="duel-name">' + esc(d.foe_name || '—') + '</div>' +
+          '<div class="duel-pts">' + num(foe) + '</div></div>' +
+      '</div>' +
+      '<div class="duel-note"><b>Log once.</b> Everything you log normally counts ' +
+        'for your league week <b>and</b> for this duel. There is nothing extra to enter.</div>' +
+    '</div>';
+  }
+
+  function pendingDuel(d) {
+    var left = new Date(d.created_at).getTime() + 24 * 3600e3 - Date.now();
+    return '<div class="duel">' +
+      '<div class="duel-top"><span class="duel-tag">WAITING FOR AN OPPONENT</span>' +
+        '<span class="duel-clock" data-ends="' +
+          new Date(new Date(d.created_at).getTime() + 24 * 3600e3).toISOString() +
+        '">--:--:--</span></div>' +
+      '<div style="padding:12px 13px">' +
+        '<p class="muted small">Send this code to someone in ' + esc(d.league_name) +
+          '. The first one to enter it starts a 24 hour duel with you.</p>' +
+        '<div class="duel-code">' + esc(d.code) + '</div>' +
+        '<div class="copyrow">' +
+          '<button class="btn ghost sm" style="flex:1" data-duelcopy="' + esc(d.code) + '">COPY CODE</button>' +
+          '<button class="btn ghost sm" style="flex:1" data-duelcancel="' + d.id + '">CANCEL</button>' +
+        '</div>' +
+        (left < 0 ? '' : '<p class="muted small" style="margin-top:10px">Unclaimed codes expire after 24 hours.</p>') +
+      '</div>' +
+    '</div>';
+  }
+
+  function pastDuel(d) {
+    var me = Number(d.me_points), foe = Number(d.foe_points);
+    var cls = 'd', label = 'DRAW';
+    if (d.status === 'CANCELLED') { cls = 'd'; label = 'CANCELLED'; }
+    else if (d.status === 'EXPIRED') { cls = 'd'; label = 'NO TAKER'; }
+    else if (me > foe) { cls = 'w'; label = 'WON'; }
+    else if (foe > me) { cls = 'l'; label = 'LOST'; }
+    var settled = d.status === 'FINISHED';
+    return '<div class="duel-row">' +
+      '<span class="duel-res ' + cls + '">' + label + '</span>' +
+      '<span class="dr">' + (settled ? 'vs ' + (d.foe_avatar ? d.foe_avatar + ' ' : '') +
+        esc(d.foe_name || '—') : esc(d.league_name)) + '</span>' +
+      '<span class="ds">' + (settled ? num(me) + ' – ' + num(foe) : '') + '</span>' +
+    '</div>';
+  }
+
+  /* the live/pending clock, driven by the one-second loop */
+  function tickDuel() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-ends]'), function (el) {
+      var ms = new Date(el.getAttribute('data-ends')).getTime() - Date.now();
+      el.textContent = hhmmss(ms);
+      if (ms <= 0) el.textContent = 'OVER';
+    });
+  }
+
+  $('#duelCreateBtn').addEventListener('click', async function () {
+    this.disabled = true;
+    try {
+      var r = await sb.rpc('create_challenge', { p_league: state.leagueId });
+      if (r.error) throw r.error;
+      toast('Duel code ' + r.data.code + ' — send it to someone');
+      await loadDuels();
+    } catch (e) { toast(niceError(e), true); }
+    this.disabled = false;
+  });
+
+  $('#duelAcceptBtn').addEventListener('click', async function () {
+    var code = $('#duelCodeInput').value.trim();
+    if (!code) return;
+    try {
+      var r = await sb.rpc('accept_challenge', { p_code: code });
+      if (r.error) throw r.error;
+      $('#duelCodeInput').value = '';
+      $('#duelPreview').textContent = '';
+      toast('Duel on. 24 hours.');
+      await loadDuels();
+    } catch (e) { toast(niceError(e), true); }
+  });
+
+  /* show who is behind a code before committing to it */
+  var duelPeekTimer;
+  $('#duelCodeInput').addEventListener('input', function () {
+    var v = this.value.trim().toUpperCase();
+    this.value = v;
+    var out = $('#duelPreview');
+    clearTimeout(duelPeekTimer);
+    out.className = 'muted small';
+    if (v.length < 6) { out.textContent = ''; return; }
+    duelPeekTimer = setTimeout(async function () {
+      var r = await sb.rpc('challenge_preview', { p_code: v });
+      var c = r.data && r.data[0];
+      if (!c) { out.className = 'err small'; out.textContent = 'No duel with that code.'; return; }
+      if (c.status !== 'PENDING') {
+        out.className = 'err small';
+        out.textContent = 'That duel is ' + c.status.toLowerCase() + '.';
+        return;
+      }
+      out.style.color = 'var(--green)';
+      out.textContent = '✓ ' + (c.challenger_avatar ? c.challenger_avatar + ' ' : '') +
+        c.challenger_name + ' is waiting — ' + c.league_name;
+    }, 350);
+  });
+
+  $('#duelActive').addEventListener('click', async function (e) {
+    var copy = e.target.closest('[data-duelcopy]');
+    if (copy) {
+      var code = copy.getAttribute('data-duelcopy');
+      try { await navigator.clipboard.writeText(code); } catch (err) {}
+      toast('Code ' + code + ' copied');
+      return;
+    }
+    var can = e.target.closest('[data-duelcancel]');
+    if (can) {
+      if (!confirm('Cancel this duel code?')) return;
+      var r = await sb.rpc('cancel_challenge', { p_id: can.getAttribute('data-duelcancel') });
+      if (r.error) { toast(niceError(r.error), true); return; }
+      toast('Duel cancelled');
+      await loadDuels();
+    }
+  });
+
+  /* ===================================================================
      11a. Daily combo
      =================================================================== */
   function comboReward(n) {
@@ -1049,6 +1223,7 @@
   function switchView(v) {
     state.view = v;
     $('#view-live').hidden  = v !== 'live';
+    $('#view-duel').hidden  = v !== 'duel';
     $('#view-hall').hidden  = v !== 'hall';
     $('#view-stats').hidden = v !== 'stats';
     $('#view-me').hidden    = v !== 'me';
@@ -1057,6 +1232,7 @@
     });
     if (v === 'me') renderMe();
     if (v === 'stats') loadStats();
+    if (v === 'duel') loadDuels();
     window.scrollTo(0, 0);
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
@@ -1070,6 +1246,7 @@
     await refreshAll();
     Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
     if (state.view === 'stats') await loadStats();
+    if (state.view === 'duel') await loadDuels();
     b.classList.remove('spin');
     toast('Refreshed');
   });
@@ -1234,6 +1411,7 @@
       await refreshAll();
       Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
       if (state.view === 'stats') loadStats();
+      if (state.view === 'duel') loadDuels();
     }
   }
   $('#logBtn').addEventListener('click', openModal);
@@ -1320,6 +1498,7 @@
     autoTimer = setInterval(function () {
       if (document.hidden || !$('#logModal').hidden) return;
       loadBoard();
+      if (state.view === 'duel') loadDuels();
     }, 25000);
   }
   document.addEventListener('visibilitychange', function () {

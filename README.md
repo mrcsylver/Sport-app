@@ -7,6 +7,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Live weekly leaderboard** — tap any name to see everything that person logged.
 - **Daily combo bonus** — small rewards for training more than one muscle group in a day.
 - **Stats tab** — your own totals, this week or all time, split by muscle group.
+- **Duels** — 24 hour head to head against anyone in your league, by code.
 - **Animal avatars, light or dark theme** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
@@ -192,6 +193,25 @@ Changing values does **not** rewrite history: every entry stores the points it
 scored at the time. If you change the scale mid-week, re-score just the running
 week with `update public.workouts set amount = amount where week_start =
 public.current_week_start();` so everyone in that week is measured the same way.
+
+---
+
+# ⚔️ DUELS
+
+A duel is **24 hours, one against one**, inside a league you both belong to.
+
+1. Open the **DUELS** tab and tap **CREATE A DUEL CODE**.
+2. Send the code to someone in your league. The first person to enter it
+   becomes your opponent and the clock starts.
+3. Whoever scores more points in those 24 hours wins.
+
+**You never log anything twice.** A duel does not have its own logging — it
+simply reads the workouts you already logged for your league during its
+window, so one entry counts for your league week *and* the duel. The live
+duel card says so on screen.
+
+One duel at a time per person. An unclaimed code expires after 24 hours, and
+when a duel ends the tab clears itself and the result drops into *Past duels*.
 
 ---
 

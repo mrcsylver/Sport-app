@@ -119,6 +119,31 @@
       <div id="hall"></div>
     </section>
 
+    <!-- DUELS -->
+    <section id="view-duel" class="view" hidden>
+      <div class="section-head"><h2>DUELS</h2>
+        <span class="muted small mono">24H · HEAD TO HEAD</span></div>
+      <div id="duelActive"></div>
+      <div id="duelStart" class="panel" hidden>
+        <h3>START A DUEL</h3>
+        <p class="muted small">24 hours, one against one, inside your league.
+          You get a code — send it, and the first person to enter it is your
+          opponent.</p>
+        <button id="duelCreateBtn" class="btn primary" type="button"
+                style="margin-top:12px">CREATE A DUEL CODE</button>
+        <p class="muted small" style="margin-top:18px">Got a code from someone?</p>
+        <div class="copyrow">
+          <input id="duelCodeInput" class="input mono" maxlength="6" placeholder="CODE"
+                 autocapitalize="characters" spellcheck="false" autocomplete="off">
+          <button id="duelAcceptBtn" class="btn ghost sm" type="button">ACCEPT</button>
+        </div>
+        <p id="duelPreview" class="muted small"></p>
+      </div>
+      <div id="duelPastHead" class="section-head" hidden style="margin-top:20px">
+        <h2 style="font-size:17px">PAST DUELS</h2></div>
+      <div id="duelPast" class="stack tight"></div>
+    </section>
+
     <!-- STATS -->
     <section id="view-stats" class="view" hidden>
       <div class="section-head">
@@ -224,8 +249,10 @@
   <nav class="tabbar">
     <button class="tab is-active" data-view="live" type="button">
       <span class="tab-i">▲</span>LIVE</button>
+    <button class="tab" data-view="duel" type="button">
+      <span class="tab-i">⚔</span>DUELS</button>
     <button class="tab" data-view="hall" type="button">
-      <span class="tab-i">★</span>HALL OF FAME</button>
+      <span class="tab-i">★</span>HALL</button>
     <button class="tab" data-view="stats" type="button">
       <span class="tab-i">◆</span>STATS</button>
     <button class="tab" data-view="me" type="button">
