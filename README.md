@@ -173,10 +173,12 @@ progress, not to farm the easiest option.
 
 ### Divisions
 
-From the second week on, the standings are split into **Gold / Silver / Bronze,
-ten athletes each**. Your division is simply where you finished last week, so
-it maintains itself — finish top ten and you are in Gold next week. Anyone who
-did not compete last week starts in the bottom division.
+The standings are split into **Gold / Silver / Bronze, ten athletes each**,
+cut from the live table: the current top ten are Gold, the next ten Silver, the
+rest Bronze. Every division has its own 1 to 10, so there is a race to win at
+every level — and because it follows this week's points, logging a session can
+move you up a division the moment you do it. Below eleven members the league
+stays as one table, since a single division is not a division.
 
 ### Hall of Fame
 

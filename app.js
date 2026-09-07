@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '1.8.0';
+  var APP_VERSION = '1.8.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -622,7 +622,6 @@
      =================================================================== */
   async function refreshAll() {
     await Promise.all([loadBoard(), loadHistory(), loadCombo(), loadBounty()]);
-    renderBoard();   // divisions come from last week, which may land after the board
     renderHeader();
   }
 
@@ -644,42 +643,25 @@
     return out;
   }
 
-  /* Where everybody finished in the last completed week. */
-  function lastWeekOrder() {
-    if (!state.history.length) return null;
-    var wk = state.history[0].week_start;
-    var rows = state.history.filter(function (r) { return r.week_start === wk; })
-                 .slice().sort(function (a, b) { return b.points - a.points; });
-    if (!rows.length) return null;
-    var order = {};
-    rows.forEach(function (r, i) { order[r.profile_id] = i; });
-    return order;
-  }
-
-  /* Split the board into divisions of ten, seeded by last week's result.
-     Anyone with no result last week starts in the bottom division. */
+  /* Divisions are a live cut of the current table: the top ten are Gold,
+     the next ten Silver, the rest Bronze. Log something and you climb. */
   function withTiers(rows) {
-    var order = lastWeekOrder();
-    if (!order) return null;
-    var seated = rows.slice().sort(function (a, b) {
-      var ai = order[a.profile_id], bi = order[b.profile_id];
-      if (ai === undefined && bi === undefined) return b.points - a.points;
-      if (ai === undefined) return 1;
-      if (bi === undefined) return -1;
-      return ai - bi;
+    if (rows.length <= TIERS[0].size) return null;   // one division is not a division
+    var sorted = rows.slice().sort(function (a, b) {
+      var d = Number(b.points) - Number(a.points);
+      if (d) return d;
+      return new Date(a.joined_at) - new Date(b.joined_at);
     });
-    var tierOf = {}, i = 0;
+    var out = [], i = 0;
     TIERS.forEach(function (t) {
-      seated.slice(i, i + t.size).forEach(function (r) { tierOf[r.profile_id] = t.key; });
+      var members = sorted.slice(i, i + t.size);
       i += t.size;
+      if (members.length) out.push({ tier: t, rows: members });
     });
-    seated.slice(i).forEach(function (r) { tierOf[r.profile_id] = 'BRONZE'; });
-
-    return TIERS.map(function (t) {
-      var members = rows.filter(function (r) { return tierOf[r.profile_id] === t.key; })
-                        .sort(function (a, b) { return b.points - a.points; });
-      return { tier: t, rows: members };
-    }).filter(function (g) { return g.rows.length; });
+    if (i < sorted.length && out.length) {          // more people than tiers allow for
+      out[out.length - 1].rows = out[out.length - 1].rows.concat(sorted.slice(i));
+    }
+    return out;
   }
 
   function boardRow(p, rank, tierKey) {
@@ -724,7 +706,7 @@
                '<i>' + g.rows.length + '</i></div>' +
                g.rows.map(function (p, i) { return boardRow(p, i + 1, g.tier.key); }).join('');
       }).join('') +
-      '<p class="hint">Your division is set by where you finished last week.</p>';
+      '<p class="hint">Top ten are Gold, next ten Silver. Climb the table to move up.</p>';
       return;
     }
     var me = state.profile ? state.profile.id : null;
