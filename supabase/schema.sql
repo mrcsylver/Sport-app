@@ -22,6 +22,7 @@
 -- 0. Clean slate (safe to re-run)
 -- ---------------------------------------------------------------------
 drop table if exists public.bounties       cascade;
+drop table if exists public.exercises      cascade;
 drop table if exists public.challenges     cascade;
 drop table if exists public.workouts       cascade;
 drop table if exists public.league_members cascade;
@@ -36,6 +37,7 @@ drop function if exists public.bounty_dow() cascade;
 drop function if exists public.bounty_index(p_week date) cascade;
 drop function if exists public.bounty_req(p_profile uuid, p_league uuid, p_req jsonb, p_day date) cascade;
 drop function if exists public.calc_points(p_key text, p_mode text, p_amount numeric) cascade;
+drop function if exists public.calc_points(p_key text, p_mode text, p_amount numeric, p_bw numeric, p_load numeric) cascade;
 drop function if exists public.cancel_challenge(p_id uuid) cascade;
 drop function if exists public.challenge_points(p_league uuid, p_profile uuid, p_from timestamptz, p_to timestamptz) cascade;
 drop function if exists public.challenge_preview(p_code text) cascade;
@@ -56,6 +58,7 @@ drop function if exists public.league_leaderboard(p_league uuid, p_week date) ca
 drop function if exists public.league_preview(p_code text) cascade;
 drop function if exists public.leave_league(p_league uuid) cascade;
 drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric) cascade;
+drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric, p_bw numeric, p_load numeric) cascade;
 drop function if exists public.my_challenges() cascade;
 drop function if exists public.my_duel_record(p_league uuid) cascade;
 drop function if exists public.my_combo_today(p_league uuid) cascade;
@@ -66,6 +69,7 @@ drop function if exists public.rename_profile(p_name text) cascade;
 drop function if exists public.rest_day_check(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 drop function if exists public.restore_profile(p_code text) cascade;
 drop function if exists public.set_avatar(p_avatar text) cascade;
+drop function if exists public.set_bodyweight(p_kg numeric) cascade;
 drop function if exists public.shares_league_with(p_profile uuid) cascade;
 drop function if exists public.week_bounty_points(p_league uuid, p_week date) cascade;
 drop function if exists public.week_combo_bonus(p_league uuid, p_week date) cascade;
@@ -122,53 +126,63 @@ end $$;
 -- ---------------------------------------------------------------------
 -- 2. Points engine  (must stay in sync with EXERCISES in app.js)
 -- ---------------------------------------------------------------------
-create function public.calc_points(p_key text, p_mode text, p_amount numeric)
-returns numeric language sql immutable set search_path = public as $$
+-- Every exercise the app knows, and what a unit of it is worth. Rates live
+-- here rather than in a CASE so the client and the scorer read one table, and
+-- so adding an exercise is data, not a code change. Regenerate the seed at the
+-- bottom of this file with tools/build_exercises.py — never edit it by hand.
+create table public.exercises (
+  key      text primary key,
+  name     text not null,
+  cat      text not null,
+  variants text not null default '',
+  aliases  text not null default '',
+  sort     int  not null default 100,
+  modes    jsonb not null
+);
+alter table public.exercises enable row level security;
+create policy exercises_read on public.exercises for select to authenticated using (true);
+
+create function public.calc_points(
+  p_key text, p_mode text, p_amount numeric,
+  p_bw numeric default null, p_load numeric default null)
+returns numeric language sql stable set search_path = public as $$
+  with e as (
+    select x.cat, x.modes -> p_mode as m
+    from public.exercises x where x.key = p_key
+  )
   select round(coalesce(
     case
-      -- PUSH
-      when p_key = 'pushups'    and p_mode = 'reps'    then p_amount * 1
-      when p_key = 'dips'       and p_mode = 'reps'    then p_amount * 1.5
-      when p_key = 'handstand'  and p_mode = 'reps'    then p_amount * 2.5
-      when p_key = 'handstand'  and p_mode = 'seconds' then p_amount / 5
-      -- PULL
-      when p_key = 'rows'       and p_mode = 'reps'    then p_amount * 1
-      when p_key = 'pullups'    and p_mode = 'reps'    then p_amount * 2
-      when p_key = 'muscleup'   and p_mode = 'reps'    then p_amount * 3.5
-      when p_key = 'muscleup'   and p_mode = 'seconds' then p_amount * 2
-      -- LEGS
-      when p_key = 'airsquats'  and p_mode = 'reps'    then p_amount * 0.5
-      when p_key = 'pistols'    and p_mode = 'reps'    then p_amount * 2
-      when p_key = 'calves'     and p_mode = 'reps'    then p_amount * 0.2
-      -- CORE
-      when p_key = 'kneeraises' and p_mode = 'reps'    then p_amount * 1
-      when p_key = 'lsit'       and p_mode = 'seconds' then p_amount / 3
-      when p_key = 'plank'      and p_mode = 'minutes' then p_amount * 2
-      when p_key = 'twists'     and p_mode = 'reps'    then p_amount * 0.25
-      -- CARDIO   (a "sprint" is one 15 sec / 100 m effort)
-      when p_key = 'run'        and p_mode = 'km'      then p_amount * 5
-      when p_key = 'sprints'    and p_mode = 'reps'    then p_amount * 2
-      when p_key = 'bike'       and p_mode = 'km'      then p_amount * 1.5
-      when p_key = 'swim'       and p_mode = 'minutes' then p_amount * 8 / 60
-      when p_key = 'walk'       and p_mode = 'km'      then p_amount * 2.5
-      -- RECOVERY (10 minutes minimum)
-      when p_key = 'stretch'    and p_mode = 'flat'    then p_amount * 5
+      -- Gym: points/rep = k x R, where R = (load x equip [+ 0.85 BW]) / bodyweight.
+      -- R is the same "fraction of bodyweight moved" that prices calisthenics,
+      -- so a bench at 64% of your weight scores like a push-up. Legs add the
+      -- lifter's own mass, which rides above the bar on a squat but not on a
+      -- seated machine.
+      when (select cat from e) = 'GYM' then
+        case
+          when p_bw is null or p_bw < 30 or p_bw > 250 then 0
+          when p_load is null or p_load < 0 or p_load > 500 then 0
+          else p_amount * (select (m->>'k')::numeric from e)
+               * ( ( p_load * (select (m->>'equip')::numeric from e)
+                     + case when (select m->>'legs' from e) = 'true'
+                            then 0.85 * p_bw else 0 end )
+                   / p_bw )
+        end
+      else p_amount * (select (m->>'rate')::numeric from e)
     end, 0), 2)
 $$;
 
 -- Muscle group of an exercise (used by the stats tab).
 create or replace function public.exercise_category(p_key text) returns text
-language sql immutable set search_path = public as $$
-  select case p_key
-    when 'pushups' then 'PUSH'  when 'dips' then 'PUSH'  when 'handstand' then 'PUSH'
-    when 'rows' then 'PULL'     when 'pullups' then 'PULL' when 'muscleup' then 'PULL'
-    when 'airsquats' then 'LEGS' when 'pistols' then 'LEGS' when 'calves' then 'LEGS'
-    when 'kneeraises' then 'CORE' when 'lsit' then 'CORE'
-    when 'plank' then 'CORE'     when 'twists' then 'CORE'
-    when 'run' then 'CARDIO'    when 'sprints' then 'CARDIO' when 'bike' then 'CARDIO'
-    when 'swim' then 'CARDIO'   when 'walk' then 'CARDIO'
-    when 'stretch' then 'RECOVERY'
+language sql stable set search_path = public as $$
+  -- Menu grouping is not training grouping: a bench press trains PUSH and a
+  -- football match is cardio, so combos and the stats bars stay at five groups
+  -- however many menu sections exist. Mirrors trainingCat() in app.js.
+  select case
+    when x.cat = 'GYM'   then upper(x.modes -> 'reps' ->> 'pattern')
+    when x.cat = 'SPORT' then 'CARDIO'
+    else x.cat
   end
+  from public.exercises x where x.key = p_key
 $$;
 
 -- ---------------------------------------------------------------------
@@ -185,7 +199,11 @@ create table public.profiles (
                  check (char_length(btrim(display_name)) between 2 and 18),
   restore_code text not null unique
                  default upper(substr(md5(gen_random_uuid()::text), 1, 8)),
-  avatar       text check (avatar is null or char_length(avatar) between 1 and 8),
+  -- either a legacy emoji or an icon key like "gi:wolf-head"
+  avatar       text check (avatar is null or char_length(avatar) between 1 and 40),
+  -- only used to score gym lifts; never shown to anyone else
+  bodyweight   numeric constraint profiles_bw_sane
+                 check (bodyweight is null or bodyweight between 30 and 250),
   created_at   timestamptz not null default now()
 );
 
@@ -196,6 +214,9 @@ create table public.leagues (
                 default upper(substr(md5(gen_random_uuid()::text), 1, 6)),
   owner_id    uuid not null references public.profiles(id) on delete cascade,
   max_members int  not null default 30 check (max_members between 2 and 30),
+  -- composable crest: {"shape":..,"color":..,"emblem":..}; null falls back to
+  -- one derived from the league id, so every league looks distinct from day one
+  badge       jsonb,
   created_at  timestamptz not null default now()
 );
 
@@ -220,6 +241,9 @@ create table public.workouts (
                   check (mode in ('reps','seconds','minutes','km','flat')),
   amount        numeric not null check (amount > 0 and amount <= 100000),
   points        numeric not null default 0,
+  -- what a gym set was actually done with, so an edit can rescore it
+  bodyweight    numeric,
+  load          numeric,
   week_start    date    not null default current_date,
   created_at    timestamptz not null default now()
 );
@@ -272,8 +296,12 @@ begin
   if public.is_rest_day() then
     new.amount := 1;                       -- one session, no stacking
   end if;
-  new.points := public.calc_points(new.exercise_key, new.mode, new.amount);
+  new.points := public.calc_points(new.exercise_key, new.mode, new.amount,
+                                   new.bodyweight, new.load);
   if new.points <= 0 then
+    if (select cat = 'GYM' from public.exercises where key = new.exercise_key) then
+      raise exception 'A gym lift needs your bodyweight (30-250 kg) and the weight lifted (0-500 kg)';
+    end if;
     raise exception 'Unknown exercise or unit (% / %)', new.exercise_key, new.mode;
   end if;
   return new;
@@ -301,8 +329,12 @@ begin
   if extract(isodow from (old.created_at at time zone public.app_timezone())) = 7 then
     new.amount := 1;
   end if;
-  new.points := public.calc_points(new.exercise_key, new.mode, new.amount);
+  new.points := public.calc_points(new.exercise_key, new.mode, new.amount,
+                                   new.bodyweight, new.load);
   if new.points <= 0 then
+    if (select cat = 'GYM' from public.exercises where key = new.exercise_key) then
+      raise exception 'A gym lift needs your bodyweight (30-250 kg) and the weight lifted (0-500 kg)';
+    end if;
     raise exception 'Unknown exercise or unit (% / %)', new.exercise_key, new.mode;
   end if;
   return new;
@@ -545,19 +577,24 @@ $$;
 -- The live board. Every member appears, even on 0 points, and each total
 -- already includes that week's daily combo bonuses.
 create function public.league_leaderboard(p_league uuid, p_week date default null)
-returns table (profile_id uuid, display_name text, avatar text,
-               points numeric, base_points numeric, bonus numeric,
-               entries bigint, joined_at timestamptz)
+returns table (profile_id uuid, display_name text, avatar text, points numeric,
+               base_points numeric, bonus numeric, entries bigint,
+               joined_at timestamptz, lifetime numeric)
 language sql stable security definer set search_path = public as $$
+  -- `lifetime` drives the rank banner on each row. Like divisions and duel
+  -- records it is derived on read, so there is nothing to store or award.
   with wk as (select coalesce(p_week, public.current_week_start()) as w),
   cb as (select * from public.week_combo_bonus(p_league, (select w from wk))),
-  bb as (select * from public.week_bounty_points(p_league, (select w from wk)))
+  bb as (select * from public.week_bounty_points(p_league, (select w from wk))),
+  lt as (select w2.profile_id, sum(w2.points) as total
+         from public.workouts w2 where w2.league_id = p_league group by 1)
   select p.id, p.display_name, p.avatar,
          (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0)
                                      + coalesce(max(bb.bounty), 0))::numeric,
          coalesce(sum(w.points), 0)::numeric,
          (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
-         count(w.id), m.joined_at
+         count(w.id), m.joined_at,
+         coalesce(max(lt.total), 0)::numeric
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
   left join public.workouts w
@@ -565,6 +602,7 @@ language sql stable security definer set search_path = public as $$
         and w.week_start = (select w from wk)
   left join cb on cb.profile_id = p.id
   left join bb on bb.profile_id = p.id
+  left join lt on lt.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
   group by p.id, p.display_name, p.avatar, m.joined_at
   order by 4 desc, 8 asc
@@ -651,6 +689,21 @@ begin
   return p;
 end $$;
 
+-- Bodyweight is what turns a barbell number into points. Stored on the profile
+-- so the gym fields arrive pre-filled instead of being retyped every set.
+create function public.set_bodyweight(p_kg numeric)
+returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); row public.profiles;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  if p_kg is not null and p_kg not between 30 and 250 then
+    raise exception 'Bodyweight must be between 30 and 250 kg';
+  end if;
+  update public.profiles set bodyweight = p_kg where id = me returning * into row;
+  return row;
+end $$;
+
 -- Log once, counted in every league you belong to.
 create function public.log_workout(
   p_league uuid, p_key text, p_mode text, p_amount numeric)
@@ -664,9 +717,14 @@ declare
 begin
   if me is null then raise exception 'NO_PROFILE'; end if;
   if not public.is_member(p_league) then raise exception 'NOT_A_MEMBER'; end if;
+  -- Remember the bodyweight so nobody retypes it every gym set.
+  if p_bw is not null and p_bw between 30 and 250 then
+    update public.profiles set bodyweight = p_bw where profiles.id = me;
+  end if;
+
   insert into public.workouts (group_id, league_id, profile_id,
-                               exercise_key, mode, amount)
-  select g, m.league_id, me, p_key, p_mode, p_amount
+                               exercise_key, mode, amount, bodyweight, load)
+  select g, m.league_id, me, p_key, p_mode, p_amount, p_bw, p_load
   from public.league_members m
   where m.profile_id = me;
   get diagnostics n = row_count;
@@ -1058,7 +1116,7 @@ revoke all on function public.week_bounty_points(uuid,date) from public, anon;
 revoke all on function public.current_bounty(uuid)          from public, anon;
 revoke all on function public.bounty_done(uuid,uuid,jsonb,date) from public, anon;
 revoke all on function public.bounty_req(uuid,uuid,jsonb,date)  from public, anon;
-revoke all on function public.log_workout(uuid,text,text,numeric) from public, anon;
+revoke all on function public.log_workout(uuid,text,text,numeric,numeric,numeric) from public, anon;
 revoke all on function public.create_challenge(uuid)        from public, anon;
 revoke all on function public.accept_challenge(text)        from public, anon;
 revoke all on function public.cancel_challenge(uuid)        from public, anon;
@@ -1066,6 +1124,8 @@ revoke all on function public.challenge_preview(text)       from public, anon;
 revoke all on function public.my_challenges()               from public, anon;
 revoke all on function public.exercise_category(text)       from public, anon;
 revoke all on function public.current_week_start()          from public, anon;
+
+grant select on public.exercises to authenticated;
 
 grant execute on function public.create_profile(text)          to authenticated;
 grant execute on function public.rename_profile(text)          to authenticated;
@@ -1079,6 +1139,7 @@ grant execute on function public.league_leaderboard(uuid,date) to authenticated;
 grant execute on function public.weekly_history(uuid)          to authenticated;
 grant execute on function public.my_stats(uuid, boolean)       to authenticated;
 grant execute on function public.set_avatar(text)              to authenticated;
+grant execute on function public.set_bodyweight(numeric)       to authenticated;
 grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
 grant execute on function public.combo_threshold()             to authenticated;
@@ -1090,7 +1151,7 @@ grant execute on function public.week_bounty_points(uuid,date) to authenticated;
 grant execute on function public.current_bounty(uuid)          to authenticated;
 grant execute on function public.bounty_done(uuid,uuid,jsonb,date) to authenticated;
 grant execute on function public.bounty_req(uuid,uuid,jsonb,date)  to authenticated;
-grant execute on function public.log_workout(uuid,text,text,numeric) to authenticated;
+grant execute on function public.log_workout(uuid,text,text,numeric,numeric,numeric) to authenticated;
 grant execute on function public.create_challenge(uuid)        to authenticated;
 grant execute on function public.accept_challenge(text)        to authenticated;
 grant execute on function public.cancel_challenge(uuid)        to authenticated;
@@ -1101,6 +1162,16 @@ grant execute on function public.current_week_start()          to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 9. The 52 weekly bounties (one per week, rotating)
+-- ---------------------------------------------------------------------
+-- The exercise bank. GENERATED by tools/build_exercises.py — do not edit
+-- by hand. Rates are derived from how much bodyweight a movement moves,
+-- anchored to the original hand-tuned table, so the bank inherits balance
+-- the league already agreed on. Mirrors EX_BANK in app.js exactly.
+-- ---------------------------------------------------------------------
+insert into public.exercises (key,name,cat,variants,aliases,sort,modes)
+select e->>0, e->>1, e->>2, e->>3, e->>4, (e->>5)::int, e->6
+from jsonb_array_elements($j$[["wallpush","Wall Push-up","PUSH","","wall easy beginner",0,{"reps":{"rate":0.25}}],["kneepush","Knee Push-up","PUSH","","knees modified beginner",1,{"reps":{"rate":0.75}}],["inclinepush","Incline Push-up","PUSH","","bench elevated hands raised",2,{"reps":{"rate":0.75}}],["pushups","Push-ups","PUSH","Any hand position. Wide, diamond and decline have their own entries.","pushup press floor",3,{"reps":{"rate":1.0}}],["widepush","Wide Push-up","PUSH","","wide grip chest",4,{"reps":{"rate":1.0}}],["diamondpush","Diamond Push-up","PUSH","","triceps close narrow",5,{"reps":{"rate":1.0}}],["declinepush","Decline Push-up","PUSH","","feet elevated",6,{"reps":{"rate":1.25}}],["pikepush","Pike Push-up","PUSH","","shoulders delts",7,{"reps":{"rate":1.25}}],["clappush","Clap Push-up","PUSH","","explosive plyo power",8,{"reps":{"rate":1.5}}],["archerpush","Archer Push-up","PUSH","","one side unilateral",9,{"reps":{"rate":1.5}}],["planchepush","Pseudo Planche Push-up","PUSH","","lean planche straight arm",10,{"reps":{"rate":1.5}}],["benchdips","Bench Dips","PUSH","","tricep chair",11,{"reps":{"rate":0.75}}],["dips","Dips","PUSH","Parallel bars, rings or between two chairs","parallel bars triceps",12,{"reps":{"rate":1.5}}],["ringdips","Ring Dips","PUSH","","rings unstable",13,{"reps":{"rate":1.75}}],["onearmpush","One-arm Push-up","PUSH","","single arm",14,{"reps":{"rate":2.0}}],["handstand","Handstand Push-up","PUSH","Against a wall, freestanding, or hanging from a bar","hspu wall overhead invert",15,{"reps":{"rate":2.5},"seconds":{"rate":0.2}}],["rows","Inverted Rows","PULL","","australian bodyweight row horizontal",16,{"reps":{"rate":1.0}}],["scapulapull","Scapular Pull-up","PULL","","scap shrug",17,{"reps":{"rate":0.75}}],["bandpullup","Assisted Pull-up","PULL","","band assisted machine",18,{"reps":{"rate":1.25}}],["chinups","Chin-ups","PULL","","supinated underhand biceps",19,{"reps":{"rate":2.0}}],["pullups","Pull-ups","PULL","Overhand grip. Kipping counts, but be honest.","pullup overhand lats",20,{"reps":{"rate":2.0}}],["widepullup","Wide-grip Pull-up","PULL","","wide lats",21,{"reps":{"rate":2.25}}],["commandopull","Commando Pull-up","PULL","","mixed grip",22,{"reps":{"rate":2.25}}],["lsitpullup","L-sit Pull-up","PULL","","lsit legs out",23,{"reps":{"rate":2.5}}],["typewriter","Typewriter Pull-up","PULL","","side to side",24,{"reps":{"rate":2.5}}],["archerpull","Archer Pull-up","PULL","","one side unilateral",25,{"reps":{"rate":2.5}}],["muscleup","Muscle-up / Flag","PULL","Bar or rings. The human flag scores here too.","muscleup bar ring humanflag",26,{"reps":{"rate":3.5},"seconds":{"rate":2.0}}],["deadhang","Dead Hang","PULL","","hang grip forearm",27,{"seconds":{"rate":0.033333}}],["frontlever","Front Lever","PULL","","lever static hold",28,{"seconds":{"rate":0.5}}],["calves","Calf Raises","LEGS","","calf standing seated",29,{"reps":{"rate":0.2}}],["airsquats","Air Squats","LEGS","","bodyweight squat",30,{"reps":{"rate":0.5}}],["jumpsquats","Jump Squats","LEGS","","plyo explosive",31,{"reps":{"rate":0.75}}],["lunges","Lunges","LEGS","","walking reverse forward",32,{"reps":{"rate":0.5}}],["splitsquat","Bulgarian Split Squat","LEGS","","bulgarian rear foot elevated",33,{"reps":{"rate":0.75}}],["stepups","Step-ups","LEGS","","box bench",34,{"reps":{"rate":0.5}}],["gluteBridge","Glute Bridge","LEGS","","hip thrust glutes",35,{"reps":{"rate":0.25}}],["nordic","Nordic Curl","LEGS","","hamstring eccentric",36,{"reps":{"rate":1.0}}],["sissy","Sissy Squat","LEGS","","quads",37,{"reps":{"rate":0.75}}],["shrimp","Shrimp Squat","LEGS","","advanced single leg",38,{"reps":{"rate":1.0}}],["pistols","Pistol Squats","LEGS","","single leg one",39,{"reps":{"rate":2.0}}],["wallsit","Wall Sit","LEGS","","isometric quads",40,{"seconds":{"rate":0.025}}],["crunches","Crunches","CORE","","crunch sit abs",41,{"reps":{"rate":0.25}}],["situps","Sit-ups","CORE","","situp full",42,{"reps":{"rate":0.5}}],["twists","Russian Twists","CORE","","oblique twist side",43,{"reps":{"rate":0.25}}],["legraises","Lying Leg Raises","CORE","","floor lying",44,{"reps":{"rate":0.5}}],["kneeraises","Hanging Knee Raises","CORE","","hanging knee tuck",45,{"reps":{"rate":1.0}}],["hangingleg","Hanging Leg Raises","CORE","","straight leg toes",46,{"reps":{"rate":1.5}}],["toestobar","Toes to Bar","CORE","","ttb crossfit",47,{"reps":{"rate":2.0}}],["dragonflag","Dragon Flag","CORE","","dragon advanced",48,{"reps":{"rate":3.0}}],["vups","V-ups","CORE","","v up jackknife",49,{"reps":{"rate":0.75}}],["supermans","Supermans","CORE","","lower back extension",50,{"reps":{"rate":0.25}}],["plank","Plank","CORE","","front elbow forearm",51,{"minutes":{"rate":2.0}}],["sideplank","Side Plank","CORE","","oblique side",52,{"minutes":{"rate":2.5}}],["hollowhold","Hollow Hold","CORE","","hollow body",53,{"seconds":{"rate":0.05}}],["lsit","L-sit","CORE","","lsit legs parallel",54,{"seconds":{"rate":0.333333}}],["run","Run","CARDIO","Outdoor or treadmill","running jog jogging",55,{"km":{"rate":5.0}}],["sprints","Sprint Intervals","CARDIO","One sprint = 15 sec flat out, 100 m minimum","sprint interval hiit",56,{"reps":{"rate":2.0}}],["bike","Biking","CARDIO","Road / Trail / Stationary","cycling bicycle spin",57,{"km":{"rate":1.5}}],["swim","Swim","CARDIO","Any stroke, active swim time","swimming pool crawl",58,{"minutes":{"rate":0.2}}],["walk","Walking","CARDIO","Hiking counts too","walk hike hiking steps",59,{"km":{"rate":2.5}}],["row","Rowing Machine","CARDIO","Indoor erg","erg ergometer concept2",60,{"minutes":{"rate":0.166667}}],["jumprope","Jump Rope","CARDIO","Skipping","skipping rope",61,{"minutes":{"rate":0.133333}}],["stairs","Stair Climbing","CARDIO","Real stairs or machine","stairmaster steps",62,{"minutes":{"rate":0.15}}],["football","Football / Soccer","SPORT","Actual playing time, not time at the venue","soccer foot futbol match",63,{"minutes":{"rate":0.166667}}],["basketball","Basketball","SPORT","Actual playing time, not time at the venue","basket hoops ball",64,{"minutes":{"rate":0.166667}}],["rugby","Rugby","SPORT","Actual playing time, not time at the venue","rugby union league",65,{"minutes":{"rate":0.166667}}],["handball","Handball","SPORT","Actual playing time, not time at the venue","hand ball",66,{"minutes":{"rate":0.166667}}],["hockey","Hockey","SPORT","Actual playing time, not time at the venue","ice field puck",67,{"minutes":{"rate":0.166667}}],["squash","Squash","SPORT","Actual playing time, not time at the venue","squash racket court",68,{"minutes":{"rate":0.166667}}],["boxing","Boxing / Martial Arts","SPORT","Actual playing time, not time at the venue","box mma judo bjj karate muay sparring",69,{"minutes":{"rate":0.166667}}],["climbing","Climbing","SPORT","Actual playing time, not time at the venue","bouldering rock wall",70,{"minutes":{"rate":0.166667}}],["tennis","Tennis","SPORT","Actual playing time, not time at the venue","tennis racket court",71,{"minutes":{"rate":0.116667}}],["padel","Padel","SPORT","Actual playing time, not time at the venue","padel paddle",72,{"minutes":{"rate":0.116667}}],["volleyball","Volleyball","SPORT","Actual playing time, not time at the venue","volley beach net",73,{"minutes":{"rate":0.116667}}],["badminton","Badminton","SPORT","Actual playing time, not time at the venue","badminton shuttle",74,{"minutes":{"rate":0.116667}}],["tabletennis","Table Tennis","SPORT","Actual playing time, not time at the venue","ping pong",75,{"minutes":{"rate":0.116667}}],["othersport","Other Sport","SPORT","Actual playing time, not time at the venue","other misc game match",76,{"minutes":{"rate":0.116667}}],["gymbench","Bench Press","GYM","Enter the weight on the bar, not counting your own","bench barbell chest press flat",77,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymdbbench","Dumbbell Bench Press","GYM","Enter the weight on the bar, not counting your own","dumbbell db incline chest",78,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymohp","Overhead Press","GYM","Enter the weight on the bar, not counting your own","ohp military shoulder press standing",79,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymdip","Weighted Dips","GYM","Enter the weight on the bar, not counting your own","weighted dip belt",80,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymchestmach","Chest Press (Machine)","GYM","Enter the weight on the bar, not counting your own","machine chest press pec",81,{"reps":{"k":1.5625,"equip":0.75,"legs":false,"pattern":"push"}}],["gymtricep","Tricep Pushdown","GYM","Enter the weight on the bar, not counting your own","cable pushdown tricep rope",82,{"reps":{"k":1.5625,"equip":0.6,"legs":false,"pattern":"push"}}],["gymlatraise","Lateral Raise","GYM","Enter the weight on the bar, not counting your own","side delt raise shoulder",83,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymdeadlift","Deadlift","GYM","Enter the weight on the bar, not counting your own","deadlift conventional sumo barbell",84,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymbarbellrow","Barbell Row","GYM","Enter the weight on the bar, not counting your own","bent over row pendlay",85,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymdbrow","Dumbbell Row","GYM","Enter the weight on the bar, not counting your own","one arm db row",86,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymlatpull","Lat Pulldown","GYM","Enter the weight on the bar, not counting your own","pulldown machine lats",87,{"reps":{"k":2.0,"equip":0.75,"legs":false,"pattern":"pull"}}],["gymcablerow","Seated Cable Row","GYM","Enter the weight on the bar, not counting your own","cable row seated",88,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}}],["gymweightpull","Weighted Pull-up","GYM","Enter the weight on the bar, not counting your own","weighted pullup belt",89,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymcurl","Bicep Curl","GYM","Enter the weight on the bar, not counting your own","curl barbell dumbbell biceps",90,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymfacepull","Face Pull","GYM","Enter the weight on the bar, not counting your own","cable rear delt",91,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}}],["gymsquat","Back Squat","GYM","Enter the weight on the bar, not counting your own","squat barbell back high bar",92,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymfrontsquat","Front Squat","GYM","Enter the weight on the bar, not counting your own","front squat clean grip",93,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymlegpress","Leg Press","GYM","Enter the weight on the bar, not counting your own","leg press machine",94,{"reps":{"k":0.588,"equip":0.75,"legs":true,"pattern":"legs"}}],["gymrdl","Romanian Deadlift","GYM","Enter the weight on the bar, not counting your own","rdl stiff leg hamstring",95,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymhipthrust","Hip Thrust","GYM","Enter the weight on the bar, not counting your own","glute bridge barbell",96,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymlegcurl","Leg Curl","GYM","Enter the weight on the bar, not counting your own","hamstring machine curl",97,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}}],["gymlegext","Leg Extension","GYM","Enter the weight on the bar, not counting your own","quad machine extension",98,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}}],["gymlunge","Weighted Lunge","GYM","Enter the weight on the bar, not counting your own","dumbbell lunge walking",99,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymcalf","Weighted Calf Raise","GYM","Enter the weight on the bar, not counting your own","calf machine standing",100,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}}],["stretch","Stretching Session","RECOVERY","At least 10 minutes of stretching, mobility or yoga","stretch mobility yoga flexibility",101,{"flat":{"rate":5.0}}],["sauna","Sauna / Cold Plunge","RECOVERY","","sauna ice bath cold recovery",102,{"flat":{"rate":3.0}}]]$j$::jsonb) as e;
+
 -- ---------------------------------------------------------------------
 delete from public.bounties;
 insert into public.bounties (idx, name, descr, points, spec) values

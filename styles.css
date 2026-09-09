@@ -477,3 +477,104 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 @keyframes up2{from{opacity:0;transform:translate(-50%,10px)}}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* =====================================================================
+   Icons, emblems, banners and badges
+   Every mark is one monochrome game-icons path drawn with currentColor,
+   so a colour change is a tint, never a second file.
+   ===================================================================== */
+.gi{width:1em;height:1em;fill:currentColor;display:block}
+
+/* --- fighter emblem ------------------------------------------------- */
+.av{width:30px;height:30px;flex:0 0 auto;display:grid;place-items:center;
+  border-radius:50%;background:var(--panel-2);border:1.5px solid var(--line-2);
+  color:var(--muted);position:relative;overflow:hidden}
+.av .gi{width:70%;height:70%}
+.av-emoji{font-size:17px;line-height:1}
+.av-fb{font:800 14px/1 var(--display);color:var(--muted)}
+.av-sm{width:22px;height:22px;border-width:1px}
+.av-sm .av-emoji{font-size:13px}
+.av-lg{width:54px;height:54px;border-width:2px}
+.av-lg .av-emoji{font-size:30px}
+/* division tint: the same drawing, three metals */
+.av-gold{border-color:rgba(255,201,60,.7);color:var(--gold);
+  box-shadow:inset 0 0 12px -4px rgba(255,201,60,.8)}
+.av-silver{border-color:rgba(201,211,226,.55);color:var(--silver)}
+.av-bronze{border-color:rgba(208,132,66,.6);color:var(--bronze)}
+
+/* --- emblem picker -------------------------------------------------- */
+.avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
+.av-opt{display:grid;place-items:center;aspect-ratio:1;padding:8px;color:var(--muted)}
+.av-opt .gi{width:100%;height:100%}
+.av-opt.on{color:var(--red)}
+
+/* --- league badge (shield + emblem) --------------------------------- */
+.lbadge{position:relative;display:inline-grid;place-items:center;flex:0 0 auto}
+.lbadge svg{width:100%;height:100%;display:block}
+.lbadge-em{position:absolute;inset:0;display:grid;place-items:center;
+  color:rgba(0,0,0,.62)}
+.lbadge-em .gi{width:46%;height:46%;margin-top:-6%}
+.lbadge-sm{width:26px;height:26px}
+.lbadge-md{width:38px;height:38px}
+.lbadge-lg{width:72px;height:72px}
+.lg-badge{display:inline-grid;place-items:center;margin-right:8px}
+
+/* --- rank banner on a board row ------------------------------------- */
+/* A thin metal edge, not a block of colour: the row stays a row. */
+.row.bnr{position:relative}
+.row.bnr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--bnr,transparent)}
+.bnr-i{--bnr:#5b6472}
+.bnr-ii{--bnr:#3ba6ff}
+.bnr-iii{--bnr:#a86bff}
+.bnr-iv{--bnr:var(--gold)}
+.bnr-v{--bnr:linear-gradient(180deg,var(--red),var(--gold))}
+.rankchip{font:800 10px/1 var(--display);letter-spacing:.06em;
+  padding:2px 5px;border-radius:3px;background:var(--panel-2);color:var(--muted)}
+.rank-ii{color:#3ba6ff}.rank-iii{color:#a86bff}
+.rank-iv{color:var(--gold)}.rank-v{color:var(--red)}
+
+/* =====================================================================
+   Exercise picker: a search box beats a 100-item dropdown on a phone
+   ===================================================================== */
+.expick{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:4px;
+  padding:11px 12px;color:var(--txt);font:800 17px/1.1 var(--display);
+  letter-spacing:.01em;cursor:pointer}
+.expick-i{width:22px;height:22px;color:var(--muted);flex:0 0 auto}
+.expick-n{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.expick-c{font:700 10px/1 var(--display);letter-spacing:.1em;color:var(--red)}
+.exfinder{margin-top:8px}
+.exlist{max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  margin-top:8px;border:1px solid var(--line);border-radius:4px;background:var(--bg-2)}
+.exl-h{display:flex;align-items:center;gap:7px;position:sticky;top:0;z-index:1;
+  padding:7px 10px;background:var(--panel-2);color:var(--muted);
+  font:800 11px/1 var(--display);letter-spacing:.12em;border-bottom:1px solid var(--line)}
+.exl-h .gi{width:14px;height:14px}
+.exl-i{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;
+  padding:10px 12px;background:none;border:0;border-bottom:1px solid var(--line);
+  color:var(--txt);cursor:pointer}
+.exl-i:last-child{border-bottom:0}
+.exl-i.on{background:rgba(255,46,46,.12)}
+.exl-n{flex:1 1 auto;font:700 15px/1.15 var(--sans)}
+.exl-r{flex:0 0 auto;font:600 11px/1 var(--mono);color:var(--muted)}
+.pad8{padding:10px}
+.gym2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+
+/* =====================================================================
+   Settings sections — collapsed by default so the tab fits one screen
+   ===================================================================== */
+.sect{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+  margin-bottom:10px;overflow:hidden}
+.sect>summary{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 14px;cursor:pointer;list-style:none;
+  font:800 13px/1 var(--display);letter-spacing:.13em;color:var(--txt)}
+.sect>summary::-webkit-details-marker{display:none}
+.sect>summary::after{content:"▾";color:var(--muted);font-size:12px;
+  transition:transform .15s ease}
+.sect[open]>summary::after{transform:rotate(180deg)}
+.sect[open]>summary{border-bottom:1px solid var(--line)}
+.sect-b{padding:4px 14px 16px}
+.sect-b h4{margin:16px 0 6px;font:800 11px/1 var(--display);
+  letter-spacing:.12em;color:var(--muted)}
+.sect-b h4:first-child{margin-top:10px}

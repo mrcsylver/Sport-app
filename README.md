@@ -10,8 +10,9 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Sunday rest day** — the league closes Saturday night; only a stretch counts.
 - **Stats tab** — your own totals, this week or all time, split by muscle group.
 - **Duels** — 24 hour head to head against anyone in your league, by code.
-- **Animal avatars, light or dark theme** — set in the Leagues tab.
+- **Emblems, league crests and rank banners** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
+- **100+ exercises** — search the bank, including team sports and gym lifts.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
 - **Personal leagues** — create your own league, share a link, 30 people max.
@@ -164,12 +165,69 @@ loads when you have no signal (you just can't post until you're back online).
 | **Cardio** | Run | 5 pts / km |
 | | Sprint Intervals *(one sprint = 15 sec / 100 m)* | 2 pts / sprint |
 | | Biking | 1.5 pts / km |
-| | Swim *(active swim time)* | 8 pts / hour |
+| | Swim *(active swim time)* | 12 pts / hour |
 | | Walking | 2.5 pts / km |
+| | Rowing machine | 10 pts / hour |
+| | Jump rope | 8 pts / hour |
+| **Sport** | Football · Basketball · Rugby · Boxing · Squash · Climbing | 10 pts / hour |
+| | Tennis · Padel · Volleyball · Badminton · Table tennis | 7 pts / hour |
+| **Gym** | Any lift — scored from your bodyweight and the bar | see below |
 | **Recovery** | Stretching Session *(10 min minimum)* | 5 pts flat |
 
-Variations of the same movement are worth the same. The point is to train and
-progress, not to farm the easiest option.
+These are the anchors. Every other exercise in the bank is priced **from** them
+rather than guessed — see *How the bank is priced* below.
+
+### Why sport pays less than swimming
+
+An hour of sport is the least checkable entry in the app, and includes a lot of
+standing around. Distance entries (run, walk, bike) are priced at effort because
+your phone measures the distance; time entries take an honesty discount. That is
+the whole reason swimming sits at 12 and football at 10.
+
+### How the bank is priced
+
+Over 100 exercises, and not one of the rates was chosen by feel. Each movement
+moves some fraction of your bodyweight (**L**), and
+
+```
+points per rep  =  k  x  L
+```
+
+where each **k** is fitted to the exercises the league already agreed on:
+push-ups (L 0.64 → 1 pt), pull-ups (L 1.00 → 2 pts), air squats (L 0.85 → 0.5 pt).
+That model reproduces dips, rows and calf raises from the original table, so the
+bank inherits balance you already signed off on. Only genuine skill lifts —
+handstand push-ups, muscle-ups, pistols — carry a premium on top, exactly as
+they always did.
+
+Because the rate follows the load, an easier variation finally scores less than
+the full movement: a knee push-up is 0.75, a decline push-up 1.25.
+
+### Gym lifts
+
+Pick any lift, enter **your bodyweight** and **the weight on the bar**, and the
+same formula does the rest:
+
+```
+R = (weight lifted x equipment) / bodyweight        (squats etc. add 0.85 x bodyweight)
+points per rep = k x R
+```
+
+R is the *same* "fraction of bodyweight moved" that prices calisthenics, so a
+bench press at 64% of your weight scores like a push-up. Machines and cables
+count for less than free weights because they remove the stabilising work —
+that factor is baked into each exercise, so there is nothing extra to choose.
+
+Your bodyweight is remembered on your profile, is only used for this, and is
+never shown to anyone else.
+
+| Example *(80 kg lifter)* | Points |
+|---|---|
+| Bench press 60 kg x 10 | 11.7 |
+| Bench press 100 kg x 10 | 19.5 |
+| Back squat 100 kg x 10 | 12.4 |
+| Deadlift 140 kg x 5 | 17.5 |
+| *(for scale)* 10 push-ups | 10.0 |
 
 ### Divisions
 
@@ -371,8 +429,29 @@ sw.js               service worker: offline support / installability
 manifest.webmanifest  makes it installable as an app
 supabase/schema.sql >>> run this once in Supabase <<<
 vendor/supabase.js  the Supabase library, bundled so nothing loads from the internet
+vendor/game-icons.js  the emblem artwork, bundled the same way
+tools/              the exercise-bank generator (see below)
 fonts/, icons/      the typeface and the app icon
 ```
 
 No build step, no npm, no framework. Every file is served exactly as it is,
 which is why any free static host can run it.
+
+## Changing the exercises
+
+`supabase/schema.sql` and `app.js` both carry the exercise bank, and they must
+agree exactly — the preview a person sees is worthless if the server scores it
+differently. So neither is edited by hand. Change `tools/exercise_bank.py`, then:
+
+```
+python3 tools/build_exercises.py
+```
+
+That regenerates both, re-derives every rate from the formula above, and fails
+loudly if an anchor rate drifted or a bounty's exercise disappeared.
+
+## Credits
+
+Emblem and crest artwork from [game-icons.net](https://game-icons.net),
+used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+Typeface: Barlow Condensed (SIL Open Font License).

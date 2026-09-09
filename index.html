@@ -88,6 +88,7 @@
 
   <header class="topbar">
     <button id="leagueBtn" class="leaguepill" type="button">
+      <span class="lg-badge" id="lgBadge"></span>
       <span class="lg-name" id="lgName">—</span>
       <span class="lg-meta" id="lgMeta">—</span>
     </button>
@@ -174,75 +175,94 @@
       <div class="section-head"><h2>MY LEAGUES</h2></div>
       <div id="leagueList" class="stack"></div>
 
-      <div class="panel">
-        <h3>INVITE YOUR CREW</h3>
-        <p class="muted small">Send this link. They open it, pick a name, and they are in.</p>
-        <div class="copyrow">
-          <input id="shareLink" class="input mono small" readonly>
-          <button id="copyBtn" class="btn ghost sm" type="button">COPY</button>
-        </div>
-        <button id="shareBtn" class="btn ghost" type="button" hidden>SHARE LINK</button>
-      </div>
-
-      <div class="panel">
-        <h3>JOIN ANOTHER LEAGUE</h3>
-        <div class="copyrow">
-          <input id="joinCodeInput" class="input mono" maxlength="6" placeholder="CODE"
-                 autocapitalize="characters" spellcheck="false">
-          <button id="joinBtn" class="btn ghost sm" type="button">JOIN</button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h3>CREATE A SEPARATE LEAGUE</h3>
-        <p class="muted small">Only for starting a different group. To get friends into
-          the league you are already in, send them your invite link above.</p>
-        <button id="createToggle" class="btn ghost sm" type="button"
-                style="width:100%;margin-top:4px">SHOW CREATE OPTION</button>
-        <div id="createWrap" hidden style="margin-top:10px">
-          <p class="muted small">Max 30 fighters. Anyone can join later — they start at 0.</p>
+      <details class="sect" open>
+        <summary><span>LEAGUES</span></summary>
+        <div class="sect-b">
+          <h4>Invite your crew</h4>
+          <p class="muted small">Send this link. They open it, pick a name, and they are in.</p>
           <div class="copyrow">
-            <input id="newLeagueInput" class="input" maxlength="28" placeholder="LEAGUE NAME">
-            <button id="createBtn" class="btn ghost sm" type="button">CREATE</button>
+            <input id="shareLink" class="input mono small" readonly>
+            <button id="copyBtn" class="btn ghost sm" type="button">COPY</button>
+          </div>
+          <button id="shareBtn" class="btn ghost" type="button" hidden>SHARE LINK</button>
+
+          <h4>Join another league</h4>
+          <div class="copyrow">
+            <input id="joinCodeInput" class="input mono" maxlength="6" placeholder="CODE"
+                   autocapitalize="characters" spellcheck="false">
+            <button id="joinBtn" class="btn ghost sm" type="button">JOIN</button>
+          </div>
+
+          <h4>Start a separate league</h4>
+          <p class="muted small">Only for a different group. To add friends to the league
+            you are already in, send them the invite link above.</p>
+          <button id="createToggle" class="btn ghost sm" type="button"
+                  style="width:100%">SHOW CREATE OPTION</button>
+          <div id="createWrap" hidden style="margin-top:10px">
+            <p class="muted small">Max 30 fighters. Anyone can join later — they start at 0.</p>
+            <div class="copyrow">
+              <input id="newLeagueInput" class="input" maxlength="28" placeholder="LEAGUE NAME">
+              <button id="createBtn" class="btn ghost sm" type="button">CREATE</button>
+            </div>
           </div>
         </div>
-      </div>
+      </details>
 
-      <div class="panel">
-        <h3>MY PROFILE</h3>
-        <div class="copyrow">
-          <input id="renameInput" class="input" maxlength="18">
-          <button id="renameBtn" class="btn ghost sm" type="button">RENAME</button>
+      <details class="sect">
+        <summary><span>MY FIGHTER</span></summary>
+        <div class="sect-b">
+          <h4>Name</h4>
+          <div class="copyrow">
+            <input id="renameInput" class="input" maxlength="18">
+            <button id="renameBtn" class="btn ghost sm" type="button">RENAME</button>
+          </div>
+
+          <h4>Bodyweight</h4>
+          <p class="muted small">Used to score gym lifts. Nobody else sees it.</p>
+          <div class="copyrow">
+            <input id="bwProfile" class="input num mono" type="number" inputmode="decimal"
+                   step="0.5" min="30" max="250" placeholder="80">
+            <button id="bwSave" class="btn ghost sm" type="button">SAVE</button>
+          </div>
+
+          <h4>Restore code</h4>
+          <p class="muted small">Write it down. It moves your profile to a new phone.</p>
+          <div class="codebox mono" id="restoreCode">--------</div>
         </div>
-        <p class="muted small" style="margin-top:14px">
-          Restore code — write it down. It moves your profile to a new phone.</p>
-        <div class="codebox mono" id="restoreCode">--------</div>
-        <p class="muted small" style="margin-top:14px">Appearance</p>
-        <div class="segmented" id="themeRow">
-          <button type="button" data-theme="dark">DARK</button>
-          <button type="button" data-theme="light">LIGHT</button>
-          <button type="button" data-theme="auto">AUTO</button>
+      </details>
+
+      <details class="sect">
+        <summary><span>EMBLEM</span></summary>
+        <div class="sect-b">
+          <p class="muted small">Shown next to your name on the board.</p>
+          <div id="avatarGrid" class="avgrid"></div>
+          <button id="avatarClear" class="btn ghost sm" type="button"
+                  style="width:100%;margin-top:10px">NO EMBLEM</button>
         </div>
-        <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
-      </div>
+      </details>
 
-      <div class="panel">
-        <h3>PICK YOUR ANIMAL</h3>
-        <p class="muted small">Shown next to your name on the board.</p>
-        <div id="avatarGrid" class="avgrid"></div>
-        <button id="avatarClear" class="btn ghost sm" type="button"
-                style="width:100%;margin-top:10px">NO ANIMAL</button>
-      </div>
+      <details class="sect">
+        <summary><span>APPEARANCE</span></summary>
+        <div class="sect-b">
+          <div class="segmented" id="themeRow">
+            <button type="button" data-theme="dark">DARK</button>
+            <button type="button" data-theme="light">LIGHT</button>
+            <button type="button" data-theme="auto">AUTO</button>
+          </div>
+          <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
+        </div>
+      </details>
 
-      <div class="panel">
-        <h3>DAILY COMBO</h3>
-        <div id="comboRules"></div>
-      </div>
+      <details class="sect">
+        <summary><span>HOW SCORING WORKS</span></summary>
+        <div class="sect-b">
+          <h4>Daily combo</h4>
+          <div id="comboRules"></div>
+          <h4>Every exercise</h4>
+          <div id="pointsTable" class="ptable"></div>
+        </div>
+      </details>
 
-      <div class="panel">
-        <h3>SCORING</h3>
-        <div id="pointsTable" class="ptable"></div>
-      </div>
       <p class="muted small center" id="version"></p>
     </section>
   </main>
@@ -278,13 +298,36 @@
     <div class="sheet-body">
       <p id="restNote" class="restnote" hidden></p>
       <p id="multiNote" class="multinote" hidden></p>
-      <label class="lbl" for="exSelect">EXERCISE</label>
-      <div class="selwrap">
-        <select id="exSelect" class="input select"></select>
+      <label class="lbl" for="exSearch">EXERCISE</label>
+      <button id="exPick" class="expick" type="button" aria-haspopup="listbox">
+        <span class="expick-i" id="exPickIcon"></span>
+        <span class="expick-n" id="exPickName">Push-ups</span>
+        <span class="expick-c">CHANGE</span>
+      </button>
+      <div id="exFinder" class="exfinder" hidden>
+        <input id="exSearch" class="input" type="search" autocomplete="off"
+               placeholder="Search 100+ exercises…" spellcheck="false">
+        <div id="exList" class="exlist" role="listbox"></div>
       </div>
       <p class="exvar" id="exVariants"></p>
 
       <div id="modeRow" class="segmented" hidden></div>
+
+      <div id="gymRow" hidden>
+        <div class="gym2">
+          <div>
+            <label class="lbl" for="bwInput">YOUR BODYWEIGHT (KG)</label>
+            <input id="bwInput" class="input num mono" type="number" inputmode="decimal"
+                   step="0.5" min="30" max="250" placeholder="80">
+          </div>
+          <div>
+            <label class="lbl" for="loadInput">WEIGHT LIFTED (KG)</label>
+            <input id="loadInput" class="input num mono" type="number" inputmode="decimal"
+                   step="2.5" min="0" max="500" placeholder="60">
+          </div>
+        </div>
+        <p class="muted small">Just the bar and plates — your own weight is counted for you.</p>
+      </div>
 
       <label class="lbl" for="amountInput"><span id="amountLbl">REPS</span></label>
       <div class="stepper">
@@ -323,6 +366,7 @@
 
 <script src="./config.js"></script>
 <script src="./vendor/supabase.js"></script>
+<script src="./vendor/game-icons.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
