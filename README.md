@@ -211,6 +211,8 @@ Thursday itself count, from 00:00 to 23:59. The card says which state it is in:
 *counts on Thursday only* before the day, *today only, until midnight* on the
 day, and *closed* afterwards.
 
+- **Bounties are worth 25 to 60 points** depending on how hard they are — a
+  big enough swing to move you up the table, so missing one costs you.
 - **Everybody who completes it earns the points** — it is not a race you can
   lose by being busy in the morning.
 - The first person to finish also gets a 🩸 next to their name. Worth nothing,
