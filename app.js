@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.0.0';
+  var APP_VERSION = '2.1.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -207,23 +207,46 @@
 
   /* Divisions. Your finishing position last week decides this week's tier,
      so it maintains itself with no bookkeeping. Ten per tier, always. */
+  /* Divisions. Ten per division, always, so the size never depends on how
+     many people showed up. Each one is a place with a name and a crest, not
+     a colour with a number — you are in the VANGUARD, not in "tier 2". */
   var TIERS = [
-    { key: 'GOLD',   size: 10, color: 'var(--gold)' },
-    { key: 'SILVER', size: 10, color: 'var(--silver)' },
-    { key: 'BRONZE', size: 10, color: 'var(--bronze)' }
+    { key: 'GOLD',   name: 'APEX',     sub: 'Top ten of the league',
+      icon: 'crown',      size: 10, color: 'var(--gold)' },
+    { key: 'SILVER', name: 'VANGUARD', sub: 'Chasing the Apex',
+      icon: 'crossed-swords', size: 10, color: 'var(--silver)' },
+    { key: 'BRONZE', name: 'FORGE',    sub: 'Where everyone starts',
+      icon: 'anvil-impact',  size: 10, color: 'var(--bronze)' }
   ];
 
-  /* Lifetime point milestones, shown on the stats tab. */
-  /* Lifetime point milestones. `tier` groups them into the four banner
-     colours a fighter can carry on the board — the rank is derived from
-     points they already have, so there is nothing to store or award. */
-  var MILESTONES = [
-    { at: 25,   name: 'SPARK',    tier: 'i'   }, { at: 50,   name: 'ROOKIE',  tier: 'i'   },
-    { at: 100,  name: 'REGULAR',  tier: 'ii'  }, { at: 300,  name: 'GRINDER', tier: 'ii'  },
-    { at: 700,  name: 'MACHINE',  tier: 'iii' }, { at: 1000, name: 'BEAST',   tier: 'iii' },
-    { at: 2000, name: 'WARLORD',  tier: 'iv'  }, { at: 3500, name: 'TITAN',   tier: 'iv'  },
-    { at: 5000, name: 'IMMORTAL', tier: 'v'   }
-  ];
+  /* The rank ladder, all the way to 50,000 lifetime points. Named grades with
+     numerals inside them, so there is always a next step close enough to want.
+     `tier` is the banner colour a grade flies on the board. */
+  var MILESTONES = (function () {
+    var GRADES = [
+      ['SPARK',     'i',   [25]],
+      ['ROOKIE',    'i',   [50]],
+      ['REGULAR',   'ii',  [100]],
+      ['GRINDER',   'ii',  [200, 350, 550]],
+      ['MACHINE',   'iii', [800, 1100, 1500]],
+      ['BEAST',     'iii', [2000, 2600, 3300]],
+      ['WARLORD',   'iv',  [4200, 5300, 6600]],
+      ['TITAN',     'iv',  [8200, 10000, 12500]],
+      ['IMMORTAL',  'v',   [15500, 19000, 23000]],
+      ['ASCENDANT', 'v',   [28000, 34000, 41000]],
+      ['ETERNAL',   'vi',  [50000]]
+    ];
+    var ROMAN = ['I', 'II', 'III'], out = [];
+    GRADES.forEach(function (g) {
+      g[2].forEach(function (at, i) {
+        out.push({
+          at: at, tier: g[1], grade: g[0],
+          name: g[2].length > 1 ? g[0] + ' ' + ROMAN[i] : g[0]
+        });
+      });
+    });
+    return out;
+  })();
 
   /* ------------------------------------------------------------------
      Avatars and badges.
@@ -236,6 +259,48 @@
      ------------------------------------------------------------------ */
   var ICON_PREFIX = 'gi:';
 
+  /* Emblem tints. CLEAR drops the disc entirely and leaves the bare mark,
+     which is the closest thing to transparent a small round avatar can be. */
+  var AV_COLORS = [
+    { key: 'clear',   name: 'CLEAR',   css: 'var(--txt)' },
+    { key: 'crimson', name: 'CRIMSON', css: '#ff2e2e' },
+    { key: 'ember',   name: 'EMBER',   css: '#ff6a1f' },
+    { key: 'gold',    name: 'GOLD',    css: '#ffc93c' },
+    { key: 'jade',    name: 'JADE',    css: '#26d07c' },
+    { key: 'azure',   name: 'AZURE',   css: '#3ba6ff' },
+    { key: 'violet',  name: 'VIOLET',  css: '#a86bff' },
+    { key: 'steel',   name: 'STEEL',   css: '#c9d3e2' },
+    { key: 'bone',    name: 'BONE',    css: '#e8e2d4' }
+  ];
+  function avColor(key) {
+    for (var i = 0; i < AV_COLORS.length; i++) if (AV_COLORS[i].key === key) return AV_COLORS[i];
+    return null;
+  }
+
+  /* An avatar is stored as one string so it stays a single column:
+       "gi:wolf-head|c=crimson|p=🦍"   emblem, tint, and an emoji pinned to it
+       "gi:wolf-head"                  emblem only
+       "🦍"                            what people picked before emblems existed
+     All three parse here, so nobody's existing choice changes meaning. */
+  function parseAvatar(spec) {
+    var out = { icon: null, color: null, emoji: null };
+    if (!spec) return out;
+    if (spec.indexOf(ICON_PREFIX) !== 0) { out.emoji = spec; return out; }
+    var parts = String(spec).split('|');
+    out.icon = parts[0].slice(ICON_PREFIX.length);
+    parts.slice(1).forEach(function (bit) {
+      if (bit.indexOf('c=') === 0) out.color = bit.slice(2);
+      if (bit.indexOf('p=') === 0) out.emoji = bit.slice(2);
+    });
+    return out;
+  }
+  function buildAvatar(a) {
+    if (!a.icon) return a.emoji || '';
+    return ICON_PREFIX + a.icon +
+           (a.color ? '|c=' + a.color : '') +
+           (a.emoji ? '|p=' + a.emoji : '');
+  }
+
   function iconSvg(name, cls) {
     var body = (typeof GI_ICONS !== 'undefined') && GI_ICONS[name];
     if (!body) return '';
@@ -247,18 +312,27 @@
      Swapping the art later is this function, not a hunt through the file. */
   function avatarHtml(spec, opts) {
     opts = opts || {};
-    var tier = opts.tier ? ' av-' + String(opts.tier).toLowerCase() : '';
-    var size = opts.size ? ' av-' + opts.size : '';
+    var a = parseAvatar(spec);
+    var cls = 'av';
+    if (opts.size) cls += ' av-' + opts.size;
+    /* A chosen tint wins; otherwise the division metal shows through. */
+    var c = a.color && avColor(a.color);
+    if (c) cls += ' av-tint' + (a.color === 'clear' ? ' av-clear' : '');
+    else if (opts.tier) cls += ' av-' + String(opts.tier).toLowerCase();
+    var style = c ? ' style="color:' + c.css + '"' : '';
+
     var inner;
-    if (spec && spec.indexOf(ICON_PREFIX) === 0) {
-      inner = iconSvg(spec.slice(ICON_PREFIX.length));
-      if (!inner) inner = '<span class="av-fb">?</span>';
-    } else if (spec) {
-      inner = '<span class="av-emoji">' + esc(spec) + '</span>';   // legacy pick
+    if (a.icon) {
+      inner = iconSvg(a.icon) || '<span class="av-fb">?</span>';
+    } else if (a.emoji) {
+      inner = '<span class="av-emoji">' + esc(a.emoji) + '</span>';
+      a.emoji = null;                       // it IS the avatar, not a pin
     } else {
       inner = '<span class="av-fb">' + esc((opts.name || '?').slice(0, 1)) + '</span>';
     }
-    return '<span class="av' + size + tier + '">' + inner + '</span>';
+    /* Emblem and animal together: the emoji rides as a small pin on the rim. */
+    var pin = a.emoji ? '<span class="av-pin">' + esc(a.emoji) + '</span>' : '';
+    return '<span class="' + cls + '"' + style + '>' + inner + pin + '</span>';
   }
 
   /* Plain-text avatar for the few places that are one line of text. */
@@ -284,10 +358,12 @@
     var b = (league && league.badge) || {};
     var seed = 0, id = (league && (league.id || league.name)) || '';
     for (var i = 0; i < id.length; i++) seed = (seed * 31 + id.charCodeAt(i)) >>> 0;
+    /* Unsigned shifts: the hash is a full 32-bit value, and a signed >> turns
+       anything past 2^31 negative, which indexes off the front of the array. */
     return {
       shape:  b.shape  || BADGE_SHAPES[seed % BADGE_SHAPES.length],
-      color:  b.color  || BADGE_COLORS[(seed >> 3) % BADGE_COLORS.length].key,
-      emblem: b.emblem || GI_EMBLEMS[(seed >> 6) % GI_EMBLEMS.length]
+      color:  b.color  || BADGE_COLORS[(seed >>> 3) % BADGE_COLORS.length].key,
+      emblem: b.emblem || GI_EMBLEMS[(seed >>> 6) % GI_EMBLEMS.length]
     };
   }
 
@@ -913,12 +989,19 @@
     }
     var groups = withTiers(state.board);
     if (groups) {
+      var mine = state.profile ? state.profile.id : null;
       box.innerHTML = groups.map(function (g) {
-        return '<div class="tierhead t-' + g.tier.key.toLowerCase() + '">' + g.tier.key +
-               '<i>' + g.rows.length + '</i></div>' +
+        var here = g.rows.some(function (p) { return p.profile_id === mine; });
+        return '<div class="divhead t-' + g.tier.key.toLowerCase() +
+                 (here ? ' is-mine' : '') + '">' +
+                 '<span class="divhead-c">' + iconSvg(g.tier.icon) + '</span>' +
+                 '<span class="divhead-t"><b>' + g.tier.name + ' DIVISION</b>' +
+                   '<i>' + g.tier.sub + '</i></span>' +
+                 '<span class="divhead-n">' + g.rows.length + '</span>' +
+               '</div>' +
                g.rows.map(function (p, i) { return boardRow(p, i + 1, g.tier.key); }).join('');
       }).join('') +
-      '<p class="hint">Top ten are Gold, next ten Silver. Climb the table to move up.</p>';
+      '<p class="hint">Ten fighters per division. Pass the person above you and you take their place.</p>';
       return;
     }
     var me = state.profile ? state.profile.id : null;
@@ -1095,6 +1178,10 @@
       }).join('');
     }
     var l = league();
+    if (l) {
+      $('#optCrest').innerHTML = leagueBadgeHtml(l, 'sm') +
+        (l.badge ? ' Chosen' : ' Auto — from the league code');
+    }
     $('#shareLink').value = l ? shareUrl(l.code) : '—';
     if (state.profile) {
       $('#renameInput').value = state.profile.display_name;
@@ -1575,18 +1662,38 @@
     var last = done.length ? done[done.length - 1] : null;
     var from = last ? last.at : 0;
     var pct = next ? Math.min(100, (lifetime - from) / (next.at - from) * 100) : 100;
+    /* The ladder is the point of this tab, so it leads with where you stand
+       and how far the next grade is — the full list is there to scroll, not
+       to read. Only nearby grades get shown; 25 pips would be noise. */
+    var idx = last ? MILESTONES.indexOf(last) : -1;
+    var near = MILESTONES.slice(Math.max(0, idx - 1), idx + 4);
     $('#milestones').innerHTML =
-      '<div class="ms-top">' +
-        '<span class="ms-rank">' + (last ? last.name : 'UNRANKED') + '</span>' +
-        '<span class="ms-next">' + (next
-          ? num(Math.max(0, next.at - lifetime)) + ' pts to ' + next.name
-          : 'every milestone taken') + '</span>' +
+      '<div class="ms-hero rank-' + (last ? last.tier : 'i') + '">' +
+        '<span class="ms-badge">' +
+          iconSvg(!last ? 'star-formation'
+                  : last.tier === 'vi' ? 'crown'
+                  : last.tier === 'v'  ? 'laurels-trophy'
+                  : last.tier === 'iv' ? 'trophy'
+                  : 'star-formation') + '</span>' +
+        '<span class="ms-id">' +
+          '<b>' + (last ? last.name : 'UNRANKED') + '</b>' +
+          '<i>' + num(lifetime) + ' lifetime points</i>' +
+        '</span>' +
       '</div>' +
       '<div class="ms-bar"><span style="width:' + pct.toFixed(1) + '%"></span></div>' +
-      '<div class="ms-pips">' + MILESTONES.map(function (m) {
-        return '<span class="ms-pip' + (lifetime >= m.at ? ' on' : '') + '">' +
-               '<i>' + m.at + '</i>' + m.name + '</span>';
-      }).join('') + '</div>';
+      '<p class="ms-next">' + (next
+        ? '<b>' + num(Math.max(0, next.at - lifetime)) + '</b> to ' + next.name
+        : 'Every grade taken. Nothing left above you.') + '</p>' +
+      '<div class="ms-steps">' + near.map(function (m) {
+        return '<span class="ms-step' + (lifetime >= m.at ? ' on' : '') +
+               (m === next ? ' nxt' : '') + '">' +
+               '<b>' + m.name + '</b><i>' + num(m.at) + '</i></span>';
+      }).join('') + '</div>' +
+      '<details class="ms-all"><summary>All ' + MILESTONES.length + ' grades</summary>' +
+        '<div class="ms-pips">' + MILESTONES.map(function (m) {
+          return '<span class="ms-pip' + (lifetime >= m.at ? ' on' : '') + '">' +
+                 '<i>' + num(m.at) + '</i>' + m.name + '</span>';
+        }).join('') + '</div></details>';
   }
 
   $('#statsRange').addEventListener('click', function (e) {
@@ -1617,14 +1724,62 @@
   function savedTheme() {
     try { return localStorage.getItem('ironleague.theme') || 'dark'; } catch (e) { return 'dark'; }
   }
+  /* A short list of animals, because the pin is a garnish, not a second
+     identity. Whatever someone picked before still shows even if it is not
+     on this list. */
+  var PIN_EMOJI = ('🦍🦊🐺🦁🐯🐻🐼🦅🦉🐗🦈🐍🦂🐢🐊🦖🐙🦑🐝🦋🐉🐴🦌🐘🦏🐆🦇🐸🐬🦭')
+    .match(/\p{Extended_Pictographic}\uFE0F?/gu) || [];
+
+  function myAvatar() {
+    return parseAvatar(state.profile && state.profile.avatar);
+  }
+
+  /* The emblem grids are ~110 inline SVGs. Building them on every render of
+     the settings tab cost enough DOM work to be felt, so they are built the
+     first time the section is opened and only patched for selection after. */
+  var avGridsBuilt = false;
+
+  function paintAvatarPreview() {
+    var a = myAvatar();
+    $('#avPreview').innerHTML = avatarHtml(buildAvatar(a), { size: 'lg' });
+  }
+
+  function markAvatarSelection() {
+    var a = myAvatar();
+    function mark(sel, attr, val) {
+      Array.prototype.forEach.call(document.querySelectorAll(sel), function (b) {
+        b.classList.toggle('on', b.getAttribute(attr) === val);
+      });
+    }
+    mark('#avatarGrid [data-icon]', 'data-icon', a.icon);
+    mark('#avColors [data-color]', 'data-color', a.color || 'clear');
+    mark('#avPins [data-pin]', 'data-pin', a.emoji || '');
+  }
+
   function buildAvatarGrid() {
-    var mine = state.profile && state.profile.avatar;
+    paintAvatarPreview();
+    if (!avGridsBuilt) return;      // grids not on screen yet; nothing to mark
+    markAvatarSelection();
+  }
+
+  function buildAvatarGridsOnce() {
+    if (avGridsBuilt) return;
+    avGridsBuilt = true;
     $('#avatarGrid').innerHTML = GI_AVATARS.map(function (n) {
-      var v = ICON_PREFIX + n;
-      return '<button type="button" class="av-opt' + (v === mine ? ' on' : '') +
-             '" data-av="' + v + '" aria-label="' + esc(n.replace(/-/g, ' ')) + '">' +
-             iconSvg(n) + '</button>';
+      return '<button type="button" class="av-opt" data-icon="' + n +
+             '" aria-label="' + esc(n.replace(/-/g, ' ')) + '">' + iconSvg(n) + '</button>';
     }).join('');
+    $('#avColors').innerHTML = AV_COLORS.map(function (c) {
+      return '<button type="button" class="sw' + (c.key === 'clear' ? ' sw-clear' : '') +
+             '" data-color="' + c.key + '" style="--sw:' + c.css + '" aria-label="' + c.name +
+             '"><span></span><small>' + c.name + '</small></button>';
+    }).join('');
+    $('#avPins').innerHTML =
+      '<button type="button" class="av-opt av-none" data-pin="" aria-label="No pin">✕</button>' +
+      PIN_EMOJI.map(function (e) {
+        return '<button type="button" class="av-opt" data-pin="' + e + '">' + e + '</button>';
+      }).join('');
+    markAvatarSelection();
   }
 
   async function saveAvatar(v) {
@@ -1633,15 +1788,39 @@
       if (r.error) throw r.error;
       state.profile = r.data;
       buildAvatarGrid();
-      toast(v ? 'Emblem set' : 'Emblem removed');
       await refreshAll();
     } catch (e) { toast(niceError(e), true); }
   }
+  function patchAvatar(patch) {
+    var a = myAvatar();
+    Object.keys(patch).forEach(function (k) { a[k] = patch[k]; });
+    if (!a.icon && !a.emoji) return saveAvatar('');
+    saveAvatar(buildAvatar(a));
+  }
+
   $('#avatarGrid').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-av]'); if (!b) return;
-    saveAvatar(b.getAttribute('data-av'));
+    var b = e.target.closest('[data-icon]'); if (!b) return;
+    patchAvatar({ icon: b.getAttribute('data-icon') });
+  });
+  $('#avColors').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-color]'); if (!b) return;
+    patchAvatar({ color: b.getAttribute('data-color') });
+  });
+  $('#avPins').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pin]'); if (!b) return;
+    patchAvatar({ emoji: b.getAttribute('data-pin') || null });
   });
   $('#avatarClear').addEventListener('click', function () { saveAvatar(''); });
+  $('#sectEmblem').addEventListener('toggle', function () {
+    if (this.open) buildAvatarGridsOnce();
+  });
+
+  /* Placeholders for things we have designed a slot for but not built. They
+     say so plainly rather than pretending to be broken buttons. */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-soon]'); if (!b) return;
+    toast(b.getAttribute('data-soon') + ' is coming — not built yet.');
+  });
 
   $('#bwSave').addEventListener('click', async function () {
     var v = parseFloat($('#bwProfile').value);
@@ -1721,18 +1900,34 @@
   function renderExList(q) {
     var hits = exMatches(q), box = $('#exList');
     if (!hits.length) { box.innerHTML = '<p class="muted small pad8">Nothing matches.</p>'; return; }
+    /* Groups stay shut until you open one, so browsing by muscle group is a
+       short list of headings rather than a hundred-line scroll. Typing opens
+       everything, because then the list is already short. */
+    var searching = !!q.trim();
+    var shown = CATEGORIES.filter(function (cat) {
+      return hits.some(function (e) { return e.cat === cat; });
+    });
+    /* One group and nothing else — a rest day, say — has nothing to collapse,
+       so leave it open rather than showing a heading with a hidden list. */
+    var alone = shown.length === 1;
     var html = '';
-    CATEGORIES.forEach(function (cat) {
+    shown.forEach(function (cat) {
       var list = hits.filter(function (e) { return e.cat === cat; });
-      if (!list.length) return;
-      html += '<div class="exl-h">' + iconSvg(GI_CAT[cat]) + cat + '</div>' +
-        list.map(function (e) {
+      var open = searching || alone || state.exOpen === cat;
+      html += '<div class="exl-g' + (open ? ' open' : '') + '">' +
+        '<button type="button" class="exl-h" data-cat="' + cat + '">' +
+          iconSvg(GI_CAT[cat]) + '<span>' + cat + '</span>' +
+          '<span class="exl-c">' + list.length + '</span>' +
+          '<span class="exl-x">' + (open ? '▴' : '▾') + '</span>' +
+        '</button>' +
+        (open ? list.map(function (e) {
           var m = e.modes[0];
           return '<button type="button" class="exl-i' +
             (e.key === modal.key ? ' on' : '') + '" data-ex="' + e.key + '" role="option">' +
             '<span class="exl-n">' + esc(e.name) + '</span>' +
             '<span class="exl-r">' + esc(m.label) + '</span></button>';
-        }).join('');
+        }).join('') : '') +
+      '</div>';
     });
     box.innerHTML = html;
   }
@@ -1740,6 +1935,8 @@
   function openFinder() {
     $('#exFinder').hidden = false;
     $('#exSearch').value = '';
+    var cur = exercise(modal.key);
+    state.exOpen = cur ? cur.cat : null;      // start where you already are
     renderExList('');
     $('#exSearch').focus();
   }
@@ -1814,6 +2011,13 @@
   });
   $('#exSearch').addEventListener('input', function () { renderExList(this.value); });
   $('#exList').addEventListener('click', function (e) {
+    var h = e.target.closest('[data-cat]');
+    if (h) {
+      var cat = h.getAttribute('data-cat');
+      state.exOpen = state.exOpen === cat ? null : cat;
+      renderExList($('#exSearch').value);
+      return;
+    }
     var b = e.target.closest('[data-ex]'); if (!b) return;
     selectExercise(b.getAttribute('data-ex'));
     closeFinder();

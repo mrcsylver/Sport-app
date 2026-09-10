@@ -199,8 +199,9 @@ create table public.profiles (
                  check (char_length(btrim(display_name)) between 2 and 18),
   restore_code text not null unique
                  default upper(substr(md5(gen_random_uuid()::text), 1, 8)),
-  -- either a legacy emoji or an icon key like "gi:wolf-head"
-  avatar       text check (avatar is null or char_length(avatar) between 1 and 40),
+  -- "gi:<icon>|c=<colour>|p=<emoji>": an emblem, its tint, and an optional
+  -- emoji pinned to it. A bare emoji (what people picked first) still parses.
+  avatar       text check (avatar is null or char_length(avatar) between 1 and 80),
   -- only used to score gym lifts; never shown to anyone else
   bodyweight   numeric constraint profiles_bw_sane
                  check (bodyweight is null or bodyweight between 30 and 250),
@@ -586,8 +587,14 @@ language sql stable security definer set search_path = public as $$
   with wk as (select coalesce(p_week, public.current_week_start()) as w),
   cb as (select * from public.week_combo_bonus(p_league, (select w from wk))),
   bb as (select * from public.week_bounty_points(p_league, (select w from wk))),
-  lt as (select w2.profile_id, sum(w2.points) as total
-         from public.workouts w2 where w2.league_id = p_league group by 1)
+  lt as (
+    -- Lifetime follows the person, not the league. A log fans out to one row
+    -- per league, so count each log once (by group_id) or joining a second
+    -- league would double everyone's rank.
+    select profile_id, sum(points) as total
+    from (select distinct on (group_id) group_id, profile_id, points
+          from public.workouts order by group_id, league_id) one_per_log
+    group by profile_id)
   select p.id, p.display_name, p.avatar,
          (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0)
                                      + coalesce(max(bb.bounty), 0))::numeric,

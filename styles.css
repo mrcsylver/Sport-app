@@ -578,3 +578,106 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 .sect-b h4{margin:16px 0 6px;font:800 11px/1 var(--display);
   letter-spacing:.12em;color:var(--muted)}
 .sect-b h4:first-child{margin-top:10px}
+
+/* =====================================================================
+   Divisions — a place with a name and a crest, not a coloured number
+   ===================================================================== */
+.divhead{display:flex;align-items:center;gap:11px;margin:20px 0 8px;padding:11px 13px;
+  border-radius:4px;background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--dv,var(--line-2));position:relative;overflow:hidden}
+.divhead::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--dv) 14%,transparent),transparent 62%)}
+.divhead:first-child{margin-top:2px}
+.divhead-c{width:30px;height:30px;flex:0 0 auto;color:var(--dv);display:grid;place-items:center}
+.divhead-c .gi{width:100%;height:100%}
+.divhead-t{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0}
+.divhead-t b{font:800 15px/1 var(--display);letter-spacing:.1em;color:var(--dv)}
+.divhead-t i{font:600 11px/1.2 var(--sans);font-style:normal;color:var(--muted)}
+.divhead-n{font:800 15px/1 var(--mono);color:var(--muted);flex:0 0 auto;z-index:1}
+.divhead.is-mine{border-color:var(--dv)}
+.t-gold{--dv:var(--gold)}
+.t-silver{--dv:var(--silver)}
+.t-bronze{--dv:var(--bronze)}
+
+/* --- emblem builder --------------------------------------------------- */
+.av-preview{display:flex;align-items:center;gap:14px;padding:12px 0 2px}
+.av-preview p{margin:0}
+.av-tint .av-emoji,.av-tint .av-fb{color:inherit}
+.av-clear{background:none!important;border-color:transparent!important}
+.av-clear .gi{width:100%;height:100%}
+.av-pin{position:absolute;right:-3px;bottom:-3px;font-size:12px;line-height:1;
+  background:var(--bg);border-radius:50%;padding:1px}
+.av-lg .av-pin{font-size:19px;right:-4px;bottom:-4px;padding:2px}
+.av-sm .av-pin{font-size:9px}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:7px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 4px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:4px;cursor:pointer}
+.sw span{width:22px;height:22px;border-radius:50%;background:var(--sw);
+  border:1px solid rgba(0,0,0,.35)}
+.sw-clear span{background:repeating-linear-gradient(45deg,var(--line-2) 0 4px,transparent 4px 8px)}
+.sw small{font:700 9px/1 var(--display);letter-spacing:.08em;color:var(--muted)}
+.sw.on{border-color:var(--red);background:rgba(255,46,46,.12)}
+.sw.on small{color:var(--txt)}
+.pins .av-opt{font-size:21px}
+.av-none{font:800 15px/1 var(--display)}
+
+/* --- collapsed exercise groups ---------------------------------------- */
+.exl-g{border-bottom:1px solid var(--line)}
+.exl-g:last-child{border-bottom:0}
+button.exl-h{width:100%;border:0;cursor:pointer;gap:9px}
+.exl-h span:not(.exl-c):not(.exl-x){flex:1 1 auto;text-align:left}
+.exl-c{font:700 10px/1 var(--mono);color:var(--muted);opacity:.7}
+.exl-x{font-size:10px;color:var(--muted)}
+.exl-g.open>.exl-h{color:var(--txt);background:var(--panel)}
+
+/* =====================================================================
+   Rank ladder, shop and not-built-yet slots
+   ===================================================================== */
+.ms-hero{display:flex;align-items:center;gap:13px;padding:15px 14px;border-radius:4px;
+  background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--rk,var(--line-2))}
+.ms-badge{width:38px;height:38px;flex:0 0 auto;color:var(--rk,var(--muted));
+  display:grid;place-items:center}
+.ms-badge .gi{width:100%;height:100%}
+.ms-id{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ms-id b{font:800 24px/1 var(--display);letter-spacing:.04em;color:var(--rk,var(--txt))}
+.ms-id i{font:600 12px/1 var(--sans);font-style:normal;color:var(--muted)}
+.rank-i{--rk:#5b6472}.rank-ii{--rk:#3ba6ff}.rank-iii{--rk:#a86bff}
+.rank-iv{--rk:var(--gold)}.rank-v{--rk:var(--red)}
+.rank-vi{--rk:#26d07c}
+.ms-bar{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden;margin:12px 0 7px}
+.ms-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--gold))}
+p.ms-next{margin:0 0 14px;font:600 12px/1 var(--sans);color:var(--muted)}
+p.ms-next b{color:var(--txt);font-weight:800}
+.ms-steps{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.ms-step{flex:0 0 auto;display:flex;flex-direction:column;gap:3px;padding:8px 11px;
+  border-radius:4px;background:var(--panel-2);border:1px solid var(--line);opacity:.5}
+.ms-step b{font:800 11px/1 var(--display);letter-spacing:.07em;color:var(--muted)}
+.ms-step i{font:700 12px/1 var(--mono);font-style:normal;color:var(--muted)}
+.ms-step.on{opacity:1}
+.ms-step.on b{color:var(--txt)}
+.ms-step.nxt{opacity:1;border-color:var(--red)}
+.ms-step.nxt b{color:var(--red)}
+.ms-all{margin-top:14px}
+.ms-all>summary{font:700 11px/1 var(--display);letter-spacing:.1em;color:var(--muted);
+  cursor:pointer;padding:8px 0}
+
+.optrow{display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid var(--line)}
+.optrow:last-of-type{border-bottom:0}
+.optrow-l{font:800 11px/1 var(--display);letter-spacing:.1em;color:var(--muted);
+  flex:0 0 62px}
+.optrow-v{flex:1 1 auto;display:flex;align-items:center;gap:7px;
+  font:600 12px/1.2 var(--sans);color:var(--muted);min-width:0}
+
+.tag-soon{font:800 9px/1 var(--display);letter-spacing:.12em;color:var(--bg);
+  background:var(--muted);border-radius:3px;padding:3px 5px;margin-left:auto;margin-right:8px}
+.shop-i{display:flex;align-items:center;gap:11px;padding:12px 0;
+  border-bottom:1px solid var(--line)}
+.shop-i:last-child{border-bottom:0}
+.shop-ic{font-size:23px;line-height:1;flex:0 0 auto}
+.shop-t{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0}
+.shop-t b{font:800 13px/1 var(--display);letter-spacing:.05em}
+.shop-t i{font:600 11px/1.3 var(--sans);font-style:normal;color:var(--muted)}
+.shop-p{flex:0 0 auto;font:700 9px/1 var(--display);letter-spacing:.08em;
+  color:var(--muted);border:1px dashed var(--line-2);border-radius:3px;padding:5px 6px}

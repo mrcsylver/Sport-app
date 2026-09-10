@@ -149,8 +149,13 @@
     <!-- STATS -->
     <section id="view-stats" class="view" hidden>
       <div class="section-head">
-        <h2>MY NUMBERS</h2>
+        <h2>MY RANK</h2>
         <span class="muted small mono" id="statsWho"></span>
+      </div>
+      <div id="milestones" class="ms"></div>
+
+      <div class="section-head" style="margin-top:24px">
+        <h2>MY NUMBERS</h2>
       </div>
       <div class="segmented" id="statsRange">
         <button type="button" data-range="week" class="on">THIS WEEK</button>
@@ -165,9 +170,6 @@
       <div id="statLegend" class="statlegend"></div>
       <div id="duelRecord" class="drec" hidden></div>
       <div id="statList" class="stack tight"></div>
-      <div class="section-head" style="margin-top:22px"><h2 style="font-size:17px">MILESTONES</h2>
-        <span class="muted small mono">LIFETIME</span></div>
-      <div id="milestones" class="ms"></div>
     </section>
 
     <!-- LEAGUES / ME -->
@@ -192,6 +194,29 @@
                    autocapitalize="characters" spellcheck="false">
             <button id="joinBtn" class="btn ghost sm" type="button">JOIN</button>
           </div>
+
+          <h4>This league's identity</h4>
+          <p class="muted small">Only the person who created the league can change these.</p>
+          <div class="optrow">
+            <span class="optrow-l">Crest</span>
+            <span class="optrow-v" id="optCrest">Auto — nothing chosen yet</span>
+            <button class="btn ghost sm" type="button" data-soon="Crest picker">CHANGE</button>
+          </div>
+          <div class="optrow">
+            <span class="optrow-l">Banner</span>
+            <span class="optrow-v" id="optBanner">Nothing yet</span>
+            <button class="btn ghost sm" type="button" data-soon="League banners">CHANGE</button>
+          </div>
+          <div class="optrow">
+            <span class="optrow-l">Colours</span>
+            <span class="optrow-v">Nothing yet</span>
+            <button class="btn ghost sm" type="button" data-soon="League colours">CHANGE</button>
+          </div>
+
+          <h4>You can be in several leagues at once</h4>
+          <p class="muted small">Joining or starting another league never touches this
+            one. One workout is logged into every league you are in, so nothing is
+            split and no rank is lost. Switch between them from the card at the top.</p>
 
           <h4>Start a separate league</h4>
           <p class="muted small">Only for a different group. To add friends to the league
@@ -231,13 +256,24 @@
         </div>
       </details>
 
-      <details class="sect">
+      <details class="sect" id="sectEmblem">
         <summary><span>EMBLEM</span></summary>
         <div class="sect-b">
-          <p class="muted small">Shown next to your name on the board.</p>
+          <div class="av-preview"><span id="avPreview"></span>
+            <p class="muted small">This is how you appear on the board.</p></div>
+
+          <h4>Mark</h4>
           <div id="avatarGrid" class="avgrid"></div>
+
+          <h4>Colour</h4>
+          <div id="avColors" class="swatches"></div>
+
+          <h4>Animal pin <span class="muted">— optional</span></h4>
+          <p class="muted small">Keep your animal too. It rides on the corner of the emblem.</p>
+          <div id="avPins" class="avgrid pins"></div>
+
           <button id="avatarClear" class="btn ghost sm" type="button"
-                  style="width:100%;margin-top:10px">NO EMBLEM</button>
+                  style="width:100%;margin-top:14px">CLEAR EVERYTHING</button>
         </div>
       </details>
 
@@ -250,6 +286,29 @@
             <button type="button" data-theme="auto">AUTO</button>
           </div>
           <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
+        </div>
+      </details>
+
+      <details class="sect">
+        <summary><span>SHOP</span><span class="tag-soon">SOON</span></summary>
+        <div class="sect-b">
+          <p class="muted small">Training always stays free. These are for show.</p>
+
+          <div class="shop-i">
+            <span class="shop-ic">🎨</span>
+            <span class="shop-t"><b>Cosmetics</b><i>Animated #1 effects, crests, exclusive themes</i></span>
+            <span class="shop-p">Elements to come</span>
+          </div>
+          <div class="shop-i">
+            <span class="shop-ic">👑</span>
+            <span class="shop-t"><b>Master League Pass</b><i>Unlimited slots, custom crest and colours, data export</i></span>
+            <span class="shop-p">Elements to come</span>
+          </div>
+          <div class="shop-i">
+            <span class="shop-ic">🏆</span>
+            <span class="shop-t"><b>Tournament pot</b><i>Put a prize on a season, tracked automatically</i></span>
+            <span class="shop-p">Elements to come</span>
+          </div>
         </div>
       </details>
 
