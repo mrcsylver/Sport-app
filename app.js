@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.1.0';
+  var APP_VERSION = '2.2.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -34,6 +34,7 @@
   ['dips','Dips','PUSH','parallel bars triceps','Parallel bars, rings or between two chairs',{reps:1.5}],
   ['ringdips','Ring Dips','PUSH','rings unstable','',{reps:1.75}],
   ['onearmpush','One-arm Push-up','PUSH','single arm','',{reps:2.0}],
+  ['sphinxpush','Sphinx Push-up','PUSH','sphinx forearm tricep','',{reps:0.75}],
   ['handstand','Handstand Push-up','PUSH','hspu wall overhead invert','Against a wall, freestanding, or hanging from a bar',{reps:2.5,seconds:0.2}],
   ['rows','Inverted Rows','PULL','australian bodyweight row horizontal','',{reps:1.0}],
   ['scapulapull','Scapular Pull-up','PULL','scap shrug','',{reps:0.75}],
@@ -70,6 +71,13 @@
   ['dragonflag','Dragon Flag','CORE','dragon advanced','',{reps:3.0}],
   ['vups','V-ups','CORE','v up jackknife','',{reps:0.75}],
   ['supermans','Supermans','CORE','lower back extension','',{reps:0.25}],
+  ['sidecrunch','Lateral Crunches','CORE','side oblique lateral crunch','',{reps:0.25}],
+  ['bicycle','Bicycle Crunches','CORE','bicycle cycling abs','',{reps:0.25}],
+  ['deadbug','Dead Bug','CORE','deadbug stability','',{reps:0.5}],
+  ['birddog','Bird Dog','CORE','birddog stability back','',{reps:0.5}],
+  ['flutterkick','Flutter Kicks','CORE','flutter scissor kicks','',{reps:0.25}],
+  ['mountainclimb','Mountain Climbers','CORE','mountain climber cardio abs','',{reps:0.25}],
+  ['rollout','Ab Wheel Rollout','CORE','ab wheel rollout barbell','',{reps:2.0}],
   ['plank','Plank','CORE','front elbow forearm','',{minutes:2.0}],
   ['sideplank','Side Plank','CORE','oblique side','',{minutes:2.5}],
   ['hollowhold','Hollow Hold','CORE','hollow body','',{seconds:0.05}],
@@ -96,33 +104,41 @@
   ['badminton','Badminton','SPORT','badminton shuttle','Actual playing time, not time at the venue',{minutes:0.116667}],
   ['tabletennis','Table Tennis','SPORT','ping pong','Actual playing time, not time at the venue',{minutes:0.116667}],
   ['othersport','Other Sport','SPORT','other misc game match','Actual playing time, not time at the venue',{minutes:0.116667}],
-  ['gymbench','Bench Press','GYM','bench barbell chest press flat','Enter the weight on the bar, not counting your own',{reps:{k:1.5625,equip:1.0,legs:false}}],
-  ['gymdbbench','Dumbbell Bench Press','GYM','dumbbell db incline chest','Enter the weight on the bar, not counting your own',{reps:{k:1.5625,equip:1.0,legs:false}}],
-  ['gymohp','Overhead Press','GYM','ohp military shoulder press standing','Enter the weight on the bar, not counting your own',{reps:{k:1.5625,equip:1.0,legs:false}}],
-  ['gymdip','Weighted Dips','GYM','weighted dip belt','Enter the weight on the bar, not counting your own',{reps:{k:1.5625,equip:1.0,legs:false}}],
-  ['gymchestmach','Chest Press (Machine)','GYM','machine chest press pec','Enter the weight on the bar, not counting your own',{reps:{k:1.5625,equip:0.75,legs:false}}],
-  ['gymtricep','Tricep Pushdown','GYM','cable pushdown tricep rope','Enter the weight on the bar, not counting your own',{reps:{k:1.5625,equip:0.6,legs:false}}],
-  ['gymlatraise','Lateral Raise','GYM','side delt raise shoulder','Enter the weight on the bar, not counting your own',{reps:{k:1.5625,equip:1.0,legs:false}}],
-  ['gymdeadlift','Deadlift','GYM','deadlift conventional sumo barbell','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:1.0,legs:false}}],
-  ['gymbarbellrow','Barbell Row','GYM','bent over row pendlay','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:1.0,legs:false}}],
-  ['gymdbrow','Dumbbell Row','GYM','one arm db row','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:1.0,legs:false}}],
-  ['gymlatpull','Lat Pulldown','GYM','pulldown machine lats','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:0.75,legs:false}}],
-  ['gymcablerow','Seated Cable Row','GYM','cable row seated','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:0.6,legs:false}}],
-  ['gymweightpull','Weighted Pull-up','GYM','weighted pullup belt','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:1.0,legs:false}}],
-  ['gymcurl','Bicep Curl','GYM','curl barbell dumbbell biceps','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:1.0,legs:false}}],
-  ['gymfacepull','Face Pull','GYM','cable rear delt','Enter the weight on the bar, not counting your own',{reps:{k:2.0,equip:0.6,legs:false}}],
-  ['gymsquat','Back Squat','GYM','squat barbell back high bar','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:1.0,legs:true}}],
-  ['gymfrontsquat','Front Squat','GYM','front squat clean grip','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:1.0,legs:true}}],
-  ['gymlegpress','Leg Press','GYM','leg press machine','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:0.75,legs:true}}],
-  ['gymrdl','Romanian Deadlift','GYM','rdl stiff leg hamstring','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:1.0,legs:true}}],
-  ['gymhipthrust','Hip Thrust','GYM','glute bridge barbell','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:1.0,legs:true}}],
-  ['gymlegcurl','Leg Curl','GYM','hamstring machine curl','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:0.75,legs:false}}],
-  ['gymlegext','Leg Extension','GYM','quad machine extension','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:0.75,legs:false}}],
-  ['gymlunge','Weighted Lunge','GYM','dumbbell lunge walking','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:1.0,legs:true}}],
-  ['gymcalf','Weighted Calf Raise','GYM','calf machine standing','Enter the weight on the bar, not counting your own',{reps:{k:0.588,equip:0.75,legs:false}}],
+  ['gymbench','Bench Press','GYM','bench barbell chest press flat','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}}],
+  ['gymdbbench','Dumbbell Bench Press','GYM','dumbbell db incline chest','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}}],
+  ['gymohp','Overhead Press','GYM','ohp military shoulder press standing','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}}],
+  ['gymdip','Weighted Dips','GYM','weighted dip belt','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}}],
+  ['gymchestmach','Chest Press (Machine)','GYM','machine chest press pec','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:0.75,legs:false}}],
+  ['gymtricep','Tricep Pushdown','GYM','cable pushdown tricep rope','One side at a time — type the weight of the single dumbbell',{reps:{k:1.5625,equip:0.6,legs:false}}],
+  ['gymlatraise','Lateral Raise','GYM','side delt raise shoulder','One side at a time — type the weight of the single dumbbell',{reps:{k:1.5625,equip:1.0,legs:false}}],
+  ['gymdeadlift','Deadlift','GYM','deadlift conventional sumo barbell','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}}],
+  ['gymbarbellrow','Barbell Row','GYM','bent over row pendlay','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}}],
+  ['gymdbrow','Dumbbell Row','GYM','one arm db row','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:1.0,legs:false}}],
+  ['gymlatpull','Lat Pulldown','GYM','pulldown machine lats','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:0.75,legs:false}}],
+  ['gymcablerow','Seated Cable Row','GYM','cable row seated','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:0.6,legs:false}}],
+  ['gymweightpull','Weighted Pull-up','GYM','weighted pullup belt','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}}],
+  ['gymcurl','Bicep Curl','GYM','curl barbell dumbbell biceps','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:1.0,legs:false}}],
+  ['gymfacepull','Face Pull','GYM','cable rear delt','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:0.6,legs:false}}],
+  ['gymsquat','Back Squat','GYM','squat barbell back high bar','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}}],
+  ['gymfrontsquat','Front Squat','GYM','front squat clean grip','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}}],
+  ['gymlegpress','Leg Press','GYM','leg press machine','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:true}}],
+  ['gymrdl','Romanian Deadlift','GYM','rdl stiff leg hamstring','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}}],
+  ['gymhipthrust','Hip Thrust','GYM','glute bridge barbell','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}}],
+  ['gymlegcurl','Leg Curl','GYM','hamstring machine curl','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:false}}],
+  ['gymlegext','Leg Extension','GYM','quad machine extension','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:false}}],
+  ['gymlunge','Weighted Lunge','GYM','dumbbell lunge walking','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}}],
+  ['gymcalf','Weighted Calf Raise','GYM','calf machine standing','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:false}}],
+  ['gymcablecrunch','Cable Crunch','GYM','cable crunch kneeling abs','Type the total on the bar, not counting your own weight',{reps:{k:1.0,equip:0.6,legs:false}}],
+  ['gymwoodchop','Woodchoppers','GYM','woodchop cable oblique rotation','One side at a time — type the weight of the single dumbbell',{reps:{k:1.0,equip:0.6,legs:false}}],
+  ['gympullover','Dumbbell Pullover','GYM','pullover lats chest','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}}],
+  ['gymshrug','Shrug','GYM','shrug traps barbell','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}}],
+  ['gymincline','Incline Bench Press','GYM','incline bench upper chest','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}}],
+  ['gymgoblet','Goblet Squat','GYM','goblet kettlebell squat','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}}],
+  ['gymstepup','Weighted Step-up','GYM','step up box weighted','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}}],
   ['stretch','Stretching Session','RECOVERY','stretch mobility yoga flexibility','At least 10 minutes of stretching, mobility or yoga',{flat:5.0}],
   ['sauna','Sauna / Cold Plunge','RECOVERY','sauna ice bath cold recovery','',{flat:3.0}]
   ];
+
 
   /* UI-only tweaks. The rate is never here — only how a unit is named,
      stepped and pre-filled, because "6 sprints" reads better than "6 reps". */
@@ -277,11 +293,11 @@
     return null;
   }
 
-  /* An avatar is stored as one string so it stays a single column:
-       "gi:wolf-head|c=crimson|p=🦍"   emblem, tint, and an emoji pinned to it
-       "gi:wolf-head"                  emblem only
-       "🦍"                            what people picked before emblems existed
-     All three parse here, so nobody's existing choice changes meaning. */
+  /* An avatar is one mark, never two: either an emblem or an animal.
+       "gi:wolf-head|c=crimson"   an emblem, tinted
+       "🦍"                       an animal
+     The older "|p=" pinned-emoji form still parses so nothing breaks, but the
+     pin is no longer offered and no longer drawn. */
   function parseAvatar(spec) {
     var out = { icon: null, color: null, emoji: null };
     if (!spec) return out;
@@ -296,9 +312,7 @@
   }
   function buildAvatar(a) {
     if (!a.icon) return a.emoji || '';
-    return ICON_PREFIX + a.icon +
-           (a.color ? '|c=' + a.color : '') +
-           (a.emoji ? '|p=' + a.emoji : '');
+    return ICON_PREFIX + a.icon + (a.color ? '|c=' + a.color : '');
   }
 
   function iconSvg(name, cls) {
@@ -326,13 +340,11 @@
       inner = iconSvg(a.icon) || '<span class="av-fb">?</span>';
     } else if (a.emoji) {
       inner = '<span class="av-emoji">' + esc(a.emoji) + '</span>';
-      a.emoji = null;                       // it IS the avatar, not a pin
     } else {
       inner = '<span class="av-fb">' + esc((opts.name || '?').slice(0, 1)) + '</span>';
     }
     /* Emblem and animal together: the emoji rides as a small pin on the rim. */
-    var pin = a.emoji ? '<span class="av-pin">' + esc(a.emoji) + '</span>' : '';
-    return '<span class="' + cls + '"' + style + '>' + inner + pin + '</span>';
+    return '<span class="' + cls + '"' + style + '>' + inner + '</span>';
   }
 
   /* Plain-text avatar for the few places that are one line of text. */
@@ -390,7 +402,9 @@
   /* A fighter's banner is their lifetime rank — derived from points they
      already have, so there is nothing to store and nothing to award. */
   function bannerOf(lifetime) {
-    var got = null;
+    /* Below the first grade you are UNRANKED rather than nothing — a row with
+       no edge at all looks like a rendering fault next to rows that have one. */
+    var got = { at: 0, tier: 'o', grade: 'UNRANKED', name: 'UNRANKED' };
     for (var i = 0; i < MILESTONES.length; i++) {
       if (Number(lifetime) >= MILESTONES[i].at) got = MILESTONES[i];
     }
@@ -549,6 +563,7 @@
     open: {},          // profile ids whose activity feed is expanded
     openWeeks: {},
     feeds: {},
+    feedDay: {},          // which day groups a viewer has opened
     session: [],       // items logged inside the currently open modal
     pendingCode: null,
     view: 'live',
@@ -1014,20 +1029,46 @@
   function feedHtml(rows) {
     if (!rows.length) return '<div class="muted small" style="padding:8px 0">Nothing logged this week.</div>';
     var me = state.profile ? state.profile.id : null;
-    return rows.map(function (w) {
-      var ex = exercise(w.exercise_key);
-      var u = unitFor(w.exercise_key, w.mode);
+
+    /* A busy week is forty lines long. Group by day and collapse all but the
+       most recent, so opening someone's feed shows a week at a glance. */
+    var days = [], byDay = {};
+    rows.forEach(function (w) {
       var when = new Date(w.created_at);
-      var day = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: TZ }).format(when).toUpperCase();
-      var hh = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ }).format(when);
-      return '<div class="fitem">' +
-        '<span class="fx">' + esc(ex ? ex.name : w.exercise_key) +
-          '<span class="famt"> · ' + num(w.amount) + ' ' + u.short + ' · ' + day + ' ' + hh + '</span></span>' +
-        '<span class="fpts">+' + num(w.points) + '</span>' +
-        (w.profile_id === me && !isRestDay()
-          ? '<button class="del" data-edit="' + w.id + '" title="Edit">✎</button>' +
-            '<button class="del" data-del="' + w.id + '" title="Delete">✕</button>'
-          : '') +
+      var key = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(when);
+      if (!byDay[key]) { byDay[key] = { key: key, when: when, rows: [], pts: 0 }; days.push(byDay[key]); }
+      byDay[key].rows.push(w);
+      byDay[key].pts += Number(w.points) || 0;
+    });
+    days.sort(function (a, b) { return b.key < a.key ? -1 : 1; });
+
+    return days.map(function (d, i) {
+      var open = state.feedDay[d.key] !== undefined ? state.feedDay[d.key] : i === 0;
+      var label = new Intl.DateTimeFormat('en-GB',
+        { weekday: 'long', day: 'numeric', month: 'short', timeZone: TZ }).format(d.when);
+      return '<div class="fday' + (open ? ' open' : '') + '">' +
+        '<button type="button" class="fday-h" data-day="' + d.key + '">' +
+          '<span class="fday-x">' + (open ? '▴' : '▾') + '</span>' +
+          '<span class="fday-n">' + esc(label.toUpperCase()) + '</span>' +
+          '<span class="fday-c">' + d.rows.length + '</span>' +
+          '<span class="fday-p">+' + num(d.pts) + '</span>' +
+        '</button>' +
+        (open ? d.rows.map(function (w) {
+          var ex = exercise(w.exercise_key);
+          var u = unitFor(w.exercise_key, w.mode);
+          var hh = new Intl.DateTimeFormat('en-GB',
+            { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TZ })
+            .format(new Date(w.created_at));
+          return '<div class="fitem">' +
+            '<span class="fx">' + esc(ex ? ex.name : w.exercise_key) +
+              '<span class="famt"> · ' + num(w.amount) + ' ' + u.short + ' · ' + hh + '</span></span>' +
+            '<span class="fpts">+' + num(w.points) + '</span>' +
+            (w.profile_id === me && !isRestDay()
+              ? '<button class="del" data-edit="' + w.id + '" title="Edit">✎</button>' +
+                '<button class="del" data-del="' + w.id + '" title="Delete">✕</button>'
+              : '') +
+          '</div>';
+        }).join('') : '') +
       '</div>';
     }).join('');
   }
@@ -1043,6 +1084,16 @@
     var box = document.querySelector('[data-feed="' + profileId + '"]');
     if (box) box.innerHTML = feedHtml(state.feeds[profileId]);
   }
+
+  document.addEventListener('click', function (e) {
+    var h = e.target.closest('[data-day]'); if (!h) return;
+    var k = h.getAttribute('data-day');
+    var open = h.parentNode.classList.contains('open');
+    state.feedDay[k] = !open;
+    var feed = h.closest('.feed');
+    var pid = feed && feed.getAttribute('data-feed');
+    if (pid && state.feeds[pid]) feed.innerHTML = feedHtml(state.feeds[pid]);
+  });
 
   $('#board').addEventListener('click', async function (e) {
     var ed = e.target.closest('[data-edit]');
@@ -1185,10 +1236,15 @@
     $('#shareLink').value = l ? shareUrl(l.code) : '—';
     if (state.profile) {
       $('#renameInput').value = state.profile.display_name;
-      $('#bwProfile').value = state.profile.bodyweight || '';
+      $('#bwProfile').value = state.profile.bodyweight
+        ? Math.round(fromKg(state.profile.bodyweight) * 10) / 10 : '';
+      paintUnits();
       $('#restoreCode').textContent = state.profile.restore_code;
       buildAvatarGrid();
     }
+    paintLeagueRules();
+    buildShop();
+    if ($('#sectEmblem').open) buildAvatarGridsOnce();
     if (navigator.share) $('#shareBtn').hidden = !l;
   }
 
@@ -1774,56 +1830,203 @@
              '" data-color="' + c.key + '" style="--sw:' + c.css + '" aria-label="' + c.name +
              '"><span></span><small>' + c.name + '</small></button>';
     }).join('');
-    $('#avPins').innerHTML =
-      '<button type="button" class="av-opt av-none" data-pin="" aria-label="No pin">✕</button>' +
-      PIN_EMOJI.map(function (e) {
-        return '<button type="button" class="av-opt" data-pin="' + e + '">' + e + '</button>';
-      }).join('');
+    $('#avPins').innerHTML = PIN_EMOJI.map(function (e) {
+      return '<button type="button" class="av-opt" data-pin="' + e + '">' + e + '</button>';
+    }).join('');
     markAvatarSelection();
+    showAvPane(myAvatar().emoji ? 'emoji' : 'icon');
   }
+
+  function showAvPane(kind) {
+    $('#avIconPane').hidden = kind !== 'icon';
+    $('#avEmojiPane').hidden = kind === 'icon';
+    Array.prototype.forEach.call($('#avKind').querySelectorAll('button'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-kind') === kind);
+    });
+  }
+
+  $('#avKind').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-kind]'); if (!b) return;
+    showAvPane(b.getAttribute('data-kind'));
+  });
 
   async function saveAvatar(v) {
     try {
       var r = await sb.rpc('set_avatar', { p_avatar: v });
       if (r.error) throw r.error;
       state.profile = r.data;
-      buildAvatarGrid();
+      paintAvatarPreview();
+      markAvatarSelection();
       await refreshAll();
     } catch (e) { toast(niceError(e), true); }
   }
-  function patchAvatar(patch) {
-    var a = myAvatar();
-    Object.keys(patch).forEach(function (k) { a[k] = patch[k]; });
-    if (!a.icon && !a.emoji) return saveAvatar('');
-    saveAvatar(buildAvatar(a));
-  }
 
+  /* Picking one mark clears the other — an avatar is never both. */
   $('#avatarGrid').addEventListener('click', function (e) {
     var b = e.target.closest('[data-icon]'); if (!b) return;
-    patchAvatar({ icon: b.getAttribute('data-icon') });
+    var a = myAvatar();
+    saveAvatar(buildAvatar({ icon: b.getAttribute('data-icon'), color: a.color }));
   });
   $('#avColors').addEventListener('click', function (e) {
     var b = e.target.closest('[data-color]'); if (!b) return;
-    patchAvatar({ color: b.getAttribute('data-color') });
+    var a = myAvatar();
+    if (!a.icon) { toast('Pick an emblem first'); return; }
+    saveAvatar(buildAvatar({ icon: a.icon, color: b.getAttribute('data-color') }));
   });
   $('#avPins').addEventListener('click', function (e) {
     var b = e.target.closest('[data-pin]'); if (!b) return;
-    patchAvatar({ emoji: b.getAttribute('data-pin') || null });
+    saveAvatar(b.getAttribute('data-pin'));      // an animal replaces the emblem
   });
   $('#avatarClear').addEventListener('click', function () { saveAvatar(''); });
+  /* Built on first open, so the settings tab does not pay for ~110 inline
+     SVGs every time it renders. */
   $('#sectEmblem').addEventListener('toggle', function () {
     if (this.open) buildAvatarGridsOnce();
   });
 
-  /* Placeholders for things we have designed a slot for but not built. They
-     say so plainly rather than pretending to be broken buttons. */
+  /* Kilos or pounds. Storage is always kilos; this only changes what is typed. */
+  var LB = 2.20462;
+  function useLb() { return state.profile && state.profile.units === 'lb'; }
+  function toKg(v) { return useLb() ? v / LB : v; }
+  function fromKg(v) { return useLb() ? v * LB : v; }
+  function unitName() { return useLb() ? 'LB' : 'KG'; }
+
+  function paintUnits() {
+    Array.prototype.forEach.call($('#unitRow').querySelectorAll('button'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-units') === (useLb() ? 'lb' : 'kg'));
+    });
+  }
+  $('#unitRow').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-units]'); if (!b) return;
+    try {
+      var r = await sb.rpc('set_units', { p_units: b.getAttribute('data-units') });
+      if (r.error) throw r.error;
+      state.profile = r.data;
+      paintUnits(); renderMe();
+      toast('Weights now in ' + unitName().toLowerCase());
+    } catch (err) { toast(niceError(err), true); }
+  });
+
+  /* ---- shop -------------------------------------------------------------
+     The cosmetics that already exist, shown as things you can pick rather
+     than buried in a picker. Everything is free for now; the price slot is
+     there so it has somewhere to go later. */
+  var BANNER_SKINS = [
+    { key: 'standard', name: 'STANDARD' }, { key: 'carbon', name: 'CARBON' },
+    { key: 'blueprint', name: 'BLUEPRINT' }, { key: 'goldrush', name: 'GOLD RUSH' },
+    { key: 'ember', name: 'EMBER' }, { key: 'neon', name: 'NEON CIRCUIT' },
+    { key: 'frost', name: 'FROSTBITE' }, { key: 'inverted', name: 'CLEAN SLATE' }
+  ];
+
+  function buildShop() {
+    var l = league();
+    var cur = badgeOf(l);
+    $('#shopCrests').innerHTML = GI_EMBLEMS.map(function (n) {
+      return '<button type="button" class="shop-c' + (n === cur.emblem ? ' on' : '') +
+             '" data-crest="' + n + '" aria-label="' + esc(n.replace(/-/g, ' ')) + '">' +
+             iconSvg(n) + '<small>FREE</small></button>';
+    }).join('');
+    function skins(target, cls) {
+      $(target).innerHTML = BANNER_SKINS.map(function (b) {
+        return '<button type="button" class="' + cls + ' sk-' + b.key +
+               '" data-skin="' + b.key + '"><span>' + b.name + '</span>' +
+               '<small>FREE</small></button>';
+      }).join('');
+    }
+    skins('#shopBanners', 'shop-b');
+    skins('#shopPlayer', 'shop-b shop-b-sm');
+  }
+
+  $('#shopCrests').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-crest]'); if (!b) return;
+    var l = league();
+    if (!l || !state.profile || l.owner_id !== state.profile.id) {
+      toast('Only the person who created the league can change its crest'); return;
+    }
+    var cur = badgeOf(l);
+    try {
+      var r = await sb.rpc('set_league_badge', { p_league: l.id, p_badge: {
+        shape: cur.shape, color: cur.color, emblem: b.getAttribute('data-crest') } });
+      if (r.error) throw r.error;
+      await loadLeagues(); renderMe(); renderHeader();
+      toast('Crest updated');
+    } catch (err) { toast(niceError(err), true); }
+  });
+
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-soon]'); if (!b) return;
-    toast(b.getAttribute('data-soon') + ' is coming — not built yet.');
+    if (e.target.closest('[data-skin]')) toast('Banner skins are next — the art is not wired up yet.');
+  });
+
+  /* ---- rules a league creator owns -------------------------------------- */
+  var DOW = [[1,'MON'],[2,'TUE'],[3,'WED'],[4,'THU'],[5,'FRI'],[6,'SAT'],[7,'SUN']];
+
+  function paintLeagueRules() {
+    var l = league(), mine = l && state.profile && l.owner_id === state.profile.id;
+    $('#leagueOwnerBox').hidden = !mine;
+    $('#deleteLeagueBtn').hidden = !mine;
+    if (!l) return;
+    var rest = l.rest_dow || [7];
+    $('#restDows').innerHTML = DOW.map(function (d) {
+      return '<button type="button" class="dow' + (rest.indexOf(d[0]) >= 0 ? ' on' : '') +
+             '" data-dow="' + d[0] + '"' + (mine ? '' : ' disabled') + '>' + d[1] + '</button>';
+    }).join('');
+    $('#seasonWeeks').value = l.season_weeks == null ? '' : String(l.season_weeks);
+    $('#leaveNote').textContent = mine
+      ? 'Leaving keeps the league alive for everyone else. Deleting removes it for everybody.'
+      : 'Your logs stay in every other league you are in.';
+  }
+
+  $('#restDows').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-dow]'); if (!b || b.disabled) return;
+    b.classList.toggle('on');
+  });
+
+  $('#saveRules').addEventListener('click', async function () {
+    var dows = Array.prototype.map.call($('#restDows').querySelectorAll('.dow.on'),
+      function (b) { return Number(b.getAttribute('data-dow')); });
+    var wk = $('#seasonWeeks').value;
+    try {
+      var r = await sb.rpc('set_league_settings', {
+        p_league: state.leagueId, p_rest_dow: dows,
+        p_season_weeks: wk === '' ? null : Number(wk)
+      });
+      if (r.error) throw r.error;
+      await loadLeagues();
+      renderMe();
+      toast('League rules saved');
+    } catch (err) { toast(niceError(err), true); }
+  });
+
+  $('#leaveBtn').addEventListener('click', async function () {
+    var l = league(); if (!l) return;
+    if (!confirm('Leave ' + l.name + '? Your logs in your other leagues are untouched.')) return;
+    try {
+      var r = await sb.rpc('leave_league', { p_league: l.id });
+      if (r.error) throw r.error;
+      await loadLeagues();
+      state.leagueId = state.leagues.length ? state.leagues[0].id : null;
+      await refreshAll();
+      toast('You left ' + l.name);
+    } catch (err) { toast(niceError(err), true); }
+  });
+
+  $('#deleteLeagueBtn').addEventListener('click', async function () {
+    var l = league(); if (!l) return;
+    if (!confirm('Delete ' + l.name + ' for everyone? This cannot be undone.\n\n' +
+                 'Each workout still counts in the other leagues it was logged into.')) return;
+    if (!confirm('Really delete ' + l.name + '? Type-free final check.')) return;
+    try {
+      var r = await sb.rpc('delete_league', { p_league: l.id });
+      if (r.error) throw r.error;
+      await loadLeagues();
+      state.leagueId = state.leagues.length ? state.leagues[0].id : null;
+      await refreshAll();
+      toast(l.name + ' deleted');
+    } catch (err) { toast(niceError(err), true); }
   });
 
   $('#bwSave').addEventListener('click', async function () {
-    var v = parseFloat($('#bwProfile').value);
+    var v = toKg(parseFloat($('#bwProfile').value));
     try {
       var r = await sb.rpc('set_bodyweight', { p_kg: isFinite(v) ? v : null });
       if (r.error) throw r.error;
@@ -1950,8 +2153,12 @@
     $('#exPickName').textContent = ex.name;
     $('#exPickIcon').innerHTML = iconSvg(GI_CAT[ex.cat]);
     $('#gymRow').hidden = ex.cat !== 'GYM';
-    if (ex.cat === 'GYM' && !$('#bwInput').value && state.profile && state.profile.bodyweight) {
-      $('#bwInput').value = state.profile.bodyweight;
+    if (ex.cat === 'GYM') {
+      $('#bwLbl').textContent = 'YOUR BODYWEIGHT (' + unitName() + ')';
+      $('#loadLbl').textContent = 'WEIGHT LIFTED (' + unitName() + ')';
+      if (!$('#bwInput').value && state.profile && state.profile.bodyweight) {
+        $('#bwInput').value = Math.round(fromKg(state.profile.bodyweight) * 10) / 10;
+      }
     }
     var row = $('#modeRow');
     if (ex.modes.length > 1) {
@@ -1997,7 +2204,8 @@
   }
 
   function gymInputs() {
-    return { bw: parseFloat($('#bwInput').value), load: parseFloat($('#loadInput').value) };
+    return { bw: toKg(parseFloat($('#bwInput').value)),
+             load: toKg(parseFloat($('#loadInput').value)) };
   }
   function updatePreview() {
     var v = parseFloat($('#amountInput').value);

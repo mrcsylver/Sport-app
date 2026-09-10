@@ -580,21 +580,25 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 .sect-b h4:first-child{margin-top:10px}
 
 /* =====================================================================
-   Divisions — a place with a name and a crest, not a coloured number
+   Divisions — a banner across the list, deliberately unlike a player row:
+   no card, full-bleed rule, and the name set large in the division metal.
    ===================================================================== */
-.divhead{display:flex;align-items:center;gap:11px;margin:20px 0 8px;padding:11px 13px;
-  border-radius:4px;background:var(--panel);border:1px solid var(--line);
-  border-left:3px solid var(--dv,var(--line-2));position:relative;overflow:hidden}
-.divhead::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(90deg,color-mix(in srgb,var(--dv) 14%,transparent),transparent 62%)}
-.divhead:first-child{margin-top:2px}
-.divhead-c{width:30px;height:30px;flex:0 0 auto;color:var(--dv);display:grid;place-items:center}
+.divhead{display:flex;align-items:center;gap:10px;margin:26px 0 10px;padding:0 2px 9px;
+  border-bottom:2px solid var(--dv,var(--line-2));position:relative}
+.divhead:first-child{margin-top:4px}
+.divhead::before{content:"";position:absolute;left:-14px;right:-14px;top:-8px;bottom:0;
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--dv) 10%,transparent));
+  pointer-events:none;z-index:-1}
+.divhead-c{width:26px;height:26px;flex:0 0 auto;color:var(--dv)}
 .divhead-c .gi{width:100%;height:100%}
-.divhead-t{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0}
-.divhead-t b{font:800 15px/1 var(--display);letter-spacing:.1em;color:var(--dv)}
-.divhead-t i{font:600 11px/1.2 var(--sans);font-style:normal;color:var(--muted)}
-.divhead-n{font:800 15px/1 var(--mono);color:var(--muted);flex:0 0 auto;z-index:1}
-.divhead.is-mine{border-color:var(--dv)}
+.divhead-t{flex:1 1 auto;display:flex;flex-direction:column;gap:1px;min-width:0}
+.divhead-t b{font:800 19px/1 var(--display);letter-spacing:.16em;color:var(--dv);
+  font-style:italic}
+.divhead-t i{font:600 10px/1.2 var(--sans);font-style:normal;color:var(--muted);
+  letter-spacing:.02em}
+.divhead-n{font:800 13px/1 var(--mono);color:var(--dv);opacity:.7;flex:0 0 auto}
+.divhead.is-mine .divhead-t b::after{content:" · YOU";font-size:10px;letter-spacing:.1em;
+  opacity:.65}
 .t-gold{--dv:var(--gold)}
 .t-silver{--dv:var(--silver)}
 .t-bronze{--dv:var(--bronze)}
@@ -681,3 +685,60 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .shop-t i{font:600 11px/1.3 var(--sans);font-style:normal;color:var(--muted)}
 .shop-p{flex:0 0 auto;font:700 9px/1 var(--display);letter-spacing:.08em;
   color:var(--muted);border:1px dashed var(--line-2);border-radius:3px;padding:5px 6px}
+
+/* --- unranked rows still get an edge, so none look unstyled ----------- */
+.bnr-o{--bnr:var(--line-2)}
+.rank-o{color:var(--muted)}
+
+/* --- league rules, leaving, deleting ---------------------------------- */
+.dowrow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.dow{padding:9px 0;border-radius:4px;background:var(--panel-2);
+  border:1px solid var(--line);color:var(--muted);cursor:pointer;
+  font:800 10px/1 var(--display);letter-spacing:.05em}
+.dow.on{border-color:var(--red);color:var(--red);background:rgba(255,46,46,.12)}
+.dow:disabled{opacity:.5;cursor:default}
+.btn.danger{border-color:rgba(255,46,46,.5);color:var(--red)}
+
+/* --- shop ------------------------------------------------------------- */
+.shopgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:7px}
+.shopgrid.wide{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.shop-c{position:relative;display:grid;place-items:center;aspect-ratio:1;padding:11px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:5px;
+  color:var(--muted);cursor:pointer}
+.shop-c .gi{width:100%;height:100%}
+.shop-c.on{border-color:var(--red);color:var(--red)}
+.shop-c small,.shop-b small{position:absolute;top:4px;right:5px;font:700 7px/1 var(--display);
+  letter-spacing:.08em;color:var(--green);opacity:.85}
+.shop-b{position:relative;height:60px;border-radius:5px;border:1px solid var(--line);
+  display:flex;align-items:flex-end;padding:8px 10px;cursor:pointer;overflow:hidden}
+.shop-b span{font:800 12px/1 var(--display);letter-spacing:.1em;font-style:italic;
+  color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.9);z-index:1}
+.shop-b-sm{height:46px}
+/* the skins, built from gradients so they cost nothing to ship */
+.sk-standard{background:linear-gradient(135deg,#1a1d24,#0b0d11)}
+.sk-carbon{background:repeating-linear-gradient(45deg,#15171a 0 5px,#0d0f11 5px 10px)}
+.sk-blueprint{background:linear-gradient(135deg,#08243f,#050b13);
+  background-image:linear-gradient(rgba(90,170,255,.14) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(90,170,255,.14) 1px,transparent 1px),
+    linear-gradient(135deg,#08243f,#050b13);background-size:14px 14px,14px 14px,100% 100%}
+.sk-goldrush{background:radial-gradient(circle at 75% 25%,rgba(255,205,90,.35),transparent 45%),
+  linear-gradient(135deg,#0a0806,#33250f,#0a0806)}
+.sk-ember{background:radial-gradient(circle at 70% 45%,rgba(255,80,10,.5),transparent 45%),
+  linear-gradient(135deg,#160604,#3c1207,#0b0706)}
+.sk-neon{background:radial-gradient(ellipse at 50% 120%,#153a6b,transparent 55%),
+  linear-gradient(180deg,#04070c,#0b1120)}
+.sk-frost{background:radial-gradient(circle at 70% 35%,rgba(120,210,255,.4),transparent 45%),
+  linear-gradient(135deg,#06121c,#0c3047,#07111b)}
+.sk-inverted{background:linear-gradient(135deg,#eceef2,#c9ccd4)}
+.sk-inverted span{color:#14161b;text-shadow:none}
+
+/* --- a player's log, grouped by day ----------------------------------- */
+.fday{border-bottom:1px solid var(--line)}
+.fday:last-child{border-bottom:0}
+.fday-h{display:flex;align-items:center;gap:9px;width:100%;padding:9px 2px;
+  background:none;border:0;color:var(--muted);cursor:pointer;text-align:left}
+.fday-x{font-size:9px;flex:0 0 auto}
+.fday-n{flex:1 1 auto;font:800 10px/1 var(--display);letter-spacing:.11em}
+.fday-c{font:700 10px/1 var(--mono);opacity:.6}
+.fday-p{font:800 11px/1 var(--display);color:var(--red)}
+.fday.open .fday-n{color:var(--txt)}

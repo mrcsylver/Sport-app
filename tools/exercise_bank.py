@@ -58,6 +58,7 @@ PUSH = [
     ('dips',        'Dips',                    1.00, 1, 'parallel bars triceps'),
     ('ringdips',    'Ring Dips',               1.10, 1, 'rings unstable'),
     ('onearmpush',  'One-arm Push-up',         1.20, 1, 'single arm'),
+    ('sphinxpush',  'Sphinx Push-up',          0.55, 1, 'sphinx forearm tricep'),
     ('handstand',   'Handstand Push-up',       0.95, 1.7, 'hspu wall overhead invert'),
 ]
 PULL = [
@@ -100,6 +101,13 @@ CORE_REPS = [
     ('dragonflag',  'Dragon Flag',         3.00, 'dragon advanced'),
     ('vups',        'V-ups',               0.75, 'v up jackknife'),
     ('supermans',   'Supermans',           0.25, 'lower back extension'),
+    ('sidecrunch',  'Lateral Crunches',    0.25, 'side oblique lateral crunch'),
+    ('bicycle',     'Bicycle Crunches',    0.25, 'bicycle cycling abs'),
+    ('deadbug',     'Dead Bug',            0.5,  'deadbug stability'),
+    ('birddog',     'Bird Dog',            0.5,  'birddog stability back'),
+    ('flutterkick', 'Flutter Kicks',       0.25, 'flutter scissor kicks'),
+    ('mountainclimb','Mountain Climbers',  0.25, 'mountain climber cardio abs'),
+    ('rollout',     'Ab Wheel Rollout',    2.0,  'ab wheel rollout barbell'),
 ]
 CORE_HOLD = [   # key, name, cat, mode, rate, aliases
     ('plank',      'Plank',           'CORE', 'minutes', 2,     'front elbow forearm'),
@@ -152,6 +160,11 @@ RECOVERY = [
 # Legs add the lifter's own mass above the bar: R = (load x equip + 0.85 BW) / BW
 # Equipment is baked into the exercise, so nobody has to pick a factor:
 # free weight 1.0, machine 0.75, cable 0.6, assisted 0.5.
+# ONE_ARM lifts are done a side at a time, so the number typed in is the one
+# dumbbell — not the pair. Everything else is the total on the bar. Saying so
+# per exercise is the only way people enter it consistently.
+ONE_ARM = {'gymdbrow', 'gymtricep', 'gymcurl', 'gymlatraise', 'gymwoodchop'}
+
 GYM = [
     # key, name, pattern, equip, aliases
     ('gymbench',     'Bench Press',           'push', 1.00, 'bench barbell chest press flat'),
@@ -178,5 +191,13 @@ GYM = [
     ('gymlegext',    'Leg Extension',         'legsiso', 0.75, 'quad machine extension'),
     ('gymlunge',     'Weighted Lunge',        'legs', 1.00, 'dumbbell lunge walking'),
     ('gymcalf',      'Weighted Calf Raise',   'legsiso', 0.75, 'calf machine standing'),
+    ('gymcablecrunch','Cable Crunch',         'coreiso', 0.60, 'cable crunch kneeling abs'),
+    ('gymwoodchop',  'Woodchoppers',          'coreiso', 0.60, 'woodchop cable oblique rotation'),
+    ('gympullover',  'Dumbbell Pullover',     'pull',    1.00, 'pullover lats chest'),
+    ('gymshrug',     'Shrug',                 'pull',    1.00, 'shrug traps barbell'),
+    ('gymincline',   'Incline Bench Press',   'push',    1.00, 'incline bench upper chest'),
+    ('gymgoblet',    'Goblet Squat',          'legs',    1.00, 'goblet kettlebell squat'),
+    ('gymstepup',    'Weighted Step-up',      'legs',    1.00, 'step up box weighted'),
 ]
-K_GYM = {'push': K_PUSH, 'pull': K_PULL, 'legs': K_LEGS, 'legsiso': K_LEGS}
+K_GYM = {'push': K_PUSH, 'pull': K_PULL, 'legs': K_LEGS, 'legsiso': K_LEGS,
+         'coreiso': 1.0}   # core work is priced against the knee-raise anchor

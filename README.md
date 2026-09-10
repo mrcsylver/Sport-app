@@ -10,6 +10,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Sunday rest day** — the league closes Saturday night; only a stretch counts.
 - **Stats tab** — your own totals, this week or all time, split by muscle group.
 - **Duels** — 24 hour head to head against anyone in your league, by code.
+- **Your mark** — an emblem in the colour you pick, or an animal. One or the other.
 - **Emblems, league crests and rank banners** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
 - **100+ exercises** — search the bank, including team sports and gym lifts.
@@ -455,3 +456,24 @@ loudly if an anchor rate drifted or a bounty's exercise disappeared.
 Emblem and crest artwork from [game-icons.net](https://game-icons.net),
 used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 Typeface: Barlow Condensed (SIL Open Font License).
+
+## League rules
+
+The person who created a league sets its rules in the Leagues tab:
+
+- **Rest days** — any weekday, up to three. On a rest day the league closes:
+  only a stretch counts, and only once. The default is Sunday.
+- **Season length** — 4 to 26 weeks, or no end at all.
+- **Crest** — picked from the shop.
+
+**Leaving and deleting are different things.** Leaving takes you out and leaves
+the league running for everyone else. Deleting removes it for everybody, and
+only the creator can do it — every workout still counts in the other leagues it
+was logged into, because a log is written once per league you are in.
+
+**Being in several leagues is safe.** One workout is logged into every league
+you belong to at that moment, so nothing is split. Joining a league later does
+not backfill your older workouts into it — you start from the day you join.
+
+**Kilos or pounds** is a personal setting; the database always stores kilos, so
+two people in one league can read weights differently without affecting scores.

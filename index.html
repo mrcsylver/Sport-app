@@ -213,6 +213,31 @@
             <button class="btn ghost sm" type="button" data-soon="League colours">CHANGE</button>
           </div>
 
+          <div id="leagueOwnerBox" hidden>
+            <h4>Rules of this league</h4>
+            <p class="muted small">Rest days close the league — only a stretch counts,
+              once. Pick up to three.</p>
+            <div class="dowrow" id="restDows"></div>
+            <label class="lbl" for="seasonWeeks" style="margin-top:12px">SEASON LENGTH</label>
+            <div class="copyrow">
+              <select id="seasonWeeks" class="input select">
+                <option value="">No end — runs forever</option>
+                <option value="4">4 weeks</option>
+                <option value="8">8 weeks</option>
+                <option value="12">12 weeks (3 months)</option>
+                <option value="26">26 weeks (6 months, max)</option>
+              </select>
+              <button id="saveRules" class="btn ghost sm" type="button">SAVE</button>
+            </div>
+          </div>
+
+          <h4>Leaving</h4>
+          <button id="leaveBtn" class="btn ghost sm" type="button"
+                  style="width:100%">LEAVE THIS LEAGUE</button>
+          <button id="deleteLeagueBtn" class="btn ghost sm danger" type="button"
+                  hidden style="width:100%;margin-top:8px">DELETE THIS LEAGUE</button>
+          <p class="muted small" id="leaveNote">Your logs stay in every other league you are in.</p>
+
           <h4>You can be in several leagues at once</h4>
           <p class="muted small">Joining or starting another league never touches this
             one. One workout is logged into every league you are in, so nothing is
@@ -250,6 +275,12 @@
             <button id="bwSave" class="btn ghost sm" type="button">SAVE</button>
           </div>
 
+          <h4>Weight units</h4>
+          <div class="segmented" id="unitRow">
+            <button type="button" data-units="kg">KILOS</button>
+            <button type="button" data-units="lb">POUNDS</button>
+          </div>
+
           <h4>Restore code</h4>
           <p class="muted small">Write it down. It moves your profile to a new phone.</p>
           <div class="codebox mono" id="restoreCode">--------</div>
@@ -257,23 +288,30 @@
       </details>
 
       <details class="sect" id="sectEmblem">
-        <summary><span>EMBLEM</span></summary>
+        <summary><span>MY MARK</span></summary>
         <div class="sect-b">
           <div class="av-preview"><span id="avPreview"></span>
-            <p class="muted small">This is how you appear on the board.</p></div>
+            <p class="muted small">One mark, an emblem or an animal — not both.</p></div>
 
-          <h4>Mark</h4>
-          <div id="avatarGrid" class="avgrid"></div>
+          <div class="segmented" id="avKind">
+            <button type="button" data-kind="icon" class="on">EMBLEM</button>
+            <button type="button" data-kind="emoji">ANIMAL</button>
+          </div>
 
-          <h4>Colour</h4>
-          <div id="avColors" class="swatches"></div>
+          <div id="avIconPane">
+            <h4>Emblem</h4>
+            <div id="avatarGrid" class="avgrid"></div>
+            <h4>Colour</h4>
+            <div id="avColors" class="swatches"></div>
+          </div>
 
-          <h4>Animal pin <span class="muted">— optional</span></h4>
-          <p class="muted small">Keep your animal too. It rides on the corner of the emblem.</p>
-          <div id="avPins" class="avgrid pins"></div>
+          <div id="avEmojiPane" hidden>
+            <h4>Animal</h4>
+            <div id="avPins" class="avgrid pins"></div>
+          </div>
 
           <button id="avatarClear" class="btn ghost sm" type="button"
-                  style="width:100%;margin-top:14px">CLEAR EVERYTHING</button>
+                  style="width:100%;margin-top:14px">NO MARK</button>
         </div>
       </details>
 
@@ -290,23 +328,28 @@
       </details>
 
       <details class="sect">
-        <summary><span>SHOP</span><span class="tag-soon">SOON</span></summary>
+        <summary><span>SHOP</span><span class="tag-soon">ALL FREE</span></summary>
         <div class="sect-b">
-          <p class="muted small">Training always stays free. These are for show.</p>
+          <p class="muted small">Everything here is free while we build it out.</p>
 
-          <div class="shop-i">
-            <span class="shop-ic">🎨</span>
-            <span class="shop-t"><b>Cosmetics</b><i>Animated #1 effects, crests, exclusive themes</i></span>
-            <span class="shop-p">Elements to come</span>
-          </div>
+          <h4>League crests</h4>
+          <div id="shopCrests" class="shopgrid"></div>
+
+          <h4>League banners</h4>
+          <div id="shopBanners" class="shopgrid wide"></div>
+
+          <h4>Player banners</h4>
+          <div id="shopPlayer" class="shopgrid wide"></div>
+
+          <h4>Later</h4>
           <div class="shop-i">
             <span class="shop-ic">👑</span>
-            <span class="shop-t"><b>Master League Pass</b><i>Unlimited slots, custom crest and colours, data export</i></span>
+            <span class="shop-t"><b>Master League Pass</b><i>Unlimited slots, custom colours, data export</i></span>
             <span class="shop-p">Elements to come</span>
           </div>
           <div class="shop-i">
             <span class="shop-ic">🏆</span>
-            <span class="shop-t"><b>Tournament pot</b><i>Put a prize on a season, tracked automatically</i></span>
+            <span class="shop-t"><b>Tournament pot</b><i>Put a prize on a season</i></span>
             <span class="shop-p">Elements to come</span>
           </div>
         </div>
@@ -375,12 +418,12 @@
       <div id="gymRow" hidden>
         <div class="gym2">
           <div>
-            <label class="lbl" for="bwInput">YOUR BODYWEIGHT (KG)</label>
+            <label class="lbl" for="bwInput" id="bwLbl">YOUR BODYWEIGHT (KG)</label>
             <input id="bwInput" class="input num mono" type="number" inputmode="decimal"
                    step="0.5" min="30" max="250" placeholder="80">
           </div>
           <div>
-            <label class="lbl" for="loadInput">WEIGHT LIFTED (KG)</label>
+            <label class="lbl" for="loadInput" id="loadLbl">WEIGHT LIFTED (KG)</label>
             <input id="loadInput" class="input num mono" type="number" inputmode="decimal"
                    step="2.5" min="0" max="500" placeholder="60">
           </div>

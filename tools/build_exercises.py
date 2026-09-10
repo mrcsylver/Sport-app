@@ -61,11 +61,15 @@ for i, (key, name, rate, al) in enumerate(RECOVERY):
 
 # Gym carries k + equipment instead of a flat rate; points need bodyweight.
 for i, (key, name, pat, equip, al) in enumerate(GYM):
+    note = ('One side at a time — type the weight of the single dumbbell'
+            if key in ONE_ARM
+            else 'Type the total on the bar, not counting your own weight')
     r = ex.setdefault(key, {'key': key, 'name': name, 'cat': 'GYM', 'aliases': al,
-                            'variants': 'Enter the weight on the bar, not counting your own',
-                            'sort': i, 'modes': {}})
+                            'variants': note, 'sort': i, 'modes': {}})
     r['modes']['reps'] = {'k': round(K_GYM[pat], 6), 'equip': equip,
-                          'legs': pat == 'legs', 'pattern': 'legs' if pat.startswith('legs') else pat}
+                          'legs': pat == 'legs',
+                          'pattern': 'legs' if pat.startswith('legs')
+                                     else 'core' if pat == 'coreiso' else pat}
 
 # handstand and muscle-up keep their second unit from the original table.
 put('handstand', 'Handstand Push-up', 'PUSH', 'seconds', 1/5, 'hspu wall hold invert')
