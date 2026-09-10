@@ -71,6 +71,8 @@ drop function if exists public.restore_profile(p_code text) cascade;
 drop function if exists public.set_avatar(p_avatar text) cascade;
 drop function if exists public.set_bodyweight(p_kg numeric) cascade;
 drop function if exists public.set_units(p_units text) cascade;
+drop function if exists public.set_banner(p_banner text) cascade;
+drop function if exists public.league_streaks(p_league uuid, p_min numeric) cascade;
 drop function if exists public.delete_league(p_league uuid) cascade;
 drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int) cascade;
 drop function if exists public.set_league_badge(p_league uuid, p_badge jsonb) cascade;
@@ -217,6 +219,9 @@ create table public.profiles (
   -- what a person types weights in; storage is always kilos
   units        text not null default 'kg'
                  constraint profiles_units_check check (units in ('kg','lb')),
+  -- name of a banner skin; the look itself is CSS, so nothing is stored but a word
+  banner       text constraint profiles_banner_check
+                 check (banner is null or char_length(banner) between 1 and 24),
   created_at   timestamptz not null default now()
 );
 
@@ -599,7 +604,7 @@ $$;
 create function public.league_leaderboard(p_league uuid, p_week date default null)
 returns table (profile_id uuid, display_name text, avatar text, points numeric,
                base_points numeric, bonus numeric, entries bigint,
-               joined_at timestamptz, lifetime numeric)
+               joined_at timestamptz, lifetime numeric, banner text)
 language sql stable security definer set search_path = public as $$
   -- `lifetime` drives the rank banner on each row. Like divisions and duel
   -- records it is derived on read, so there is nothing to store or award.
@@ -620,7 +625,7 @@ language sql stable security definer set search_path = public as $$
          coalesce(sum(w.points), 0)::numeric,
          (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
          count(w.id), m.joined_at,
-         coalesce(max(lt.total), 0)::numeric
+         coalesce(max(lt.total), 0)::numeric, p.banner
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
   left join public.workouts w
@@ -630,11 +635,49 @@ language sql stable security definer set search_path = public as $$
   left join bb on bb.profile_id = p.id
   left join lt on lt.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
-  group by p.id, p.display_name, p.avatar, m.joined_at
+  group by p.id, p.display_name, p.avatar, p.banner, m.joined_at
   order by 4 desc, 8 asc
 $$;
 
 -- Every finished week, best first — used by the Hall of Fame tab.
+-- Consistency, counted in days rather than volume, so a beginner doing 20
+-- push-ups daily can top a table the strongest athlete does not. Consecutive
+-- dates share (date - row_number), which finds runs without a recursive walk.
+create function public.league_streaks(p_league uuid, p_min numeric default 20)
+returns table (profile_id uuid, display_name text, avatar text, banner text,
+               current_streak int, best_streak int, active_days int)
+language sql stable security definer set search_path = public as $$
+  with days as (
+    select w.profile_id,
+           (w.created_at at time zone public.app_timezone())::date as d,
+           sum(w.points) as pts
+    from public.workouts w
+    where w.league_id = p_league
+    group by 1, 2
+    having sum(w.points) >= p_min
+  ),
+  grp as (
+    select profile_id, d,
+           d - (row_number() over (partition by profile_id order by d))::int as run
+    from days
+  ),
+  runs as (
+    select profile_id, run, count(*)::int as len, max(d) as ended
+    from grp group by 1, 2
+  ),
+  today as (select (now() at time zone public.app_timezone())::date as t)
+  select p.id, p.display_name, p.avatar, p.banner,
+         coalesce(max(r.len) filter (where r.ended >= (select t from today) - 1), 0)::int,
+         coalesce(max(r.len), 0)::int,
+         coalesce(sum(r.len), 0)::int
+  from public.league_members m
+  join public.profiles p on p.id = m.profile_id
+  left join runs r on r.profile_id = p.id
+  where m.league_id = p_league and public.is_member(p_league)
+  group by p.id, p.display_name, p.avatar, p.banner
+  order by 5 desc, 6 desc, 7 desc
+$$;
+
 create function public.weekly_history(p_league uuid)
 returns table (week_start date, profile_id uuid, display_name text, avatar text,
                points numeric, entries bigint)
@@ -730,6 +773,15 @@ begin
   return row;
 end $$;
 
+create function public.set_banner(p_banner text)
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); row public.profiles;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  update public.profiles set banner = nullif(p_banner, '') where id = me returning * into row;
+  return row;
+end $$;
+
 create function public.set_units(p_units text)
 returns public.profiles
 language plpgsql security definer set search_path = public as $$
@@ -788,12 +840,14 @@ begin
   if p_badge is not null and (
        coalesce(length(p_badge->>'shape'), 0)  > 20 or
        coalesce(length(p_badge->>'color'), 0)  > 20 or
+       coalesce(length(p_badge->>'skin'), 0)   > 24 or
        coalesce(length(p_badge->>'emblem'), 0) > 40) then
     raise exception 'Badge values are too long';
   end if;
   update public.leagues
-     set badge = case when p_badge is null then null else jsonb_build_object(
-       'shape', p_badge->>'shape', 'color', p_badge->>'color', 'emblem', p_badge->>'emblem') end
+     set badge = case when p_badge is null then null else jsonb_strip_nulls(jsonb_build_object(
+       'shape', p_badge->>'shape', 'color', p_badge->>'color',
+       'emblem', p_badge->>'emblem', 'skin', p_badge->>'skin')) end
    where id = p_league returning * into row;
   return row;
 end $$;
@@ -1235,6 +1289,8 @@ grant execute on function public.my_stats(uuid, boolean)       to authenticated;
 grant execute on function public.set_avatar(text)              to authenticated;
 grant execute on function public.set_bodyweight(numeric)       to authenticated;
 grant execute on function public.set_units(text)               to authenticated;
+grant execute on function public.set_banner(text)              to authenticated;
+grant execute on function public.league_streaks(uuid,numeric)  to authenticated;
 grant execute on function public.delete_league(uuid)           to authenticated;
 grant execute on function public.set_league_settings(uuid,int[],int) to authenticated;
 grant execute on function public.set_league_badge(uuid,jsonb)  to authenticated;

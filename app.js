@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.2.0';
+  var APP_VERSION = '2.3.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -352,7 +352,7 @@
     return spec && spec.indexOf(ICON_PREFIX) !== 0 ? spec + ' ' : '';
   }
 
-  var BADGE_SHAPES = ['heater', 'spade', 'round', 'pointed'];
+  var BADGE_SHAPES = ['heater', 'spade', 'round', 'pointed', 'banner', 'hex', 'kite', 'blade'];
   var BADGE_COLORS = [
     { key: 'crimson', a: '#ff2e2e', b: '#7a0d0d' }, { key: 'gold',   a: '#ffc93c', b: '#8a5a00' },
     { key: 'steel',   a: '#c9d3e2', b: '#4a5364' }, { key: 'jade',   a: '#26d07c', b: '#0b5c37' },
@@ -363,7 +363,11 @@
     heater:  'M8 6h84v40c0 26-19 42-42 52C27 88 8 72 8 46Z',
     spade:   'M8 6h84v52L50 98 8 58Z',
     round:   'M50 4a46 46 0 1 1 0 92a46 46 0 1 1 0-92Z',
-    pointed: 'M50 3l42 15v34c0 24-18 38-42 46C26 90 8 76 8 52V18Z'
+    pointed: 'M50 3l42 15v34c0 24-18 38-42 46C26 90 8 76 8 52V18Z',
+    banner:  'M12 4h76v78L50 96 12 82Z',
+    hex:     'M50 3l40 23v48L50 97 10 74V26Z',
+    kite:    'M50 2l44 34-44 62L6 36Z',
+    blade:   'M14 6h72l-8 46c-3 20-14 32-28 46-14-14-25-26-28-46Z'
   };
 
   function badgeOf(league) {
@@ -375,7 +379,7 @@
     return {
       shape:  b.shape  || BADGE_SHAPES[seed % BADGE_SHAPES.length],
       color:  b.color  || BADGE_COLORS[(seed >>> 3) % BADGE_COLORS.length].key,
-      emblem: b.emblem || GI_EMBLEMS[(seed >>> 6) % GI_EMBLEMS.length]
+      emblem: b.emblem || GI_CRESTS[(seed >>> 6) % GI_CRESTS.length]
     };
   }
 
@@ -401,6 +405,31 @@
 
   /* A fighter's banner is their lifetime rank — derived from points they
      already have, so there is nothing to store and nothing to award. */
+  /* Consistency, not volume: the one table a beginner can win. */
+  async function loadStreaks() {
+    var box = $('#streaks'); if (!box) return;
+    var r = await sb.rpc('league_streaks', { p_league: state.leagueId });
+    if (r.error || !r.data) { box.innerHTML = ''; return; }
+    var rows = r.data.filter(function (x) { return x.best_streak > 0; });
+    if (!rows.length) {
+      box.innerHTML = '<div class="empty">No streak going yet. Score 20 points two days running to start one.</div>';
+      return;
+    }
+    var me = state.profile ? state.profile.id : null;
+    box.innerHTML = rows.slice(0, 10).map(function (x, i) {
+      var live = x.current_streak > 0;
+      return '<div class="stk' + (x.profile_id === me ? ' me' : '') +
+               (skinClass(x.banner) ? ' skin ' + skinClass(x.banner) : '') + '">' +
+        '<span class="stk-r">' + (i + 1) + '</span>' +
+        avatarHtml(x.avatar, { name: x.display_name, size: 'sm' }) +
+        '<span class="stk-n">' + esc(x.display_name) + '</span>' +
+        '<span class="stk-d' + (live ? ' live' : '') + '">' +
+          (live ? x.current_streak : x.best_streak) +
+          '<small>' + (live ? 'DAYS' : 'BEST') + '</small></span>' +
+      '</div>';
+    }).join('');
+  }
+
   function bannerOf(lifetime) {
     /* Below the first grade you are UNRANKED rather than nothing — a row with
        no edge at all looks like a rendering fault next to rows that have one. */
@@ -868,6 +897,8 @@
   function renderHeader() {
     var l = league();
     if (!l) return;
+    var lskin = skinClass(l.badge && l.badge.skin);
+    $('#leagueBtn').className = 'leaguepill' + (lskin ? ' skin ' + lskin : '');
     $('#lgBadge').innerHTML = leagueBadgeHtml(l, 'sm');
     $('#lgName').textContent = l.name;
     $('#lgMeta').textContent = l.members + '/' + l.max_members + ' · CODE ' + l.code;
@@ -920,7 +951,7 @@
      9. Live leaderboard
      =================================================================== */
   async function refreshAll() {
-    await Promise.all([loadBoard(), loadHistory(), loadCombo(), loadBounty()]);
+    await Promise.all([loadBoard(), loadHistory(), loadCombo(), loadBounty(), loadStreaks()]);
     renderHeader();
   }
 
@@ -973,7 +1004,9 @@
       (p.profile_id === me ? ' me' : '');
     var open = !!state.open[p.profile_id];
     var bn = bannerOf(p.lifetime);
+    var skin = skinClass(p.banner);
     return '<div class="' + cls + (bn ? ' bnr bnr-' + bn.tier : '') +
+           (skin ? ' skin ' + skin : '') +
            '" data-id="' + p.profile_id + '">' +
       '<button class="rowbtn" type="button" data-toggle="' + p.profile_id + '">' +
         '<span class="rank">' + (rank && pts > 0 ? rank : '–') + '</span>' +
@@ -1911,30 +1944,42 @@
      The cosmetics that already exist, shown as things you can pick rather
      than buried in a picker. Everything is free for now; the price slot is
      there so it has somewhere to go later. */
+  /* Every banner is CSS, not a picture: nothing to download, it re-themes
+     with the app, and the motion is part of the artwork. Names match the
+     mockups so we can talk about them. */
   var BANNER_SKINS = [
-    { key: 'standard', name: 'STANDARD' }, { key: 'carbon', name: 'CARBON' },
-    { key: 'blueprint', name: 'BLUEPRINT' }, { key: 'goldrush', name: 'GOLD RUSH' },
-    { key: 'ember', name: 'EMBER' }, { key: 'neon', name: 'NEON CIRCUIT' },
-    { key: 'frost', name: 'FROSTBITE' }, { key: 'inverted', name: 'CLEAN SLATE' }
+    { key: 'standard',  name: 'STANDARD' },  { key: 'carbon',    name: 'CARBON' },
+    { key: 'blueprint', name: 'BLUEPRINT' }, { key: 'goldrush',  name: 'GOLD RUSH' },
+    { key: 'ember',     name: 'INFERNO' },   { key: 'frost',     name: 'FROSTBITE' },
+    { key: 'neon',      name: 'NEON ARENA' },{ key: 'velocity',  name: 'VELOCITY' },
+    { key: 'stadium',   name: 'STADIUM' },   { key: 'tactical',  name: 'OVERDRIVE' },
+    { key: 'holo',      name: 'PRISM' },     { key: 'varsity',   name: 'VARSITY' },
+    { key: 'luxury',    name: 'DOMINION' },  { key: 'grunge',    name: 'GLITCH' },
+    { key: 'inverted',  name: 'CLEAN SLATE' }
   ];
+  function skinClass(key) {
+    for (var i = 0; i < BANNER_SKINS.length; i++) if (BANNER_SKINS[i].key === key) return 'sk-' + key;
+    return '';
+  }
 
   function buildShop() {
     var l = league();
     var cur = badgeOf(l);
-    $('#shopCrests').innerHTML = GI_EMBLEMS.map(function (n) {
+    $('#shopCrests').innerHTML = GI_CRESTS.map(function (n) {
       return '<button type="button" class="shop-c' + (n === cur.emblem ? ' on' : '') +
              '" data-crest="' + n + '" aria-label="' + esc(n.replace(/-/g, ' ')) + '">' +
              iconSvg(n) + '<small>FREE</small></button>';
     }).join('');
-    function skins(target, cls) {
+    function skins(target, cls, chosen) {
       $(target).innerHTML = BANNER_SKINS.map(function (b) {
-        return '<button type="button" class="' + cls + ' sk-' + b.key +
+        return '<button type="button" class="' + cls + ' skin sk-' + b.key +
+               (b.key === chosen ? ' on' : '') +
                '" data-skin="' + b.key + '"><span>' + b.name + '</span>' +
                '<small>FREE</small></button>';
       }).join('');
     }
-    skins('#shopBanners', 'shop-b');
-    skins('#shopPlayer', 'shop-b shop-b-sm');
+    skins('#shopBanners', 'shop-b', l && l.badge && l.badge.skin);
+    skins('#shopPlayer', 'shop-b shop-b-sm', state.profile && state.profile.banner);
   }
 
   $('#shopCrests').addEventListener('click', async function (e) {
@@ -1953,8 +1998,32 @@
     } catch (err) { toast(niceError(err), true); }
   });
 
-  document.addEventListener('click', function (e) {
-    if (e.target.closest('[data-skin]')) toast('Banner skins are next — the art is not wired up yet.');
+  $('#shopBanners').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-skin]'); if (!b) return;
+    var l = league();
+    if (!l || !state.profile || l.owner_id !== state.profile.id) {
+      toast('Only the person who created the league can change its banner'); return;
+    }
+    var cur = badgeOf(l);
+    try {
+      var r = await sb.rpc('set_league_badge', { p_league: l.id, p_badge: {
+        shape: cur.shape, color: cur.color, emblem: cur.emblem,
+        skin: b.getAttribute('data-skin') } });
+      if (r.error) throw r.error;
+      await loadLeagues(); renderMe(); renderHeader();
+      toast('League banner updated');
+    } catch (err) { toast(niceError(err), true); }
+  });
+
+  $('#shopPlayer').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-skin]'); if (!b) return;
+    try {
+      var r = await sb.rpc('set_banner', { p_banner: b.getAttribute('data-skin') });
+      if (r.error) throw r.error;
+      state.profile = r.data;
+      buildShop(); await refreshAll();
+      toast('Your banner is set');
+    } catch (err) { toast(niceError(err), true); }
   });
 
   /* ---- rules a league creator owns -------------------------------------- */

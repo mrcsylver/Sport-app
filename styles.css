@@ -714,23 +714,7 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .shop-b span{font:800 12px/1 var(--display);letter-spacing:.1em;font-style:italic;
   color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.9);z-index:1}
 .shop-b-sm{height:46px}
-/* the skins, built from gradients so they cost nothing to ship */
-.sk-standard{background:linear-gradient(135deg,#1a1d24,#0b0d11)}
-.sk-carbon{background:repeating-linear-gradient(45deg,#15171a 0 5px,#0d0f11 5px 10px)}
-.sk-blueprint{background:linear-gradient(135deg,#08243f,#050b13);
-  background-image:linear-gradient(rgba(90,170,255,.14) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(90,170,255,.14) 1px,transparent 1px),
-    linear-gradient(135deg,#08243f,#050b13);background-size:14px 14px,14px 14px,100% 100%}
-.sk-goldrush{background:radial-gradient(circle at 75% 25%,rgba(255,205,90,.35),transparent 45%),
-  linear-gradient(135deg,#0a0806,#33250f,#0a0806)}
-.sk-ember{background:radial-gradient(circle at 70% 45%,rgba(255,80,10,.5),transparent 45%),
-  linear-gradient(135deg,#160604,#3c1207,#0b0706)}
-.sk-neon{background:radial-gradient(ellipse at 50% 120%,#153a6b,transparent 55%),
-  linear-gradient(180deg,#04070c,#0b1120)}
-.sk-frost{background:radial-gradient(circle at 70% 35%,rgba(120,210,255,.4),transparent 45%),
-  linear-gradient(135deg,#06121c,#0c3047,#07111b)}
-.sk-inverted{background:linear-gradient(135deg,#eceef2,#c9ccd4)}
-.sk-inverted span{color:#14161b;text-shadow:none}
+/* skins live in their own block below */
 
 /* --- a player's log, grouped by day ----------------------------------- */
 .fday{border-bottom:1px solid var(--line)}
@@ -742,3 +726,104 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .fday-c{font:700 10px/1 var(--mono);opacity:.6}
 .fday-p{font:800 11px/1 var(--display);color:var(--red)}
 .fday.open .fday-n{color:var(--txt)}
+
+/* =====================================================================
+   BANNER SKINS
+   Every one is CSS: no image files, nothing to license, and they re-theme
+   with the app. `.skin` sets up the layers; each `.sk-*` fills them in.
+   Motion is part of the artwork, and all of it stops for anyone who has
+   asked their phone to reduce motion.
+   ===================================================================== */
+.skin{position:relative;isolation:isolate;overflow:hidden;
+  background:var(--sk-bg,var(--panel))}
+.skin>*{position:relative;z-index:2}
+/* the moving highlight every skin shares */
+.skin::after{content:"";position:absolute;z-index:1;top:-60%;left:-40%;
+  width:22%;height:220%;transform:rotate(22deg);pointer-events:none;
+  background:linear-gradient(90deg,transparent,var(--sk-shine,rgba(255,255,255,.22)),transparent);
+  filter:blur(6px);animation:skSweep var(--sk-speed,6s) ease-in-out infinite}
+@keyframes skSweep{
+  0%,18%{left:-45%;opacity:0}
+  30%{opacity:1}
+  70%,100%{left:130%;opacity:0}
+}
+/* a second, skin-specific layer (grid, streaks, embers, scanline…) */
+.skin::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:var(--sk-fx,none);background-size:var(--sk-fx-size,auto);
+  opacity:var(--sk-fx-o,1);
+  animation:var(--sk-fx-anim,none)}
+
+.sk-standard{--sk-bg:linear-gradient(135deg,#1a1d24,#0b0d11)}
+.sk-carbon{--sk-bg:repeating-linear-gradient(45deg,#15171a 0 5px,#0d0f11 5px 10px);
+  --sk-shine:rgba(255,46,46,.55);--sk-speed:4.5s}
+.sk-blueprint{--sk-bg:linear-gradient(135deg,#08243f,#050b13);
+  --sk-fx:linear-gradient(rgba(90,170,255,.16) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(90,170,255,.16) 1px,transparent 1px);
+  --sk-fx-size:16px 16px;--sk-shine:rgba(120,190,255,.35)}
+.sk-goldrush{--sk-bg:radial-gradient(circle at 75% 25%,rgba(255,205,90,.32),transparent 45%),
+  linear-gradient(135deg,#0a0806,#33250f,#0a0806);
+  --sk-shine:rgba(255,240,170,.85);--sk-speed:5.5s}
+.sk-ember{--sk-bg:radial-gradient(circle at 70% 45%,rgba(255,80,10,.5),transparent 45%),
+  linear-gradient(135deg,#160604,#3c1207,#0b0706);
+  --sk-fx:repeating-linear-gradient(125deg,transparent 0 26px,rgba(255,90,10,.3) 27px,transparent 29px);
+  --sk-fx-anim:skDrift 3s linear infinite;--sk-shine:rgba(255,150,60,.5)}
+.sk-frost{--sk-bg:radial-gradient(circle at 70% 35%,rgba(120,210,255,.4),transparent 45%),
+  linear-gradient(135deg,#06121c,#0c3047,#07111b);--sk-shine:rgba(220,250,255,.75)}
+.sk-neon{--sk-bg:radial-gradient(ellipse at 50% 120%,#153a6b,transparent 55%),
+  linear-gradient(180deg,#04070c,#0b1120);
+  --sk-fx:linear-gradient(90deg,transparent,#00aaff,#ff174f,transparent);
+  --sk-fx-size:100% 2px;--sk-fx-o:.7;--sk-fx-anim:skPulse 2.4s ease-in-out infinite}
+.sk-velocity{--sk-bg:linear-gradient(140deg,#08090b 0 30%,#23070a);
+  --sk-fx:repeating-linear-gradient(115deg,transparent 0 22px,rgba(237,24,33,.75) 23px 26px,transparent 27px 52px);
+  --sk-fx-o:.55;--sk-fx-anim:skStreak 1.2s linear infinite;--sk-speed:3s}
+.sk-stadium{--sk-bg:radial-gradient(ellipse at 50% 125%,#24493e,transparent 48%),
+  linear-gradient(180deg,#04070b 0 45%,#16222a);
+  --sk-fx:repeating-linear-gradient(90deg,transparent 0 32px,rgba(255,255,255,.5) 33px 36px,transparent 37px 66px);
+  --sk-fx-size:100% 16px;--sk-fx-o:.5;--sk-fx-anim:skLights 3s ease-in-out infinite alternate}
+.sk-tactical{--sk-bg:#0b1118;
+  --sk-fx:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
+  --sk-fx-size:20px 20px;--sk-shine:rgba(67,170,255,.7);--sk-speed:3.5s}
+.sk-holo{--sk-bg:linear-gradient(120deg,#2b4f96,#c164b4,#5bd2d2,#ecd473,#2b4f96);
+  --sk-shine:rgba(255,255,255,.5)}
+.sk-varsity{--sk-bg:repeating-linear-gradient(45deg,#071426 0 7px,#0b2445 7px 14px);
+  --sk-shine:rgba(215,31,42,.8);--sk-speed:4s}
+.sk-luxury{--sk-bg:repeating-linear-gradient(135deg,#070707 0 15px,#101010 15px 17px);
+  --sk-shine:rgba(255,225,140,.9);--sk-speed:5s}
+.sk-grunge{--sk-bg:linear-gradient(145deg,#1a1a1a,#0a0a0a);
+  --sk-fx:repeating-linear-gradient(125deg,transparent 0 24px,rgba(255,46,46,.22) 25px 28px,transparent 29px 58px);
+  --sk-fx-anim:skDrift 6s linear infinite;--sk-shine:rgba(255,60,60,.5);--sk-speed:2.5s}
+.sk-inverted{--sk-bg:linear-gradient(135deg,#eceef2,#c9ccd4);--sk-shine:rgba(0,0,0,.14)}
+.sk-inverted .nm,.sk-inverted .pts,.sk-inverted span{color:#14161b}
+.sk-inverted .sub,.sk-inverted .rank{color:#5f6673}
+
+/* holo is the one skin whose ground itself moves */
+.sk-holo{background-size:340% 340%;animation:skHolo 9s ease infinite}
+@keyframes skHolo{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+@keyframes skDrift{to{transform:translate(-30px,30px)}}
+@keyframes skStreak{to{transform:translateX(52px)}}
+@keyframes skPulse{0%,100%{opacity:.3;transform:scaleX(.85)}50%{opacity:.9;transform:scaleX(1)}}
+@keyframes skLights{from{opacity:.25;transform:translateX(-12px)}to{opacity:.8;transform:translateX(12px)}}
+
+/* A skinned board row keeps its text readable over the artwork. */
+.row.skin .nm,.row.skin .pts{text-shadow:0 1px 6px rgba(0,0,0,.75)}
+.leaguepill.skin{border-color:transparent}
+.shop-b.on{outline:2px solid var(--red);outline-offset:-2px}
+
+@media (prefers-reduced-motion: reduce){
+  .skin::after,.skin::before,.sk-holo{animation:none!important}
+  .skin::after{opacity:0}
+}
+
+/* --- Iron Will: the consistency board ---------------------------------- */
+.stk{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:4px;
+  background:var(--panel);border:1px solid var(--line)}
+.stk.me{border-color:#37414f}
+.stk-r{font:800 15px/1 var(--display);color:var(--muted);flex:0 0 18px}
+.stk-n{flex:1 1 auto;font:800 15px/1 var(--display);letter-spacing:.03em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stk-d{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:0 0 auto;
+  font:800 19px/1 var(--display);color:var(--muted)}
+.stk-d small{font:700 8px/1 var(--display);letter-spacing:.12em;opacity:.7}
+.stk-d.live{color:var(--green)}
+.stk.skin .stk-n{text-shadow:0 1px 6px rgba(0,0,0,.75)}
