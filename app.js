@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.3.0';
+  var APP_VERSION = '2.4.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -405,6 +405,79 @@
 
   /* A fighter's banner is their lifetime rank — derived from points they
      already have, so there is nothing to store and nothing to award. */
+  /* Badges. Earned in a league, derived from what already happened, and worn
+     three at a time by choice — the board stays readable and the choice is
+     itself a small statement. */
+  function badgeArt(key) { return (GI_BADGE_ART && GI_BADGE_ART[key]) || 'medal'; }
+
+  async function loadBadges() {
+    var box = $('#badges'); if (!box) return;
+    var r = await sb.rpc('my_badges', { p_league: state.leagueId });
+    if (r.error || !r.data) { box.innerHTML = ''; return; }
+    state.badges = r.data;
+    var pinned = (state.profile && state.profile.pinned_badges) || [];
+    var got = r.data.filter(function (b) { return b.earned; }).length;
+    $('#badgeCount').textContent = got + ' / ' + r.data.length;
+    box.innerHTML = r.data.map(function (b) {
+      var on = pinned.indexOf(b.key) >= 0;
+      var pct = Math.min(100, Number(b.progress) / Number(b.target) * 100);
+      return '<button type="button" class="bdg' + (b.earned ? ' got' : '') +
+        (on ? ' pinned' : '') + '" data-badge="' + b.key + '"' +
+        (b.earned ? '' : ' disabled') + '>' +
+        '<span class="bdg-i">' + iconSvg(badgeArt(b.key)) + '</span>' +
+        '<span class="bdg-n">' + esc(b.name) + '</span>' +
+        '<span class="bdg-d">' + esc(b.descr) + '</span>' +
+        (b.earned ? '<span class="bdg-on">' + (on ? 'ON SHOW' : 'TAP TO WEAR') + '</span>'
+          : '<span class="bdg-bar"><i style="width:' + pct.toFixed(0) + '%"></i></span>' +
+            '<span class="bdg-p">' + num(b.progress) + ' / ' + num(b.target) + '</span>') +
+      '</button>';
+    }).join('');
+  }
+
+
+  /* Rivalries. Nobody at rank 12 is chasing rank 1, but they very much do not
+     want to lose to rank 13. Pairings come from last week's finish so they hold
+     still all week; the score is this week's live points. */
+  function rivalCard(r, big) {
+    var meId = state.profile ? state.profile.id : null;
+    var iAmA = r.a_id === meId;
+    var meSide  = iAmA ? { n: r.a_name, av: r.a_avatar, p: Number(r.a_points) }
+                       : { n: r.b_name, av: r.b_avatar, p: Number(r.b_points) };
+    var foeSide = iAmA ? { n: r.b_name, av: r.b_avatar, p: Number(r.b_points) }
+                       : { n: r.a_name, av: r.a_avatar, p: Number(r.a_points) };
+    var L = big ? meSide : { n: r.a_name, av: r.a_avatar, p: Number(r.a_points) };
+    var R = big ? foeSide : { n: r.b_name, av: r.b_avatar, p: Number(r.b_points) };
+    var gap = L.p - R.p;
+    var cls = 'riv' + (big ? ' riv-big' : '') + (r.mine && !big ? ' mine' : '');
+    return '<div class="' + cls + '">' +
+      '<span class="riv-s' + (gap > 0 ? ' up' : '') + '">' +
+        avatarHtml(L.av, { name: L.n, size: big ? 'lg' : 'sm' }) +
+        '<b>' + esc(L.n) + '</b><i>' + num(L.p) + '</i></span>' +
+      '<span class="riv-v">' + (big
+        ? (gap === 0 ? 'LEVEL' : (gap > 0 ? '+' + num(gap) : num(gap)))
+        : 'vs') + '</span>' +
+      '<span class="riv-s' + (gap < 0 ? ' up' : '') + '">' +
+        avatarHtml(R.av, { name: R.n, size: big ? 'lg' : 'sm' }) +
+        '<b>' + esc(R.n) + '</b><i>' + num(R.p) + '</i></span>' +
+    '</div>';
+  }
+
+  async function loadRivalries() {
+    var mine = $('#myRival'), all = $('#rivalList');
+    if (!mine) return;
+    var r = await sb.rpc('league_rivalries', { p_league: state.leagueId });
+    if (r.error || !r.data || !r.data.length) {
+      mine.innerHTML = '<div class="empty">Pairings start once the league has ' +
+        'a full week behind it.</div>';
+      all.innerHTML = '';
+      return;
+    }
+    var m = r.data.filter(function (x) { return x.mine; })[0];
+    mine.innerHTML = m ? rivalCard(m, true)
+      : '<div class="empty">You are the odd one out this week — no rival drawn.</div>';
+    all.innerHTML = r.data.map(function (x) { return rivalCard(x, false); }).join('');
+  }
+
   /* Consistency, not volume: the one table a beginner can win. */
   async function loadStreaks() {
     var box = $('#streaks'); if (!box) return;
@@ -1012,6 +1085,10 @@
         '<span class="rank">' + (rank && pts > 0 ? rank : '–') + '</span>' +
         avatarHtml(p.avatar, { name: p.display_name, tier: tierKey }) +
         '<span class="who"><span class="nm">' + esc(p.display_name) +
+          ((p.pinned_badges || []).length
+            ? '<span class="wornrow">' + p.pinned_badges.map(function (k) {
+                return '<span class="worn">' + iconSvg(badgeArt(k)) + '</span>';
+              }).join('') + '</span>' : '') +
           (p.profile_id === me ? ' <span class="muted" style="font-size:11px">(YOU)</span>' : '') +
         '</span>' +
         '<span class="sub">' +
@@ -1911,6 +1988,24 @@
     saveAvatar(b.getAttribute('data-pin'));      // an animal replaces the emblem
   });
   $('#avatarClear').addEventListener('click', function () { saveAvatar(''); });
+
+  $('#badges').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-badge]'); if (!b || b.disabled) return;
+    var key = b.getAttribute('data-badge');
+    var pinned = ((state.profile && state.profile.pinned_badges) || []).slice();
+    var at = pinned.indexOf(key);
+    if (at >= 0) { pinned.splice(at, 1); }
+    else if (pinned.length >= 3) { toast('Three on show at a time — take one off first'); return; }
+    else { pinned.push(key); }
+    try {
+      var r = await sb.rpc('set_pinned_badges', { p_keys: pinned });
+      if (r.error) throw r.error;
+      state.profile = r.data;
+      await loadBadges();
+      await refreshAll();
+    } catch (err) { toast(niceError(err), true); }
+  });
+
   /* Built on first open, so the settings tab does not pay for ~110 inline
      SVGs every time it renders. */
   $('#sectEmblem').addEventListener('toggle', function () {
@@ -1947,18 +2042,24 @@
   /* Every banner is CSS, not a picture: nothing to download, it re-themes
      with the app, and the motion is part of the artwork. Names match the
      mockups so we can talk about them. */
-  var BANNER_SKINS = [
-    { key: 'standard',  name: 'STANDARD' },  { key: 'carbon',    name: 'CARBON' },
-    { key: 'blueprint', name: 'BLUEPRINT' }, { key: 'goldrush',  name: 'GOLD RUSH' },
-    { key: 'ember',     name: 'INFERNO' },   { key: 'frost',     name: 'FROSTBITE' },
-    { key: 'neon',      name: 'NEON ARENA' },{ key: 'velocity',  name: 'VELOCITY' },
-    { key: 'stadium',   name: 'STADIUM' },   { key: 'tactical',  name: 'OVERDRIVE' },
-    { key: 'holo',      name: 'PRISM' },     { key: 'varsity',   name: 'VARSITY' },
-    { key: 'luxury',    name: 'DOMINION' },  { key: 'grunge',    name: 'GLITCH' },
-    { key: 'inverted',  name: 'CLEAN SLATE' }
+  /* Two separate sets on purpose: a league is a place and a player is a
+     person, so they should not be able to wear the same thing. Leagues get
+     the wide, architectural looks; players get the tighter, personal ones. */
+  var LEAGUE_SKINS = [
+    { key: 'standard',  name: 'STANDARD' },  { key: 'stadium',   name: 'STADIUM' },
+    { key: 'goldrush',  name: 'GOLD RUSH' }, { key: 'neon',      name: 'NEON ARENA' },
+    { key: 'tactical',  name: 'OVERDRIVE' }, { key: 'varsity',   name: 'VARSITY' },
+    { key: 'holo',      name: 'PRISM' },     { key: 'luxury',    name: 'DOMINION' }
   ];
+  var PLAYER_SKINS = [
+    { key: 'carbon',    name: 'CARBON' },    { key: 'ember',     name: 'INFERNO' },
+    { key: 'frost',     name: 'FROSTBITE' }, { key: 'velocity',  name: 'VELOCITY' },
+    { key: 'blueprint', name: 'BLUEPRINT' }, { key: 'grunge',    name: 'GLITCH' },
+    { key: 'obsidian',  name: 'OBSIDIAN' },  { key: 'inverted',  name: 'CLEAN SLATE' }
+  ];
+  var ALL_SKINS = LEAGUE_SKINS.concat(PLAYER_SKINS);
   function skinClass(key) {
-    for (var i = 0; i < BANNER_SKINS.length; i++) if (BANNER_SKINS[i].key === key) return 'sk-' + key;
+    for (var i = 0; i < ALL_SKINS.length; i++) if (ALL_SKINS[i].key === key) return 'sk-' + key;
     return '';
   }
 
@@ -1970,16 +2071,17 @@
              '" data-crest="' + n + '" aria-label="' + esc(n.replace(/-/g, ' ')) + '">' +
              iconSvg(n) + '<small>FREE</small></button>';
     }).join('');
-    function skins(target, cls, chosen) {
-      $(target).innerHTML = BANNER_SKINS.map(function (b) {
+    function skins(target, cls, set, chosen) {
+      $(target).innerHTML = set.map(function (b) {
         return '<button type="button" class="' + cls + ' skin sk-' + b.key +
                (b.key === chosen ? ' on' : '') +
                '" data-skin="' + b.key + '"><span>' + b.name + '</span>' +
                '<small>FREE</small></button>';
       }).join('');
     }
-    skins('#shopBanners', 'shop-b', l && l.badge && l.badge.skin);
-    skins('#shopPlayer', 'shop-b shop-b-sm', state.profile && state.profile.banner);
+    skins('#shopBanners', 'shop-b', LEAGUE_SKINS, l && l.badge && l.badge.skin);
+    skins('#shopPlayer', 'shop-b shop-b-sm', PLAYER_SKINS,
+          state.profile && state.profile.banner);
   }
 
   $('#shopCrests').addEventListener('click', async function (e) {
@@ -2124,8 +2226,8 @@
       t.classList.toggle('is-active', t.getAttribute('data-view') === v);
     });
     if (v === 'me') renderMe();
-    if (v === 'stats') loadStats();
-    if (v === 'duel') loadDuels();
+    if (v === 'stats') { loadStats(); loadBadges(); }
+    if (v === 'duel') { loadDuels(); loadRivalries(); }
     window.scrollTo(0, 0);
   }
   Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
@@ -2138,8 +2240,8 @@
     await loadLeagues();
     await refreshAll();
     Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
-    if (state.view === 'stats') await loadStats();
-    if (state.view === 'duel') await loadDuels();
+    if (state.view === 'stats') { await loadStats(); await loadBadges(); }
+    if (state.view === 'duel') { await loadDuels(); await loadRivalries(); }
     b.classList.remove('spin');
     toast('Refreshed');
   });

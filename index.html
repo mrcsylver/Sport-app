@@ -129,7 +129,15 @@
 
     <!-- DUELS -->
     <section id="view-duel" class="view" hidden>
-      <div class="section-head"><h2>DUELS</h2>
+      <div class="section-head"><h2>THIS WEEK'S RIVAL</h2>
+        <span class="muted small mono">AUTOMATIC</span></div>
+      <div id="myRival"></div>
+      <details class="sect" id="sectRivals" style="margin-top:10px">
+        <summary><span>EVERY PAIRING</span></summary>
+        <div class="sect-b"><div id="rivalList" class="stack tight"></div></div>
+      </details>
+
+      <div class="section-head" style="margin-top:26px"><h2>DUELS</h2>
         <span class="muted small mono">24H · HEAD TO HEAD</span></div>
       <div id="duelActive"></div>
       <div id="duelStart" class="panel" hidden>
@@ -160,7 +168,15 @@
       </div>
       <div id="milestones" class="ms"></div>
 
-      <div class="section-head" style="margin-top:24px">
+      <div class="section-head" style="margin-top:26px">
+        <h2>BADGES</h2>
+        <span class="muted small mono" id="badgeCount"></span>
+      </div>
+      <p class="hint" style="margin-top:0">Earned inside this league. Tap up to three
+        to wear them next to your name.</p>
+      <div id="badges" class="badgegrid"></div>
+
+      <div class="section-head" style="margin-top:26px">
         <h2>MY NUMBERS</h2>
       </div>
       <div class="segmented" id="statsRange">

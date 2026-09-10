@@ -73,6 +73,9 @@ drop function if exists public.set_bodyweight(p_kg numeric) cascade;
 drop function if exists public.set_units(p_units text) cascade;
 drop function if exists public.set_banner(p_banner text) cascade;
 drop function if exists public.league_streaks(p_league uuid, p_min numeric) cascade;
+drop function if exists public.set_pinned_badges(p_keys text[]) cascade;
+drop function if exists public.my_badges(p_league uuid) cascade;
+drop function if exists public.league_rivalries(p_league uuid, p_week date) cascade;
 drop function if exists public.delete_league(p_league uuid) cascade;
 drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int) cascade;
 drop function if exists public.set_league_badge(p_league uuid, p_badge jsonb) cascade;
@@ -222,6 +225,11 @@ create table public.profiles (
   -- name of a banner skin; the look itself is CSS, so nothing is stored but a word
   banner       text constraint profiles_banner_check
                  check (banner is null or char_length(banner) between 1 and 24),
+  -- which badges to wear on the board, in order, at most three
+  pinned_badges text[] not null default '{}'
+                 constraint profiles_pinned_sane
+                 check (array_length(pinned_badges, 1) is null
+                        or array_length(pinned_badges, 1) <= 3),
   created_at   timestamptz not null default now()
 );
 
@@ -604,7 +612,8 @@ $$;
 create function public.league_leaderboard(p_league uuid, p_week date default null)
 returns table (profile_id uuid, display_name text, avatar text, points numeric,
                base_points numeric, bonus numeric, entries bigint,
-               joined_at timestamptz, lifetime numeric, banner text)
+               joined_at timestamptz, lifetime numeric, banner text,
+               pinned_badges text[])
 language sql stable security definer set search_path = public as $$
   -- `lifetime` drives the rank banner on each row. Like divisions and duel
   -- records it is derived on read, so there is nothing to store or award.
@@ -625,7 +634,7 @@ language sql stable security definer set search_path = public as $$
          coalesce(sum(w.points), 0)::numeric,
          (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
          count(w.id), m.joined_at,
-         coalesce(max(lt.total), 0)::numeric, p.banner
+         coalesce(max(lt.total), 0)::numeric, p.banner, p.pinned_badges
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
   left join public.workouts w
@@ -635,7 +644,7 @@ language sql stable security definer set search_path = public as $$
   left join bb on bb.profile_id = p.id
   left join lt on lt.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
-  group by p.id, p.display_name, p.avatar, p.banner, m.joined_at
+  group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges, m.joined_at
   order by 4 desc, 8 asc
 $$;
 
@@ -643,6 +652,109 @@ $$;
 -- Consistency, counted in days rather than volume, so a beginner doing 20
 -- push-ups daily can top a table the strongest athlete does not. Consecutive
 -- dates share (date - row_number), which finds runs without a recursive walk.
+create function public.set_pinned_badges(p_keys text[])
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); row public.profiles;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  if array_length(p_keys, 1) > 3 then raise exception 'Three badges on show, maximum'; end if;
+  update public.profiles set pinned_badges = coalesce(p_keys, '{}')
+   where id = me returning * into row;
+  return row;
+end $$;
+
+-- Badges are earned inside a league and computed from what already happened —
+-- no award step, nothing to backfill, and a badge added later retro-grants
+-- itself to everyone who already qualified.
+create function public.my_badges(p_league uuid)
+returns table (key text, name text, descr text, earned boolean,
+               progress numeric, target numeric)
+language sql stable security definer set search_path = public as $$
+  with me as (select public.my_profile_id() as id),
+  wins as (
+    select count(*)::numeric n from (
+      select h.week_start, h.profile_id,
+             row_number() over (partition by h.week_start order by h.points desc) rk
+      from public.weekly_history(p_league) h
+      where h.week_start < public.current_week_start()
+    ) x where x.rk = 1 and x.profile_id = (select id from me)
+  ),
+  strk as (select best_streak from public.league_streaks(p_league)
+           where profile_id = (select id from me)),
+  life as (select coalesce(sum(points), 0) as pts, count(*)::numeric as logs
+           from public.workouts
+           where league_id = p_league and profile_id = (select id from me)),
+  duels as (select coalesce(won, 0)::numeric as w
+            from public.my_duel_record(p_league) limit 1),
+  cats as (select count(distinct public.exercise_category(exercise_key))::numeric as n
+           from public.workouts
+           where league_id = p_league and profile_id = (select id from me)),
+  gymn as (select count(*)::numeric n from public.workouts w
+           join public.exercises e on e.key = w.exercise_key
+           where w.league_id = p_league and w.profile_id = (select id from me)
+             and e.cat = 'GYM'),
+  km as (select coalesce(sum(amount), 0)::numeric n from public.workouts
+         where league_id = p_league and profile_id = (select id from me)
+           and exercise_key in ('run','walk','bike') and mode = 'km'),
+  b(key, name, descr, progress, target) as (values
+    ('week_win','CHAMPION','Win a week in this league', (select n from wins), 1::numeric),
+    ('streak7','SEVEN STRAIGHT','Seven days running above 20 points',
+      (select coalesce(max(best_streak),0)::numeric from strk), 7),
+    ('streak14','FORTNIGHT','Fourteen days running',
+      (select coalesce(max(best_streak),0)::numeric from strk), 14),
+    ('streak30','UNBROKEN','Thirty days running',
+      (select coalesce(max(best_streak),0)::numeric from strk), 30),
+    ('duel3','DUELLIST','Win three duels', (select w from duels), 3),
+    ('duel10','GLADIATOR','Win ten duels', (select w from duels), 10),
+    ('century','CENTURION','A hundred logged sets here', (select logs from life), 100),
+    ('grand','FIVE THOUSAND','Five thousand points here', (select pts from life), 5000),
+    ('allrounder','ALL ROUNDER','Train all five muscle groups', (select n from cats), 5),
+    ('gym','IRON PLATE','Fifty gym sets', (select n from gymn), 50),
+    ('runner','DISTANCE','A hundred kilometres covered', (select n from km), 100)
+  )
+  select b.key, b.name, b.descr,
+         coalesce(b.progress, 0) >= b.target,
+         least(coalesce(b.progress, 0), b.target), b.target
+  from b
+  order by (coalesce(b.progress,0) >= b.target) desc,
+           coalesce(b.progress,0) / nullif(b.target,0) desc
+$$;
+
+-- Rivalries: every Monday the table is paired off top-down — 1v2, 3v4, 5v6 —
+-- using LAST week's finish, so a pairing holds still all week instead of
+-- reshuffling every time somebody logs. An odd table leaves the last person
+-- out rather than inventing an opponent.
+create function public.league_rivalries(p_league uuid, p_week date default null)
+returns table (a_id uuid, a_name text, a_avatar text, a_points numeric,
+               b_id uuid, b_name text, b_avatar text, b_points numeric,
+               seed int, mine boolean)
+language sql stable security definer set search_path = public as $$
+  with wk as (select coalesce(p_week, public.current_week_start()) as w),
+  prev as (
+    select l.profile_id,
+           row_number() over (order by l.points desc, l.joined_at asc) as rk
+    from public.league_leaderboard(p_league, (select w from wk) - 7) l
+  ),
+  live as (
+    select l.profile_id, l.points, l.display_name, l.avatar
+    from public.league_leaderboard(p_league, (select w from wk)) l
+  ),
+  pairs as (
+    select o.profile_id as a, e.profile_id as b, ((o.rk + 1) / 2)::int as seed
+    from prev o join prev e on e.rk = o.rk + 1
+    where o.rk % 2 = 1
+  )
+  select p.a, la.display_name, la.avatar, la.points,
+         p.b, lb.display_name, lb.avatar, lb.points,
+         p.seed,
+         (p.a = public.my_profile_id() or p.b = public.my_profile_id())
+  from pairs p
+  join live la on la.profile_id = p.a
+  join live lb on lb.profile_id = p.b
+  where public.is_member(p_league)
+  order by p.seed
+$$;
+
 create function public.league_streaks(p_league uuid, p_min numeric default 20)
 returns table (profile_id uuid, display_name text, avatar text, banner text,
                current_streak int, best_streak int, active_days int)
@@ -1291,6 +1403,9 @@ grant execute on function public.set_bodyweight(numeric)       to authenticated;
 grant execute on function public.set_units(text)               to authenticated;
 grant execute on function public.set_banner(text)              to authenticated;
 grant execute on function public.league_streaks(uuid,numeric)  to authenticated;
+grant execute on function public.set_pinned_badges(text[])     to authenticated;
+grant execute on function public.my_badges(uuid)               to authenticated;
+grant execute on function public.league_rivalries(uuid,date)   to authenticated;
 grant execute on function public.delete_league(uuid)           to authenticated;
 grant execute on function public.set_league_settings(uuid,int[],int) to authenticated;
 grant execute on function public.set_league_badge(uuid,jsonb)  to authenticated;

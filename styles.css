@@ -521,9 +521,7 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 
 /* --- rank banner on a board row ------------------------------------- */
 /* A thin metal edge, not a block of colour: the row stays a row. */
-.row.bnr{position:relative}
-.row.bnr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
-  background:var(--bnr,transparent)}
+.row.bnr{position:relative;box-shadow:inset 3px 0 0 0 var(--bnr,transparent)}
 .bnr-i{--bnr:#5b6472}
 .bnr-ii{--bnr:#3ba6ff}
 .bnr-iii{--bnr:#a86bff}
@@ -827,3 +825,77 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .stk-d small{font:700 8px/1 var(--display);letter-spacing:.12em;opacity:.7}
 .stk-d.live{color:var(--green)}
 .stk.skin .stk-n{text-shadow:0 1px 6px rgba(0,0,0,.75)}
+
+/* =====================================================================
+   Skin precedence and legibility
+   `.row.me` and `.row.lead-*` are two-class selectors, so a bare `.skin`
+   lost to them and your own row never showed its banner. These match that
+   weight. The scrim keeps names readable over bright artwork — without it
+   CLEAN SLATE and PRISM swallow the text.
+   ===================================================================== */
+.row.skin,.row.skin.me,.row.skin.lead-gold,.row.skin.lead-silver,.row.skin.lead-bronze,
+.leaguepill.skin,.stk.skin{background:var(--sk-bg,var(--panel))}
+
+/* a dark scrim under the text, sized so the artwork still reads at the edges */
+.row.skin>.rowbtn::before,.leaguepill.skin::after{content:"";position:absolute;
+  inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(90deg,rgba(0,0,0,.72),rgba(0,0,0,.42) 55%,transparent)}
+.row.skin>.rowbtn{position:relative}
+.row.skin>.rowbtn>*{position:relative;z-index:2}
+/* the league pill uses ::after for its scrim, so its shine moves to a child */
+.leaguepill.skin::after{animation:none;transform:none;width:auto;height:auto;
+  top:0;left:0;filter:none}
+.leaguepill.skin>*{position:relative;z-index:2}
+
+/* light skins need dark text instead of a dark scrim */
+.row.skin.sk-inverted>.rowbtn::before,.leaguepill.sk-inverted::after{
+  background:linear-gradient(90deg,rgba(255,255,255,.78),rgba(255,255,255,.45) 55%,transparent)}
+.sk-inverted .nm,.sk-inverted .pts,.sk-inverted .lg-name{color:#14161b;text-shadow:none}
+.sk-inverted .sub,.sk-inverted .rank,.sk-inverted .lg-meta{color:#4a5160}
+
+/* one skin only players get, so the two sets never fully overlap */
+.sk-obsidian{--sk-bg:radial-gradient(circle at 78% 22%,rgba(190,150,60,.22),transparent 42%),
+  repeating-linear-gradient(115deg,#0a0a0c 0 14px,#131318 14px 16px);
+  --sk-shine:rgba(255,215,140,.7);--sk-speed:5.5s}
+
+/* --- rivalries -------------------------------------------------------- */
+.riv{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:4px;
+  background:var(--panel);border:1px solid var(--line)}
+.riv.mine{border-color:var(--red)}
+.riv-s{flex:1 1 0;display:flex;align-items:center;gap:8px;min-width:0;color:var(--muted)}
+.riv-s b{font:800 13px/1 var(--display);letter-spacing:.03em;color:var(--txt);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.riv-s i{font:700 11px/1 var(--mono);font-style:normal;margin-left:auto;flex:0 0 auto}
+.riv-s.up b,.riv-s.up i{color:var(--green)}
+.riv-v{flex:0 0 auto;font:800 10px/1 var(--display);letter-spacing:.1em;color:var(--muted)}
+.riv-big{flex-direction:column;gap:12px;padding:16px 14px;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));border-color:var(--line-2)}
+.riv-big .riv-s{width:100%;flex:0 0 auto}
+.riv-big .riv-s b{font-size:17px}
+.riv-big .riv-s i{font-size:17px;font-weight:800;font-family:var(--display)}
+.riv-big .riv-v{font-size:22px;font-family:var(--display);letter-spacing:.04em;
+  color:var(--red);font-style:italic}
+
+/* --- badges ------------------------------------------------------------ */
+.badgegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.bdg{display:flex;flex-direction:column;align-items:center;gap:5px;padding:13px 9px 11px;
+  border-radius:5px;background:var(--panel);border:1px solid var(--line);
+  color:var(--muted);cursor:default;text-align:center;opacity:.55}
+.bdg-i{width:38px;height:38px;color:var(--muted)}
+.bdg-i .gi{width:100%;height:100%}
+.bdg-n{font:800 10px/1.1 var(--display);letter-spacing:.08em;color:var(--muted)}
+.bdg-d{font:600 9px/1.25 var(--sans);color:var(--muted);opacity:.75}
+.bdg.got{opacity:1;cursor:pointer;border-color:var(--line-2)}
+.bdg.got .bdg-i{color:var(--gold)}
+.bdg.got .bdg-n{color:var(--txt)}
+.bdg.pinned{border-color:var(--gold);background:linear-gradient(180deg,rgba(255,201,60,.12),var(--panel))}
+.bdg-on{font:800 8px/1 var(--display);letter-spacing:.1em;color:var(--gold);margin-top:2px}
+.bdg-bar{width:100%;height:3px;border-radius:2px;background:var(--panel-2);
+  overflow:hidden;margin-top:3px}
+.bdg-bar i{display:block;height:100%;background:var(--muted)}
+.bdg-p{font:700 8px/1 var(--mono);opacity:.7}
+
+/* worn beside a name on the board */
+.wornrow{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
+.worn{width:13px;height:13px;color:var(--gold);display:inline-block}
+.worn .gi{width:100%;height:100%}

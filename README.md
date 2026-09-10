@@ -14,6 +14,9 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Emblems, league crests and rank banners** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
 - **100+ exercises** — search the bank, including team sports and gym lifts.
+- **Rivalries** — every Monday you are paired 1v1 with your nearest rank.
+- **Badges** — earned inside a league; wear three of them next to your name.
+- **Iron Will** — a board for consecutive days, not raw volume.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
 - **Personal leagues** — create your own league, share a link, 30 people max.
@@ -477,3 +480,27 @@ not backfill your older workouts into it — you start from the day you join.
 
 **Kilos or pounds** is a personal setting; the database always stores kilos, so
 two people in one league can read weights differently without affecting scores.
+
+## Rivalries
+
+Nobody at rank 12 is chasing rank 1, but they very much do not want to lose to
+rank 13. So every Monday the table is paired off top-down — 1v2, 3v4, 5v6 —
+and each pair races on this week's points.
+
+Pairings come from **last week's finish**, so they hold still all week instead
+of reshuffling every time somebody logs. An odd number of members leaves the
+last person unpaired: a bye, not an invented opponent. It is derived on read,
+so there is nothing to schedule and nothing to reset.
+
+## Badges
+
+Earned inside a league and computed from what already happened — there is no
+award step and nothing to backfill, so a badge added later grants itself to
+everyone who already qualified.
+
+You can wear **three at a time** next to your name. The choice is the point:
+what you put on show says as much as what you have.
+
+Badge art is a **fourth, separate icon set**. Avatars are people, crests are
+leagues, badges are rewards, and category marks are muscle groups — a build
+step asserts no icon appears in two sets, so nothing ever means two things.
