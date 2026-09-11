@@ -231,17 +231,17 @@
           <div class="optrow">
             <span class="optrow-l">Crest</span>
             <span class="optrow-v" id="optCrest">Auto — nothing chosen yet</span>
-            <button class="btn ghost sm" type="button" data-soon="Crest picker">CHANGE</button>
+            <button class="btn ghost sm" type="button" data-goshop="shopCrestHead">CHANGE</button>
           </div>
           <div class="optrow">
             <span class="optrow-l">Banner</span>
             <span class="optrow-v" id="optBanner">Nothing yet</span>
-            <button class="btn ghost sm" type="button" data-soon="League banners">CHANGE</button>
+            <button class="btn ghost sm" type="button" data-goshop="shopBannerHead">CHANGE</button>
           </div>
           <div class="optrow">
-            <span class="optrow-l">Colours</span>
-            <span class="optrow-v">Nothing yet</span>
-            <button class="btn ghost sm" type="button" data-soon="League colours">CHANGE</button>
+            <span class="optrow-l">Shape &amp; colour</span>
+            <span class="optrow-v" id="optMetal">Auto</span>
+            <button class="btn ghost sm" type="button" data-goshop="shopShapeHead">CHANGE</button>
           </div>
 
           <div id="leagueOwnerBox" hidden>
@@ -367,15 +367,21 @@
         </div>
       </details>
 
-      <details class="sect">
+      <details class="sect" id="sectShop">
         <summary><span>SHOP</span><span class="tag-soon">ALL FREE</span></summary>
         <div class="sect-b">
           <p class="muted small">Everything here is free while we build it out.</p>
 
-          <h4>League crests</h4>
+          <h4 id="shopCrestHead">League crests</h4>
           <div id="shopCrests" class="shopgrid"></div>
 
-          <h4>League banners</h4>
+          <h4 id="shopShapeHead">Crest shape</h4>
+          <div id="shopShapes" class="shopgrid"></div>
+
+          <h4>Crest colour</h4>
+          <div id="shopMetals" class="shopgrid"></div>
+
+          <h4 id="shopBannerHead">League banners</h4>
           <div id="shopBanners" class="shopgrid wide"></div>
 
           <h4>Player banners</h4>

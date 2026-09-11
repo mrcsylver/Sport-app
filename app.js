@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.6.0';
+  var APP_VERSION = '2.6.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -408,10 +408,15 @@
     };
   }
 
-  /* Shield + emblem, composed at render time. Four shapes x eight colours x
-     28 emblems is ~900 distinct badges from a handful of paths. */
+  /* Shield + emblem, composed at render time. Eight shapes x eight colours x
+     56 emblems is ~3,500 distinct badges from a handful of paths. */
   function leagueBadgeHtml(league, size) {
-    var b = badgeOf(league);
+    return badgeHtml(badgeOf(league), size);
+  }
+
+  /* The same drawing from a plain {shape,color,emblem}, so the shop can show
+     a choice before it is made. */
+  function badgeHtml(b, size) {
     var c = BADGE_COLORS.filter(function (x) { return x.key === b.color; })[0] || BADGE_COLORS[0];
     var gid = 'bg' + b.color;
     return '<span class="lbadge lbadge-' + (size || 'md') + '">' +
@@ -1427,8 +1432,16 @@
     }
     var l = league();
     if (l) {
+      var cur = badgeOf(l);
+      var chosen = l.badge || {};
       $('#optCrest').innerHTML = leagueBadgeHtml(l, 'sm') +
-        (l.badge ? ' Chosen' : ' Auto — from the league code');
+        (chosen.emblem ? ' ' + esc(cur.emblem.replace(/-/g, ' '))
+                       : ' Auto — from the league code');
+      $('#optBanner').textContent = chosen.skin
+        ? (skinName(chosen.skin) || chosen.skin) : 'Nothing yet';
+      $('#optMetal').textContent =
+        (chosen.shape ? cur.shape : cur.shape + ' (auto)') + ' · ' +
+        (chosen.color ? cur.color : cur.color + ' (auto)');
     }
     $('#shareLink').value = l ? shareUrl(l.code) : '—';
     if (state.profile) {
@@ -2117,17 +2130,23 @@
       state.profile = r.data; paintNameColors(); await refreshAll();
     } catch (err) { toast(niceError(err), true); }
   });
-  $('#lgNameColors').addEventListener('click', async function (e) {
+  $('#lgNameColors').addEventListener('click', function (e) {
     var b = e.target.closest('[data-lnc]'); if (!b) return;
-    var l = league(); if (!l) return;
-    var cur = badgeOf(l);
-    try {
-      var r = await sb.rpc('set_league_badge', { p_league: l.id, p_badge: {
-        shape: cur.shape, color: cur.color, emblem: cur.emblem,
-        skin: (l.badge && l.badge.skin) || null, text: b.getAttribute('data-lnc') } });
-      if (r.error) throw r.error;
-      await loadLeagues(); renderMe(); renderHeader();
-    } catch (err) { toast(niceError(err), true); }
+    saveBadge({ text: b.getAttribute('data-lnc') });
+  });
+
+  /* The three CHANGE buttons under "This league's identity" used to be
+     placeholders that did nothing at all. Everything they promised now lives
+     in the shop, so they open it at the right shelf instead of duplicating
+     three pickers in two places. */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-goshop]'); if (!b) return;
+    var shop = $('#sectShop'); if (!shop) return;
+    shop.open = true;
+    var head = document.getElementById(b.getAttribute('data-goshop'));
+    if (head && head.scrollIntoView) {
+      head.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   });
 
   /* Two separate sets on purpose: a league is a place and a player is a
@@ -2154,6 +2173,12 @@
     { key: 'moss',      name: 'MOSS' },      { key: 'ash',       name: 'ASH' }
   ];
   var ALL_SKINS = LEAGUE_SKINS.concat(PLAYER_SKINS);
+  function skinName(key) {
+    for (var i = 0; i < ALL_SKINS.length; i++) {
+      if (ALL_SKINS[i].key === key) return ALL_SKINS[i].name;
+    }
+    return null;
+  }
   function skinClass(key) {
     for (var i = 0; i < ALL_SKINS.length; i++) if (ALL_SKINS[i].key === key) return 'sk-' + key;
     return '';
@@ -2169,6 +2194,31 @@
   /* Two separate sets on purpose: a league is a place and a player is a
      person, so they should not be able to wear the same thing. Leagues get
      the wide, architectural looks; players get the tighter, personal ones. */
+  /* Every crest control changes one field and saves the whole badge, so a
+     partial write can never drop the other three. Ownership is checked on the
+     server too — this is the button, not the rule. */
+  async function saveBadge(patch) {
+    var l = league();
+    if (!l || !state.profile || l.owner_id !== state.profile.id) {
+      toast('Only the person who created the league can change its crest'); return;
+    }
+    var cur = badgeOf(l);
+    var badge = {
+      shape:  patch.shape  !== undefined ? patch.shape  : cur.shape,
+      color:  patch.color  !== undefined ? patch.color  : cur.color,
+      emblem: patch.emblem !== undefined ? patch.emblem : cur.emblem,
+      skin:   patch.skin   !== undefined ? patch.skin   : ((l.badge && l.badge.skin) || null),
+      text:   patch.text   !== undefined ? patch.text   : ((l.badge && l.badge.text) || null)
+    };
+    try {
+      var r = await sb.rpc('set_league_badge', { p_league: l.id, p_badge: badge });
+      if (r.error) throw r.error;
+      await loadLeagues();
+      buildShop(); renderMe(); renderHeader();
+      toast('League crest updated');
+    } catch (err) { toast(niceError(err), true); }
+  }
+
   function buildShop() {
     var l = league();
     var cur = badgeOf(l);
@@ -2176,6 +2226,24 @@
       return '<button type="button" class="shop-c' + (n === cur.emblem ? ' on' : '') +
              '" data-crest="' + n + '" aria-label="' + esc(n.replace(/-/g, ' ')) + '">' +
              iconSvg(n) + '<small>FREE</small></button>';
+    }).join('');
+
+    /* Shape and colour were the two CHANGE buttons that never did anything.
+       They are drawn as the badge you would actually get, not named in a
+       dropdown, because nobody knows what a "heater" is. */
+    $('#shopShapes').innerHTML = BADGE_SHAPES.map(function (k) {
+      return '<button type="button" class="shop-c shop-badge' +
+             (k === cur.shape ? ' on' : '') + '" data-cshape="' + k + '" ' +
+             'aria-label="' + esc(k) + ' shape">' +
+             badgeHtml({ shape: k, color: cur.color, emblem: cur.emblem }, 'md') +
+             '</button>';
+    }).join('');
+    $('#shopMetals').innerHTML = BADGE_COLORS.map(function (c) {
+      return '<button type="button" class="shop-c shop-badge' +
+             (c.key === cur.color ? ' on' : '') + '" data-cmetal="' + c.key + '" ' +
+             'aria-label="' + esc(c.key) + '">' +
+             badgeHtml({ shape: cur.shape, color: c.key, emblem: cur.emblem }, 'md') +
+             '</button>';
     }).join('');
     function skins(target, cls, set, chosen) {
       $(target).innerHTML = set.map(function (b) {
@@ -2190,37 +2258,21 @@
           state.profile && state.profile.banner);
   }
 
-  $('#shopCrests').addEventListener('click', async function (e) {
+  $('#shopCrests').addEventListener('click', function (e) {
     var b = e.target.closest('[data-crest]'); if (!b) return;
-    var l = league();
-    if (!l || !state.profile || l.owner_id !== state.profile.id) {
-      toast('Only the person who created the league can change its crest'); return;
-    }
-    var cur = badgeOf(l);
-    try {
-      var r = await sb.rpc('set_league_badge', { p_league: l.id, p_badge: {
-        shape: cur.shape, color: cur.color, emblem: b.getAttribute('data-crest') } });
-      if (r.error) throw r.error;
-      await loadLeagues(); renderMe(); renderHeader();
-      toast('Crest updated');
-    } catch (err) { toast(niceError(err), true); }
+    saveBadge({ emblem: b.getAttribute('data-crest') });
   });
-
-  $('#shopBanners').addEventListener('click', async function (e) {
+  $('#shopShapes').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cshape]'); if (!b) return;
+    saveBadge({ shape: b.getAttribute('data-cshape') });
+  });
+  $('#shopMetals').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cmetal]'); if (!b) return;
+    saveBadge({ color: b.getAttribute('data-cmetal') });
+  });
+  $('#shopBanners').addEventListener('click', function (e) {
     var b = e.target.closest('[data-skin]'); if (!b) return;
-    var l = league();
-    if (!l || !state.profile || l.owner_id !== state.profile.id) {
-      toast('Only the person who created the league can change its banner'); return;
-    }
-    var cur = badgeOf(l);
-    try {
-      var r = await sb.rpc('set_league_badge', { p_league: l.id, p_badge: {
-        shape: cur.shape, color: cur.color, emblem: cur.emblem,
-        skin: b.getAttribute('data-skin') } });
-      if (r.error) throw r.error;
-      await loadLeagues(); renderMe(); renderHeader();
-      toast('League banner updated');
-    } catch (err) { toast(niceError(err), true); }
+    saveBadge({ skin: b.getAttribute('data-skin') });
   });
 
   $('#shopPlayer').addEventListener('click', async function (e) {
