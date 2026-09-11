@@ -1,0 +1,8 @@
+# The project file is generated from project.yml by XcodeGen — never commit it,
+# or two people regenerating it will conflict on every build setting.
+IronLeague.xcodeproj/
+*.xcworkspace/
+.swiftpm/
+DerivedData/
+build/
+.DS_Store

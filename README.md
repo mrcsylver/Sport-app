@@ -437,10 +437,22 @@ vendor/supabase.js  the Supabase library, bundled so nothing loads from the inte
 vendor/game-icons.js  the emblem artwork, bundled the same way
 tools/              the exercise-bank generator (see below)
 fonts/, icons/      the typeface and the app icon
+ios/                the native iPhone app — see ios/README.md
 ```
 
 No build step, no npm, no framework. Every file is served exactly as it is,
 which is why any free static host can run it.
+
+## The iPhone app
+
+`ios/` is a native SwiftUI app on the same Supabase project. It is a separate
+build with a separate audience, and nothing in it touches the files above —
+the website keeps running exactly as it does today whether or not anyone ever
+opens Xcode. Both apps read and write the same tables, so a workout logged on
+a phone shows up on the web a second later, and a person can use either.
+
+Building it needs a Mac, Xcode and an Apple developer account. The steps are
+in [ios/README.md](ios/README.md).
 
 ## Changing the exercises
 
