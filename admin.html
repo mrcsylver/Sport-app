@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iron League — Control Room</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{--bg:#0b0c10;--panel:#14161c;--panel2:#1b1e26;--line:#272b35;--txt:#eef1f6;
+        --muted:#8790a0;--red:#ff2e2e;--green:#26d07c;--gold:#ffc93c}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:26px}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:24px;letter-spacing:.02em}
+  h2{margin:30px 0 10px;font-size:13px;letter-spacing:.16em;color:var(--muted);
+     text-transform:uppercase}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px}
+  input{background:var(--panel2);border:1px solid var(--line);border-radius:5px;color:var(--txt);
+        padding:11px 12px;font:inherit;width:100%}
+  button{background:var(--panel2);border:1px solid var(--line);border-radius:5px;color:var(--txt);
+         padding:10px 14px;font:600 13px/1 inherit;cursor:pointer}
+  button:hover{border-color:var(--muted)}
+  button.primary{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+  button.danger{color:var(--red);border-color:rgba(255,46,46,.45)}
+  button.danger:hover{background:rgba(255,46,46,.12)}
+  .row{display:flex;gap:10px;align-items:center}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;
+         margin-bottom:6px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;
+        text-align:center}
+  .stat b{display:block;font-size:26px;line-height:1.1}
+  .stat i{font-style:normal;font-size:10px;letter-spacing:.1em;color:var(--muted);
+          text-transform:uppercase}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10px;letter-spacing:.12em;color:var(--muted);
+     text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  .name{font-weight:700}
+  .dim{color:var(--muted);font-size:12px}
+  .tag{font-size:9px;letter-spacing:.1em;color:var(--gold);border:1px solid rgba(255,201,60,.5);
+       border-radius:3px;padding:2px 5px;margin-left:6px}
+  .scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+  .err{color:var(--red);font-size:13px;min-height:18px;margin:10px 0 0}
+  .ok{color:var(--green)}
+  .note{background:rgba(255,201,60,.08);border:1px solid rgba(255,201,60,.3);
+        border-radius:6px;padding:12px 14px;font-size:13px;color:var(--muted);margin-bottom:20px}
+  .note b{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Control Room</h1>
+  <p class="sub">Iron League — separate from the app. Nothing here is part of what your
+    friends use.</p>
+
+  <div class="note">
+    <b>This page has no powers of its own.</b> It signs in as you and calls the same
+    checks the database makes for everyone. If your profile is not marked as an admin,
+    it will show you nothing — even if someone else opens this page.
+  </div>
+
+  <div id="login" class="card">
+    <h2 style="margin-top:0">Sign in</h2>
+    <p class="dim" style="margin-top:0">Your restore code — the one in the app under
+      Leagues → My fighter.</p>
+    <div class="row">
+      <input id="code" maxlength="9" placeholder="XXXXXXXX" autocapitalize="characters"
+             spellcheck="false" style="font-family:ui-monospace,monospace;letter-spacing:.14em">
+      <button class="primary" id="go">OPEN</button>
+    </div>
+    <label class="dim" style="display:block;margin-top:12px">
+      <input type="checkbox" id="remember" checked style="width:auto;margin-right:6px">
+      Remember me on this computer
+    </label>
+    <p class="err" id="loginErr"></p>
+  </div>
+
+  <div id="panel" hidden>
+    <div class="row" style="justify-content:space-between">
+      <span class="dim">Signed in as <b id="who" class="name"></b></span>
+      <span class="row"><button id="reload">Reload</button><button id="out">Sign out</button></span>
+    </div>
+
+    <h2>Overview</h2>
+    <div class="stats" id="stats"></div>
+
+    <h2>Leagues</h2>
+    <div class="scroll"><table id="leagues"></table></div>
+
+    <h2>Players</h2>
+    <input id="search" placeholder="Search a name…" style="margin-bottom:10px">
+    <div class="scroll"><table id="players"></table></div>
+    <p class="dim" style="margin-top:12px">Deleting a player removes their account and
+      every workout they logged, in every league. Deleting a league removes it for
+      everyone, but its members keep their logs in any other league they are in.
+      Neither can be undone.</p>
+    <p class="err" id="err"></p>
+  </div>
+</div>
+
+<script src="./config.js"></script>
+<script src="./vendor/supabase.js"></script>
+<script>
+(function () {
+  var CFG = window.IRON_LEAGUE_CONFIG || {};
+  var sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY,
+    { auth: { storageKey: 'ironleague-admin', persistSession: true } });
+  var $ = function (s) { return document.querySelector(s); };
+  var players = [];
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function when(t) {
+    if (!t) return 'never';
+    var d = Math.floor((Date.now() - new Date(t)) / 86400000);
+    return d === 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago';
+  }
+  function num(n) { return Math.round(Number(n) * 10) / 10; }
+
+  async function signIn(code) {
+    var s = await sb.auth.getSession();
+    if (!s.data.session) {
+      var a = await sb.auth.signInAnonymously();
+      if (a.error) throw a.error;
+    }
+    if (code) {
+      var r = await sb.rpc('restore_profile', { p_code: code.toUpperCase() });
+      if (r.error) throw r.error;
+      if (!r.data) throw new Error('That restore code does not match any profile.');
+      return r.data;
+    }
+    var m = await sb.rpc('admin_players');           // already signed in?
+    if (m.error) throw m.error;
+    return null;
+  }
+
+  async function load() {
+    $('#err').textContent = '';
+    var lg = await sb.rpc('admin_leagues');
+    var pl = await sb.rpc('admin_players');
+    if (lg.error || pl.error) { $('#err').textContent = (lg.error || pl.error).message; return; }
+    players = pl.data || [];
+    var L = lg.data || [];
+
+    if (!players.length) {
+      $('#err').textContent =
+        'The database returned nothing, which means this profile is not an admin.';
+      return;
+    }
+    var active = players.filter(function (p) {
+      return p.last_log && Date.now() - new Date(p.last_log) < 7 * 86400000; }).length;
+    var never = players.filter(function (p) { return !p.workouts; }).length;
+    $('#stats').innerHTML = [['Leagues', L.length], ['Players', players.length],
+      ['Active this week', active], ['Never logged', never]]
+      .map(function (x) { return '<div class="stat"><b>' + x[1] + '</b><i>' + x[0] + '</i></div>'; })
+      .join('');
+
+    $('#leagues').innerHTML =
+      '<tr><th>League</th><th>Code</th><th>Members</th><th>Logs</th><th>Last activity</th>' +
+      '<th>Created by</th><th></th></tr>' +
+      L.map(function (x) {
+        return '<tr><td class="name">' + esc(x.name) + '</td>' +
+          '<td class="dim">' + esc(x.code) + '</td><td>' + x.members + '</td>' +
+          '<td>' + x.workouts + '</td><td class="dim">' + when(x.last_log) + '</td>' +
+          '<td class="dim">' + esc(x.owner_name) + '</td>' +
+          '<td><button class="danger" data-dl="' + x.id + '" data-n="' + esc(x.name) +
+          '">Delete</button></td></tr>';
+      }).join('');
+    paintPlayers();
+  }
+
+  function paintPlayers() {
+    var q = ($('#search').value || '').trim().toLowerCase();
+    var rows = players.filter(function (p) {
+      return !q || p.display_name.toLowerCase().indexOf(q) >= 0; });
+    $('#players').innerHTML =
+      '<tr><th>Player</th><th>Leagues</th><th>Logs</th><th>Points</th>' +
+      '<th>Last activity</th><th>Restore code</th><th></th></tr>' +
+      rows.map(function (p) {
+        return '<tr><td class="name">' + esc(p.display_name) +
+          (p.is_admin ? '<span class="tag">ADMIN</span>' : '') + '</td>' +
+          '<td>' + p.leagues + '</td><td>' + p.workouts + '</td>' +
+          '<td>' + num(p.points) + '</td><td class="dim">' + when(p.last_log) + '</td>' +
+          '<td class="dim" style="font-family:ui-monospace,monospace">' +
+            esc(p.restore_code) + '</td>' +
+          '<td>' + (p.is_admin ? '' : '<button class="danger" data-dp="' + p.id +
+            '" data-n="' + esc(p.display_name) + '">Delete</button>') + '</td></tr>';
+      }).join('') || '<tr><td class="dim">Nobody matches.</td></tr>';
+  }
+
+  $('#go').addEventListener('click', async function () {
+    var code = ($('#code').value || '').trim();
+    $('#loginErr').textContent = '';
+    if (code.length < 4) { $('#loginErr').textContent = 'Enter your restore code.'; return; }
+    try {
+      var me = await signIn(code);
+      if ($('#remember').checked) {
+        try { localStorage.setItem('ironleague.admin.code', code.toUpperCase()); } catch (e) {}
+      }
+      $('#who').textContent = me ? me.display_name : 'you';
+      $('#login').hidden = true; $('#panel').hidden = false;
+      await load();
+    } catch (e) { $('#loginErr').textContent = e.message || String(e); }
+  });
+
+  $('#out').addEventListener('click', async function () {
+    try { localStorage.removeItem('ironleague.admin.code'); } catch (e) {}
+    await sb.auth.signOut();
+    location.reload();
+  });
+  $('#reload').addEventListener('click', load);
+  $('#search').addEventListener('input', paintPlayers);
+
+  document.addEventListener('click', async function (e) {
+    var l = e.target.closest('[data-dl]'), p = e.target.closest('[data-dp]');
+    if (l) {
+      if (!confirm('Delete the league "' + l.getAttribute('data-n') + '" for everyone?')) return;
+      var r = await sb.rpc('admin_delete_league', { p_league: l.getAttribute('data-dl') });
+      if (r.error) { $('#err').textContent = r.error.message; return; }
+      load();
+    }
+    if (p) {
+      var n = p.getAttribute('data-n');
+      if (!confirm('Delete ' + n + '?\n\nTheir account and every workout they logged go ' +
+                   'with them, in every league. This cannot be undone.')) return;
+      if (!confirm('Last check — permanently delete ' + n + '?')) return;
+      var r2 = await sb.rpc('admin_delete_profile', { p_profile: p.getAttribute('data-dp') });
+      if (r2.error) { $('#err').textContent = r2.error.message; return; }
+      load();
+    }
+  });
+
+  /* Come straight in on a computer that has already been used. */
+  (async function () {
+    var saved = null;
+    try { saved = localStorage.getItem('ironleague.admin.code'); } catch (e) {}
+    if (!saved) return;
+    $('#code').value = saved;
+    try {
+      var me = await signIn(saved);
+      $('#who').textContent = me ? me.display_name : 'you';
+      $('#login').hidden = true; $('#panel').hidden = false;
+      await load();
+    } catch (e) { /* fall back to the sign-in card */ }
+  })();
+})();
+</script>
+</body>
+</html>

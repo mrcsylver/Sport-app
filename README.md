@@ -518,24 +518,32 @@ strong person carrying it. Targets are set at roughly **1.5x what a league
 actually produces** — measured against real logs, because a raid nobody can
 reach is a raid nobody tries. They are one `UPDATE` away from being retuned.
 
-## Master dashboard
+## Control room (managing it yourself)
 
-Every league, every player, who is active, who never logged, and the ability to
-delete either. It lives behind a button in the Leagues tab, for admins only.
+**The app is the same for everybody.** There is no admin mode inside it, no
+hidden screen, and nobody's copy can act on anyone else's. That was deliberate.
 
-**How the permission works, and why it is safe.** `is_admin` is a flag on a
-profile, and every admin function checks it *inside the database*. The browser
-never holds a privileged key — the app can only ask, and Postgres decides. A
-member who forces the screen open gets an empty list, and any delete they
-attempt is refused server-side. This is tested: a non-admin sees zero players
-and a delete raises.
+Managing the league happens in a **separate page** at `admin.html` — open
+`your-site-url/admin.html` from any computer. Sign in once with your restore
+code (Leagues → My fighter in the app) and it remembers you on that machine.
 
-To make someone an admin:
+It shows every league and every player: who is active, who never logged
+anything, how many points, when they last trained, and their restore code. You
+can delete a league or a player from there.
+
+**Why it is safe to leave that page on the internet.** It has no powers of its
+own. `is_admin` is a flag on a profile, and every function it calls checks that
+flag *inside the database*. The browser never holds a privileged key — the page
+can only ask, and Postgres decides. Someone who finds the URL and signs in with
+their own code sees an empty list, and any delete they try is refused. That is
+tested: a non-admin gets zero rows and a raised exception.
+
+To make someone an admin, in the Supabase SQL editor:
 
 ```sql
 update public.profiles set is_admin = true where display_name = 'THEIR NAME';
 ```
 
 Deleting a player removes their account and every workout they logged, in every
-league. Deleting a league removes it for everyone, but each member keeps their
-logs in the other leagues they are in.
+league. Deleting a league removes it for everyone, but its members keep their
+logs in any other league they are in. Neither can be undone.

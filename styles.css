@@ -985,3 +985,31 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .atag{font:800 8px/1 var(--display);letter-spacing:.1em;color:var(--gold);
   font-style:normal;border:1px solid rgba(255,201,60,.5);border-radius:3px;padding:2px 4px}
 #view-admin .tab-i{color:var(--gold)}
+
+/* =====================================================================
+   A tighter top. The countdown rides in the header instead of taking a
+   band, and the week's three cards fold into one strip whose closed state
+   says enough — so the table starts near the top of the screen.
+   ===================================================================== */
+.topbar .countdown{display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+  flex:0 0 auto;padding:0;border:0;background:none;margin:0}
+.topbar .cd-label{font:700 8px/1 var(--display);letter-spacing:.12em;color:var(--muted)}
+.topbar .cd-time{font:800 15px/1 var(--mono);color:var(--red)}
+.leaguepill{padding:9px 11px}
+.lg-name{font-size:17px}
+
+.weekbox{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+  margin-bottom:10px;overflow:hidden}
+.weekbox>summary{display:flex;align-items:center;gap:8px;padding:9px 11px;cursor:pointer;
+  list-style:none}
+.weekbox>summary::-webkit-details-marker{display:none}
+.wb-x{margin-left:auto;color:var(--muted);font-size:11px;transition:transform .15s ease}
+.weekbox[open] .wb-x{transform:rotate(180deg)}
+.weekbox[open]>summary{border-bottom:1px solid var(--line)}
+.weekbox-b{padding:11px 11px 4px}
+.weekbox-b .raid,.weekbox-b .bounty,.weekbox-b .combo{margin-bottom:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+.chip{font:800 9px/1 var(--display);letter-spacing:.08em;color:var(--muted);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:3px;padding:5px 7px}
+.chip.on{color:var(--green);border-color:rgba(38,208,124,.45)}
+.tag-count{margin-left:auto;margin-right:8px;font:700 10px/1 var(--mono);color:var(--muted)}

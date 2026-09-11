@@ -92,40 +92,47 @@
       <span class="lg-name" id="lgName">—</span>
       <span class="lg-meta" id="lgMeta">—</span>
     </button>
+    <span class="countdown" id="countdown">
+      <span class="cd-label">ENDS IN</span>
+      <span class="cd-time mono" id="cdTimer">--:--:--</span>
+    </span>
     <button id="refreshBtn" class="iconbtn" type="button" aria-label="Refresh">
       <span class="live-dot"></span>
     </button>
   </header>
 
-  <div class="countdown" id="countdown">
-    <span class="cd-label">WEEK ENDS IN</span>
-    <span class="cd-time mono" id="cdTimer">--:--:--</span>
-  </div>
-
   <main class="views">
     <!-- LIVE -->
     <section id="view-live" class="view">
+      <details class="weekbox" id="weekBox">
+        <summary><span id="weekChips" class="chips"></span><span class="wb-x">▾</span></summary>
+        <div class="weekbox-b">
+          <div id="raidCard" class="raid" hidden></div>
+          <div id="bountyCard" class="bounty" hidden></div>
+          <div id="comboCard" class="combo" hidden></div>
+        </div>
+      </details>
+
       <div class="section-head">
         <h2>LIVE STANDINGS</h2>
         <span class="muted small mono" id="weekLabel"></span>
       </div>
-      <div id="raidCard" class="raid" hidden></div>
-      <div id="bountyCard" class="bounty" hidden></div>
-      <div id="comboCard" class="combo" hidden></div>
       <div id="board" class="board"></div>
       <p class="hint">Tap a name to see everything they logged this week.</p>
     </section>
 
     <!-- HALL OF FAME -->
     <section id="view-hall" class="view" hidden>
-      <div class="section-head"><h2>IRON WILL</h2>
+      <div class="section-head"><h2>HALL OF FAME</h2></div>
+      <div id="hall"></div>
+
+      <div class="section-head" style="margin-top:26px"><h2>IRON WILL</h2>
         <span class="muted small mono">CONSECUTIVE DAYS</span></div>
       <p class="hint" style="margin-top:0">A day counts once you have scored 20 points.
         Showing up beats showing off.</p>
       <div id="streaks" class="stack tight"></div>
 
-      <div class="section-head" style="margin-top:26px"><h2>HALL OF FAME</h2></div>
-      <div id="hall"></div>
+
     </section>
 
     <!-- DUELS -->
@@ -169,13 +176,14 @@
       </div>
       <div id="milestones" class="ms"></div>
 
-      <div class="section-head" style="margin-top:26px">
-        <h2>BADGES</h2>
-        <span class="muted small mono" id="badgeCount"></span>
-      </div>
-      <p class="hint" style="margin-top:0">Earned inside this league. Tap up to three
-        to wear them next to your name.</p>
-      <div id="badges" class="badgegrid"></div>
+      <details class="sect" id="sectBadges" style="margin-top:20px">
+        <summary><span>BADGES</span><span class="tag-count" id="badgeCount"></span></summary>
+        <div class="sect-b">
+          <p class="muted small">Earned inside this league. Tap up to three to wear
+            them next to your name.</p>
+          <div id="badges" class="badgegrid"></div>
+        </div>
+      </details>
 
       <div class="section-head" style="margin-top:26px">
         <h2>MY NUMBERS</h2>
@@ -193,27 +201,6 @@
       <div id="statLegend" class="statlegend"></div>
       <div id="duelRecord" class="drec" hidden></div>
       <div id="statList" class="stack tight"></div>
-    </section>
-
-    <!-- MASTER DASHBOARD (admins only; the database decides, not the client) -->
-    <section id="view-admin" class="view" hidden>
-      <div class="section-head">
-        <button id="adminBack" class="btn ghost sm" type="button">‹ BACK</button>
-        <h2 style="flex:1">MASTER DASHBOARD</h2>
-        <button id="adminRefresh" class="btn ghost sm" type="button">RELOAD</button></div>
-      <div id="adminStats" class="adminstats"></div>
-
-      <div class="section-head" style="margin-top:22px"><h2>LEAGUES</h2>
-        <span class="muted small mono" id="adminLeagueCount"></span></div>
-      <div id="adminLeagues" class="stack tight"></div>
-
-      <div class="section-head" style="margin-top:22px"><h2>PLAYERS</h2>
-        <span class="muted small mono" id="adminPlayerCount"></span></div>
-      <input id="adminSearch" class="input" type="search" placeholder="Search a name…"
-             autocomplete="off" spellcheck="false" style="margin-bottom:8px">
-      <div id="adminPlayers" class="stack tight"></div>
-      <p class="hint">Deleting a player removes their account and every workout
-        they logged, in every league. It cannot be undone.</p>
     </section>
 
     <!-- LEAGUES / ME -->
@@ -379,9 +366,6 @@
           <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
         </div>
       </details>
-
-      <button id="adminOpen" class="btn ghost" type="button" hidden
-              style="width:100%;margin-bottom:10px">⚙ MASTER DASHBOARD</button>
 
       <details class="sect">
         <summary><span>SHOP</span><span class="tag-soon">ALL FREE</span></summary>

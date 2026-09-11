@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.5.0';
+  var APP_VERSION = '2.6.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -430,6 +430,25 @@
 
   /* A fighter's banner is their lifetime rank — derived from points they
      already have, so there is nothing to store and nothing to award. */
+  /* The raid, bounty and combo used to push the table below the fold. They
+     fold into one strip now, and the strip says enough when shut that you only
+     open it if something needs doing. */
+  function paintWeekChips() {
+    var c = [];
+    if (state.chip.raid)   c.push(state.chip.raid);
+    if (state.chip.bounty) c.push(state.chip.bounty);
+    if (state.chip.combo)  c.push(state.chip.combo);
+    var box = $('#weekChips'); if (!box) return;
+    var wb = $('#weekBox');
+    wb.hidden = !c.length;
+    /* Open itself when today actually needs something — a live bounty you have
+       not done. Otherwise it stays folded and the table starts at the top. */
+    if (!state.weekBoxTouched && state.chip.bounty && state.chip.bounty.urgent) wb.open = true;
+    box.innerHTML = c.map(function (x) {
+      return '<span class="chip' + (x.on ? ' on' : '') + '">' + x.t + '</span>';
+    }).join('');
+  }
+
   /* A raid is the one job the whole league carries together for a week. The
      target scales with headcount, so a group of 8 and a group of 28 both get
      something that needs everybody rather than one strong person. */
@@ -437,7 +456,7 @@
     var box = $('#raidCard'); if (!box) return;
     var r = await sb.rpc('current_raid', { p_league: state.leagueId });
     var d = r.error ? null : (r.data && r.data[0]);
-    if (!d) { box.hidden = true; return; }
+    if (!d) { box.hidden = true; state.chip.raid = null; paintWeekChips(); return; }
     var pct = Math.min(100, Number(d.progress) / Number(d.target) * 100);
     var left = Math.max(0, Number(d.target) - Number(d.progress));
     box.hidden = false;
@@ -456,6 +475,9 @@
       '</div>' +
       (d.top_name ? '<p class="raid-top">Carrying it: <b>' + esc(d.top_name) +
         '</b> with ' + num(d.top_amount) + '</p>' : '');
+    state.chip.raid = { on: d.done,
+      t: 'RAID ' + Math.round(Number(d.progress) / Number(d.target) * 100) + '%' };
+    paintWeekChips();
   }
 
   /* Badges. Earned in a league, derived from what already happened, and worn
@@ -719,6 +741,8 @@
     openWeeks: {},
     feeds: {},
     feedDay: {},          // which day groups a viewer has opened
+    chip: {},             // one-line summaries for the folded week strip
+    weekBoxTouched: false,// once you open or shut it yourself, we stop deciding
     session: [],       // items logged inside the currently open modal
     pendingCode: null,
     view: 'live',
@@ -1077,17 +1101,15 @@
   /* ===================================================================
      9. Live leaderboard
      =================================================================== */
-  /* The tab only appears for an admin. The gate that matters is in the
-     database — this is presentation. */
-  function applyAdminUi() {
-    state.isAdmin = !!(state.profile && state.profile.is_admin);
-    var b = $('#adminOpen'); if (b) b.hidden = !state.isAdmin;
-  }
-
   async function refreshAll() {
-    applyAdminUi();
-    await Promise.all([loadBoard(), loadHistory(), loadCombo(), loadBounty(),
-                       loadStreaks(), loadRaid()]);
+    /* allSettled, not all: one widget failing must never blank the table,
+       which is the only thing on this screen that really matters. */
+    var jobs = [loadBoard(), loadHistory(), loadCombo(), loadBounty(),
+                loadStreaks(), loadRaid()];
+    var res = await Promise.allSettled(jobs);
+    res.forEach(function (x) {
+      if (x.status === 'rejected' && window.console) console.error('widget failed', x.reason);
+    });
     renderHeader();
   }
 
@@ -1719,6 +1741,10 @@
               : when === 'soon'  ? 'Counts on ' + dayLabel + ' only — not before, not after.'
               :                    'This one is over.';
 
+    state.chip.bounty = { on: b.mine, urgent: when === 'today' && !b.mine,
+      t: 'BOUNTY ' + (b.mine ? 'DONE' : when === 'today' ? 'TODAY'
+                    : when === 'soon' ? dayLabel.slice(0, 3) : 'CLOSED') };
+    paintWeekChips();
     $('#bountyCard').hidden = false;
     $('#bountyCard').className = 'bounty' + (b.mine ? ' got' : '') +
       (when === 'today' ? ' now' : '') + (when === 'past' ? ' shut' : '');
@@ -1773,6 +1799,10 @@
     for (var i = COMBO_TIERS.length - 1; i >= 0; i--) {
       if (COMBO_TIERS[i].n > hit.length) { next = COMBO_TIERS[i]; break; }
     }
+    state.chip.combo = { on: !!earned,
+      t: 'COMBO ' + hit.length + '/' + COMBO_CATS.length +
+         (earned ? ' +' + earned : '') };
+    paintWeekChips();
     $('#comboCard').hidden = false;
     $('#comboCard').innerHTML =
       '<div class="combo-top"><span class="combo-t">DAILY COMBO</span>' +
@@ -2054,6 +2084,13 @@
     saveAvatar(b.getAttribute('data-pin'));      // an animal replaces the emblem
   });
   $('#avatarClear').addEventListener('click', function () { saveAvatar(''); });
+  /* Built on first open, so the settings tab does not pay for ~110 inline
+     SVGs every time it renders. */
+  $('#sectEmblem').addEventListener('toggle', function () {
+    if (this.open) buildAvatarGridsOnce();
+  });
+  $('#weekBox').addEventListener('toggle', function () { state.weekBoxTouched = true; });
+  $('#sectBadges').addEventListener('toggle', function () { if (this.open) loadBadges(); });
 
   /* ---- name colours ---------------------------------------------------- */
   function paintNameColors() {
@@ -2093,152 +2130,6 @@
     } catch (err) { toast(niceError(err), true); }
   });
 
-  /* ---- master dashboard -------------------------------------------------
-     Admin is a flag the DATABASE checks inside every admin function. Hiding
-     the tab is only tidiness: a member who forces the view still gets nothing
-     back, and a delete they try is refused server-side. No service key is
-     ever shipped to a browser. */
-  function fmtWhen(t) {
-    if (!t) return 'never';
-    var d = new Date(t), days = Math.floor((Date.now() - d) / 86400000);
-    return days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
-  }
-
-  async function loadAdmin() {
-    if (!state.isAdmin) return;
-    var lg = await sb.rpc('admin_leagues');
-    var pl = await sb.rpc('admin_players');
-    if (lg.error || pl.error) { toast('Could not load the dashboard', true); return; }
-    state.adminPlayers = pl.data || [];
-    var L = lg.data || [], P = state.adminPlayers;
-    var active = P.filter(function (x) {
-      return x.last_log && (Date.now() - new Date(x.last_log)) < 7 * 86400000; }).length;
-    var ghosts = P.filter(function (x) { return !x.workouts; }).length;
-
-    $('#adminStats').innerHTML = [
-      ['LEAGUES', L.length], ['PLAYERS', P.length],
-      ['ACTIVE 7D', active], ['NEVER LOGGED', ghosts]
-    ].map(function (x) {
-      return '<div class="ast"><b>' + x[1] + '</b><i>' + x[0] + '</i></div>';
-    }).join('');
-
-    $('#adminLeagueCount').textContent = L.length + ' total';
-    $('#adminLeagues').innerHTML = L.map(function (x) {
-      return '<div class="arow"><span class="arow-m">' +
-        '<b>' + esc(x.name) + '</b>' +
-        '<i>' + esc(x.code) + ' · ' + x.members + ' members · ' + x.workouts +
-          ' logs · last ' + fmtWhen(x.last_log) + ' · by ' + esc(x.owner_name) + '</i>' +
-        '</span><button class="btn ghost sm danger" data-dl="' + x.id +
-        '" data-name="' + esc(x.name) + '">DELETE</button></div>';
-    }).join('') || '<div class="empty">No leagues.</div>';
-    renderAdminPlayers();
-  }
-
-  function renderAdminPlayers() {
-    var q = ($('#adminSearch').value || '').trim().toLowerCase();
-    var P = (state.adminPlayers || []).filter(function (x) {
-      return !q || x.display_name.toLowerCase().indexOf(q) >= 0;
-    });
-    $('#adminPlayerCount').textContent = P.length + ' shown';
-    $('#adminPlayers').innerHTML = P.map(function (x) {
-      return '<div class="arow' + (x.is_admin ? ' is-admin' : '') + '">' +
-        avatarHtml(x.avatar, { name: x.display_name, size: 'sm' }) +
-        '<span class="arow-m"><b>' + esc(x.display_name) +
-          (x.is_admin ? ' <i class="atag">ADMIN</i>' : '') + '</b>' +
-        '<i>' + x.leagues + ' league' + (x.leagues === 1 ? '' : 's') + ' · ' +
-          x.workouts + ' logs · ' + num(x.points) + ' pts · last ' + fmtWhen(x.last_log) +
-          ' · code ' + esc(x.restore_code) + '</i></span>' +
-        (x.is_admin ? '' : '<button class="btn ghost sm danger" data-dp="' + x.id +
-          '" data-name="' + esc(x.display_name) + '">DELETE</button>') +
-      '</div>';
-    }).join('') || '<div class="empty">Nobody matches.</div>';
-  }
-
-  $('#adminOpen').addEventListener('click', function () { switchView('admin'); });
-  $('#adminBack').addEventListener('click', function () { switchView('me'); });
-  $('#adminSearch').addEventListener('input', renderAdminPlayers);
-  $('#adminRefresh').addEventListener('click', loadAdmin);
-
-  $('#adminLeagues').addEventListener('click', async function (e) {
-    var b = e.target.closest('[data-dl]'); if (!b) return;
-    var nm = b.getAttribute('data-name');
-    if (!confirm('Delete the league "' + nm + '" for everyone?\n\nIts members keep ' +
-                 'their logs in every other league they are in.')) return;
-    try {
-      var r = await sb.rpc('admin_delete_league', { p_league: b.getAttribute('data-dl') });
-      if (r.error) throw r.error;
-      await loadAdmin(); await loadLeagues(); await refreshAll();
-      toast(nm + ' deleted');
-    } catch (err) { toast(niceError(err), true); }
-  });
-
-  $('#adminPlayers').addEventListener('click', async function (e) {
-    var b = e.target.closest('[data-dp]'); if (!b) return;
-    var nm = b.getAttribute('data-name');
-    if (!confirm('Delete ' + nm + '?\n\nTheir account and every workout they ever ' +
-                 'logged go with them, in every league. This cannot be undone.')) return;
-    if (!confirm('Last check — permanently delete ' + nm + '?')) return;
-    try {
-      var r = await sb.rpc('admin_delete_profile', { p_profile: b.getAttribute('data-dp') });
-      if (r.error) throw r.error;
-      await loadAdmin(); await refreshAll();
-      toast(nm + ' deleted');
-    } catch (err) { toast(niceError(err), true); }
-  });
-
-  $('#badges').addEventListener('click', async function (e) {
-    var b = e.target.closest('[data-badge]'); if (!b || b.disabled) return;
-    var key = b.getAttribute('data-badge');
-    var pinned = ((state.profile && state.profile.pinned_badges) || []).slice();
-    var at = pinned.indexOf(key);
-    if (at >= 0) { pinned.splice(at, 1); }
-    else if (pinned.length >= 3) { toast('Three on show at a time — take one off first'); return; }
-    else { pinned.push(key); }
-    try {
-      var r = await sb.rpc('set_pinned_badges', { p_keys: pinned });
-      if (r.error) throw r.error;
-      state.profile = r.data;
-      await loadBadges();
-      await refreshAll();
-    } catch (err) { toast(niceError(err), true); }
-  });
-
-  /* Built on first open, so the settings tab does not pay for ~110 inline
-     SVGs every time it renders. */
-  $('#sectEmblem').addEventListener('toggle', function () {
-    if (this.open) buildAvatarGridsOnce();
-  });
-
-  /* Kilos or pounds. Storage is always kilos; this only changes what is typed. */
-  var LB = 2.20462;
-  function useLb() { return state.profile && state.profile.units === 'lb'; }
-  function toKg(v) { return useLb() ? v / LB : v; }
-  function fromKg(v) { return useLb() ? v * LB : v; }
-  function unitName() { return useLb() ? 'LB' : 'KG'; }
-
-  function paintUnits() {
-    Array.prototype.forEach.call($('#unitRow').querySelectorAll('button'), function (b) {
-      b.classList.toggle('on', b.getAttribute('data-units') === (useLb() ? 'lb' : 'kg'));
-    });
-  }
-  $('#unitRow').addEventListener('click', async function (e) {
-    var b = e.target.closest('[data-units]'); if (!b) return;
-    try {
-      var r = await sb.rpc('set_units', { p_units: b.getAttribute('data-units') });
-      if (r.error) throw r.error;
-      state.profile = r.data;
-      paintUnits(); renderMe();
-      toast('Weights now in ' + unitName().toLowerCase());
-    } catch (err) { toast(niceError(err), true); }
-  });
-
-  /* ---- shop -------------------------------------------------------------
-     The cosmetics that already exist, shown as things you can pick rather
-     than buried in a picker. Everything is free for now; the price slot is
-     there so it has somewhere to go later. */
-  /* Every banner is CSS, not a picture: nothing to download, it re-themes
-     with the app, and the motion is part of the artwork. Names match the
-     mockups so we can talk about them. */
   /* Two separate sets on purpose: a league is a place and a player is a
      person, so they should not be able to wear the same thing. Leagues get
      the wide, architectural looks; players get the tighter, personal ones. */
@@ -2268,6 +2159,16 @@
     return '';
   }
 
+  /* ---- shop -------------------------------------------------------------
+     The cosmetics that already exist, shown as things you can pick rather
+     than buried in a picker. Everything is free for now; the price slot is
+     there so it has somewhere to go later. */
+  /* Every banner is CSS, not a picture: nothing to download, it re-themes
+     with the app, and the motion is part of the artwork. Names match the
+     mockups so we can talk about them. */
+  /* Two separate sets on purpose: a league is a place and a player is a
+     person, so they should not be able to wear the same thing. Leagues get
+     the wide, architectural looks; players get the tighter, personal ones. */
   function buildShop() {
     var l = league();
     var cur = badgeOf(l);
@@ -2330,6 +2231,31 @@
       state.profile = r.data;
       buildShop(); await refreshAll();
       toast('Your banner is set');
+    } catch (err) { toast(niceError(err), true); }
+  });
+
+  /* Kilos or pounds. Storage is always kilos; this only changes what is typed
+     and what the labels say, so two people in one league can read weights
+     differently without touching each other's scores. */
+  var LB = 2.20462;
+  function useLb() { return state.profile && state.profile.units === 'lb'; }
+  function toKg(v) { return useLb() ? v / LB : v; }
+  function fromKg(v) { return useLb() ? v * LB : v; }
+  function unitName() { return useLb() ? 'LB' : 'KG'; }
+
+  function paintUnits() {
+    Array.prototype.forEach.call($('#unitRow').querySelectorAll('button'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-units') === (useLb() ? 'lb' : 'kg'));
+    });
+  }
+  $('#unitRow').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-units]'); if (!b) return;
+    try {
+      var r = await sb.rpc('set_units', { p_units: b.getAttribute('data-units') });
+      if (r.error) throw r.error;
+      state.profile = r.data;
+      paintUnits(); renderMe();
+      toast('Weights now in ' + unitName().toLowerCase());
     } catch (err) { toast(niceError(err), true); }
   });
 
@@ -2431,8 +2357,7 @@
       t.classList.toggle('is-active', t.getAttribute('data-view') === v);
     });
     if (v === 'me') renderMe();
-    if (v === 'stats') { loadStats(); loadBadges(); }
-    if (v === 'admin') loadAdmin();
+    if (v === 'stats') { loadStats(); if ($('#sectBadges').open) loadBadges(); }
     if (v === 'duel') { loadDuels(); loadRivalries(); }
     window.scrollTo(0, 0);
   }
