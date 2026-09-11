@@ -59,7 +59,9 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/catch-up-day.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
-psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people' from leagues;"
+psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
+  ||case when max(max_members) % 2 = 0 then ', which is even so the Monday rivalry pairs everybody'
+         else ' — ODD, SOMEBODY WILL HAVE NO RIVAL' end from leagues;"
 psql -tAd ironlive -c "select 'and none has a catch-up day until somebody sets one: '
   ||(select count(*) from leagues where catchup_dow is not null)::text;"
 psql -tAd ironlive -c "select 'the week in progress kept its quest: '

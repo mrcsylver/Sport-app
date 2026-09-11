@@ -63,9 +63,11 @@ HEAD = """-- ===================================================================
 --
 --  A league starts with no catch-up day at all. It cannot be a rest day.
 --
---  FIVE MORE PLACES
---  A league holds 35 instead of 30, and the leagues that already exist are
---  widened to match.
+--  SIX MORE PLACES
+--  A league holds 36 instead of 30, and the leagues that already exist are
+--  widened to match. 36 rather than a round number because the five
+--  divisions come to exactly that, and an even league is what lets the
+--  Monday rivalry pair everybody off without leaving one person out.
 -- ======================================================================
 begin;
 
@@ -86,11 +88,11 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
--- ---------------------------------------------------- five more places -----
+-- ----------------------------------------------------- six more places -----
 alter table public.leagues drop constraint if exists leagues_max_members_check;
-update public.leagues set max_members = 35 where max_members = 30;
+update public.leagues set max_members = 36 where max_members in (30, 35);
 alter table public.leagues
-  add constraint leagues_max_members_check check (max_members between 2 and 35);
+  add constraint leagues_max_members_check check (max_members between 2 and 36);
 
 """
 

@@ -450,7 +450,7 @@ To add everything below without losing anything, open the Supabase SQL editor
 and run these two instead. Both only add, and both are safe to run twice.
 
 1. **`bounty-pool.sql`** — the 110 bounties
-2. **`catch-up-day.sql`** — the catch-up day, and five more seats per league
+2. **`catch-up-day.sql`** — the catch-up day, and six more seats per league
 
 (If you ran `bounty-pool.sql` before 12 September, also run
 `fix-this-week.sql` once — see `supabase/README.md` for why.)
@@ -551,9 +551,11 @@ bookkeeping at all.
 | **APEX** | 3 | Three deep, and one push off the front |
 | **VANGUARD** | 10 | The line that holds. Chasing the Apex |
 | **FORGE** | 15 | Where a fighter is hammered into shape |
-| **COMMONER** | 5 | Everyone starts here. Nobody stays |
+| **COMMONER** | 6 | Everyone starts here. Nobody stays |
 
-Thirty-five seats, which is a full league.
+Thirty-six seats, which is a full league — and an even number on purpose.
+The Monday rivalry pairs the table off two by two, so an odd league would
+leave one person without an opponent every single week.
 
 The sizes narrow sharply at the top on purpose. Two seats in the Royal Guard
 means it is somewhere you can be pushed out of by one good evening, which is

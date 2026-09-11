@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.9.0';
+  var APP_VERSION = '2.9.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -242,8 +242,11 @@
     { key: 'BRONZE',  name: 'FORGE',       sub: 'Where a fighter is hammered into shape',
       icon: 'anvil-impact',       size: 15 },
     { key: 'STONE',   name: 'COMMONER',    sub: 'Everyone starts here. Nobody stays',
-      icon: 'triple-gate',        size: 5 }
+      icon: 'triple-gate',        size: 6 }
   ];
+  /* 2 + 3 + 10 + 15 + 6 = 36, and 36 is even on purpose: the Monday rivalry
+     pairs the table off two by two, and an odd league always leaves the last
+     person without an opponent. */
   /* Below this many people a division is just the table with headings in it. */
   var TIER_MINIMUM = 10;
 

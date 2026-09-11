@@ -328,7 +328,10 @@ create table public.leagues (
   code        text not null unique
                 default upper(substr(md5(gen_random_uuid()::text), 1, 6)),
   owner_id    uuid not null references public.profiles(id) on delete cascade,
-  max_members int  not null default 35 check (max_members between 2 and 35),
+  -- 36, not a round number: the divisions come to exactly this, and an even
+  -- league is what lets the Monday rivalry pair everybody off without
+  -- leaving one person without an opponent.
+  max_members int  not null default 36 check (max_members between 2 and 36),
   -- composable crest: {"shape":..,"color":..,"emblem":..}; null falls back to
   -- one derived from the league id, so every league looks distinct from day one
   badge       jsonb,

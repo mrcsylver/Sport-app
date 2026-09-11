@@ -88,14 +88,17 @@ extension Color {
 enum Division: String, CaseIterable {
     case royalGuard, apex, vanguard, forge, commoner
 
-    /// How many people it holds. Together they come to a full league.
+    /// How many people it holds. Together they come to 36, which is a full
+    /// league — and even on purpose, because the Monday rivalry pairs the
+    /// table off two by two and an odd league leaves somebody without an
+    /// opponent every week.
     var size: Int {
         switch self {
         case .royalGuard: return 2
         case .apex:       return 3
         case .vanguard:   return 10
         case .forge:      return 15
-        case .commoner:   return 5
+        case .commoner:   return 6
         }
     }
 

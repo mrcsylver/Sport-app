@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.9.0*
+*Last updated 12 September 2026 · app version 2.9.1*
 
 ---
 
@@ -20,7 +20,8 @@ d'écran de ton code de restauration** (8 caractères, dans Réglages). C'est la
 seule chose qui permet de récupérer ton profil sur un autre téléphone. Il n'y
 a ni email ni mot de passe.
 
-Une ligue accueille **35 personnes**. Tu peux être dans plusieurs ligues : un
+Une ligue accueille **36 personnes** — un nombre pair exprès, pour que la
+rivalité du lundi apparie tout le monde sans laisser personne de côté. Tu peux être dans plusieurs ligues : un
 entraînement enregistré compte dans **toutes** celles où tu étais déjà. Si tu
 rejoins une ligue plus tard, rien n'est rétroactif — personne n'arrive en tête
 le premier jour.
@@ -99,10 +100,12 @@ numérotés :
 | ⚔️ **APEX** | 3 | Trois de profondeur, à une poussée du sommet |
 | 🛡️ **VANGUARD** | 10 | La ligne qui tient. À la poursuite de l'Apex |
 | ⚒️ **FORGE** | 15 | Là où un combattant est forgé |
-| 🚪 **COMMONER** | 5 | Tout le monde commence ici. Personne n'y reste |
+| 🚪 **COMMONER** | 6 | Tout le monde commence ici. Personne n'y reste |
 
 Les tailles se resserrent brutalement en haut, exprès : deux places dans la
-Royal Guard, c'est un endroit d'où une bonne soirée suffit à te déloger.
+Royal Guard, c'est un endroit d'où une bonne soirée suffit à te déloger. Et
+le total fait 36, un nombre pair, pour que la rivalité du lundi apparie tout
+le monde.
 
 Ton numéro de rang est ta **position dans toute la ligue** — être 11e c'est
 être 11e, pas « 1er en Vanguard ». Chaque division met quand même en évidence
@@ -172,7 +175,8 @@ Screen". It then behaves like a real app, offline included.
 (8 characters, in Settings). It is the only thing that moves your profile to
 another phone. There is no email and no password.
 
-A league holds **35 people**. You can be in several: one logged workout counts
+A league holds **36 people** — an even number on purpose, so the Monday
+rivalry pairs everybody off without leaving anyone out. You can be in several: one logged workout counts
 in **every** league you were already in. Join a league later and nothing is
 backdated — nobody arrives already winning.
 
@@ -246,10 +250,11 @@ From 10 members up, the board splits into places rather than numbered tiers:
 | ⚔️ **APEX** | 3 | Three deep, and one push off the front |
 | 🛡️ **VANGUARD** | 10 | The line that holds. Chasing the Apex |
 | ⚒️ **FORGE** | 15 | Where a fighter is hammered into shape |
-| 🚪 **COMMONER** | 5 | Everyone starts here. Nobody stays |
+| 🚪 **COMMONER** | 6 | Everyone starts here. Nobody stays |
 
 The sizes narrow sharply at the top on purpose: two seats in the Royal Guard
-makes it somewhere one good evening can push you out of.
+makes it somewhere one good evening can push you out of. And the total comes
+to 36, an even number, so the Monday rivalry pairs everybody.
 
 Your rank number is your position in **the whole league** — being 11th is
 being 11th, not "1st in Vanguard". Each division still highlights whoever is
