@@ -26,6 +26,11 @@
   button.danger{color:var(--red);border-color:rgba(255,46,46,.45)}
   button.danger:hover{background:rgba(255,46,46,.12)}
   .row{display:flex;gap:10px;align-items:center}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid2 label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#8a93a6}
+  .grid2 input,.grid2 select{width:100%}
+  .pin{background:#1d2a1f;border-color:#2f6b3f;color:#7fe0a0}
+  td.q{max-width:280px}
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;
          margin-bottom:6px}
   .stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;
@@ -93,6 +98,38 @@
     <h2>Players</h2>
     <input id="search" placeholder="Search a name…" style="margin-bottom:10px">
     <div class="scroll"><table id="players"></table></div>
+    <h2>Bounties</h2>
+    <p class="dim">One quest runs each week, the same one for every league. Which one is
+      normally drawn from the pool by a shuffle that reseeds every year — pin a week to
+      choose it yourself instead.</p>
+    <div class="scroll"><table id="schedule"></table></div>
+
+    <details style="margin-top:14px">
+      <summary style="cursor:pointer">The whole pool <span class="dim" id="poolCount"></span></summary>
+      <input id="bsearch" placeholder="Search the pool…" style="margin:10px 0">
+      <div class="scroll" style="max-height:340px"><table id="pool"></table></div>
+    </details>
+
+    <details style="margin-top:14px">
+      <summary style="cursor:pointer">Write a new one</summary>
+      <p class="dim">One exercise, one amount, and an optional time window. That is
+        deliberately narrower than the built-in quests can be: it is the shape that
+        cannot produce something nobody is able to finish.</p>
+      <div class="grid2">
+        <label>Name<input id="nbName" maxlength="24" placeholder="DAWN PRESS"></label>
+        <label>Points<input id="nbPoints" type="number" min="5" max="100" value="30"></label>
+        <label style="grid-column:1/-1">What it says<input id="nbDescr" maxlength="80"
+          placeholder="40 push-ups before 09:00"></label>
+        <label>Exercise<select id="nbEx"></select></label>
+        <label>Logged as<select id="nbMode"></select></label>
+        <label>At least<input id="nbMin" type="number" min="1" value="40"></label>
+        <label>Between (optional)
+          <span class="row"><input id="nbFrom" type="number" min="0" max="23" placeholder="from">
+          <input id="nbTo" type="number" min="1" max="24" placeholder="to"></span></label>
+      </div>
+      <button class="primary" id="nbAdd" style="margin-top:10px">ADD TO THE POOL</button>
+    </details>
+
     <p class="dim" style="margin-top:12px">Deleting a player removes their account and
       every workout they logged, in every league. Deleting a league removes it for
       everyone, but its members keep their logs in any other league they are in.
@@ -173,7 +210,117 @@
           '">Delete</button></td></tr>';
       }).join('');
     paintPlayers();
+
+    var ex = await sb.from('exercises').select('key,name,cat,modes').order('sort');
+    exercises = ex.data || [];
+    paintExercisePicker();
+    await loadBounties();
   }
+
+  /* ---- bounties -------------------------------------------------------
+     The schedule is the next six months; the pool is everything that could
+     run. Pinning writes one row, so a week can be chosen without touching
+     the rotation that covers every other week. */
+  var pool = [], schedule = [], exercises = [];
+
+  async function loadBounties() {
+    var sc = await sb.rpc('admin_schedule');
+    var bp = await sb.rpc('admin_bounties');
+    if (sc.error || bp.error) { $('#err').textContent = (sc.error || bp.error).message; return; }
+    schedule = sc.data || [];
+    pool = bp.data || [];
+    paintSchedule();
+    paintPool();
+    $('#poolCount').textContent = '· ' + pool.length + ' quests';
+  }
+
+  function bountyOptions(selected) {
+    return pool.map(function (b) {
+      return '<option value="' + b.idx + '"' + (b.idx === selected ? ' selected' : '') +
+             '>' + esc(b.name) + ' · ' + b.points + ' pts</option>';
+    }).join('');
+  }
+
+  function paintSchedule() {
+    $('#schedule').innerHTML =
+      '<tr><th>Week of</th><th>Quest</th><th>Worth</th><th>Choose</th><th></th></tr>' +
+      schedule.map(function (w, i) {
+        return '<tr><td class="dim">' + esc(w.week_start) +
+          (i === 0 ? ' <span class="tag">NOW</span>' : '') + '</td>' +
+          '<td class="name">' + esc(w.name) +
+          (w.pinned ? ' <span class="tag">PINNED</span>' : '') +
+          '<br><span class="dim q">' + esc(w.descr) + '</span></td>' +
+          '<td>' + num(w.points) + '</td>' +
+          '<td><select data-week="' + w.week_start + '">' +
+            bountyOptions(w.bounty_idx) + '</select></td>' +
+          '<td>' + (w.pinned
+            ? '<button data-unpin="' + w.week_start + '">Let it rotate</button>'
+            : '<span class="dim">rotating</span>') + '</td></tr>';
+      }).join('');
+  }
+
+  function paintPool() {
+    var q = ($('#bsearch').value || '').trim().toLowerCase();
+    var rows = pool.filter(function (b) {
+      return !q || (b.name + ' ' + b.descr).toLowerCase().indexOf(q) >= 0; });
+    $('#pool').innerHTML =
+      '<tr><th>#</th><th>Quest</th><th>Worth</th><th>Next run</th><th></th></tr>' +
+      rows.map(function (b) {
+        return '<tr><td class="dim">' + b.idx + '</td>' +
+          '<td class="name">' + esc(b.name) +
+          (b.custom ? '<span class="tag">YOURS</span>' : '') +
+          '<br><span class="dim q">' + esc(b.descr) + '</span></td>' +
+          '<td>' + num(b.points) + '</td>' +
+          '<td class="dim">' + (b.runs_on || 'not in the next year') + '</td>' +
+          '<td>' + (b.custom
+            ? '<button class="danger" data-db="' + b.idx + '" data-n="' + esc(b.name) +
+              '">Delete</button>' : '') + '</td></tr>';
+      }).join('') || '<tr><td class="dim">Nothing matches.</td></tr>';
+  }
+
+  function paintExercisePicker() {
+    $('#nbEx').innerHTML = exercises.map(function (e) {
+      return '<option value="' + esc(e.key) + '">' + esc(e.name) +
+             ' (' + esc(e.cat) + ')</option>';
+    }).join('');
+    paintModePicker();
+  }
+
+  /* The modes an exercise actually offers. Offering all of them is how you
+     end up with a bounty asking for kilometres of push-ups. */
+  function paintModePicker() {
+    var key = $('#nbEx').value;
+    var ex = exercises.filter(function (e) { return e.key === key; })[0];
+    var modes = ex ? Object.keys(ex.modes) : ['reps'];
+    $('#nbMode').innerHTML = modes.map(function (m) {
+      return '<option value="' + m + '">' + m + '</option>'; }).join('');
+  }
+
+  $('#bsearch').addEventListener('input', paintPool);
+  $('#nbEx').addEventListener('change', paintModePicker);
+
+  $('#nbAdd').addEventListener('click', async function () {
+    $('#err').textContent = '';
+    var from = $('#nbFrom').value === '' ? null : Number($('#nbFrom').value);
+    var to   = $('#nbTo').value   === '' ? null : Number($('#nbTo').value);
+    var r = await sb.rpc('admin_add_bounty', {
+      p_name: $('#nbName').value, p_descr: $('#nbDescr').value,
+      p_points: Number($('#nbPoints').value), p_ex: $('#nbEx').value,
+      p_mode: $('#nbMode').value, p_min: Number($('#nbMin').value),
+      p_from_h: from, p_to_h: to });
+    if (r.error) { $('#err').textContent = r.error.message; return; }
+    $('#nbName').value = ''; $('#nbDescr').value = '';
+    await loadBounties();
+  });
+
+  document.addEventListener('change', async function (e) {
+    var sel = e.target.closest('[data-week]'); if (!sel) return;
+    $('#err').textContent = '';
+    var r = await sb.rpc('admin_pin_bounty', {
+      p_week: sel.getAttribute('data-week'), p_idx: Number(sel.value) });
+    if (r.error) { $('#err').textContent = r.error.message; return; }
+    await loadBounties();
+  });
 
   function paintPlayers() {
     var q = ($('#search').value || '').trim().toLowerCase();
@@ -218,6 +365,25 @@
   $('#search').addEventListener('input', paintPlayers);
 
   document.addEventListener('click', async function (e) {
+    var unpin = e.target.closest('[data-unpin]'),
+        db    = e.target.closest('[data-db]');
+    if (unpin) {
+      $('#err').textContent = '';
+      var ru = await sb.rpc('admin_unpin_bounty',
+                            { p_week: unpin.getAttribute('data-unpin') });
+      if (ru.error) { $('#err').textContent = ru.error.message; return; }
+      await loadBounties();
+      return;
+    }
+    if (db) {
+      if (!confirm('Delete the quest "' + db.getAttribute('data-n') + '"?')) return;
+      var rd = await sb.rpc('admin_delete_bounty',
+                            { p_idx: Number(db.getAttribute('data-db')) });
+      if (rd.error) { $('#err').textContent = rd.error.message; return; }
+      await loadBounties();
+      return;
+    }
+
     var l = e.target.closest('[data-dl]'), p = e.target.closest('[data-dp]');
     if (l) {
       if (!confirm('Delete the league "' + l.getAttribute('data-n') + '" for everyone?')) return;

@@ -443,6 +443,28 @@ ios/                the native iPhone app — see ios/README.md
 No build step, no npm, no framework. Every file is served exactly as it is,
 which is why any free static host can run it.
 
+## Adding the bounty pool to a database you already have
+
+`supabase/schema.sql` is a rebuild — running it on a live database wipes it.
+To add the bigger bounty pool without losing anything, open the Supabase SQL
+editor and run **`supabase/bounty-pool.sql`** instead. It only adds, it is safe
+to run twice, and nothing anybody has logged is touched.
+
+It brings:
+
+- **110 quests instead of 52**, including twelve short ones worth a flat 20
+  points that take under three minutes — a plank, sixty squats, a dead hang.
+  They exist so somebody with a fifteen-minute break still scores that day.
+- **Muscle-group-only quests.** "Pull day" counts pulling and nothing else, so
+  the day's other work does not carry you through it.
+- **A yearly shuffle.** Which quest runs in a week used to be the week number
+  modulo 52, so every year ran the same 52 in the same order. It is now a
+  shuffle of the whole pool reseeded each year: every league still sees the
+  same quest on the same day, no quest repeats inside a year, and next year is
+  a different 52.
+- **Pinned weeks.** The control room can put a chosen quest on a chosen week,
+  and write new ones.
+
 ## The iPhone app
 
 `ios/` is a native SwiftUI app on the same Supabase project. It is a separate
@@ -529,6 +551,19 @@ group of twenty-nine both get something that needs everybody rather than one
 strong person carrying it. Targets are set at roughly **1.5x what a league
 actually produces** — measured against real logs, because a raid nobody can
 reach is a raid nobody tries. They are one `UPDATE` away from being retuned.
+
+## Bounties in the control room
+
+The control room lists the next six months of quests. Each row has a dropdown:
+pick a different quest and that week is pinned to it. "Let it rotate" hands
+the week back to the shuffle.
+
+Below that, "Write a new one" adds a quest of your own. It is deliberately
+narrower than the built-in ones — one exercise, one amount, and an optional
+time window — because that is the shape that cannot produce something nobody
+is able to finish. The exercise list only offers the ways that exercise can
+actually be logged, so you cannot ask for kilometres of push-ups. Your own
+quests can be deleted; the built-in ones can only be left unpinned.
 
 ## Control room (managing it yourself)
 

@@ -27,6 +27,7 @@ drop table if exists public.raids          cascade;
 drop table if exists public.challenges     cascade;
 drop table if exists public.workouts       cascade;
 drop table if exists public.league_members cascade;
+drop table if exists public.bounty_schedule cascade;
 drop table if exists public.leagues        cascade;
 drop table if exists public.profiles       cascade;
 
@@ -36,6 +37,15 @@ drop function if exists public.bounty_date(p_week date) cascade;
 drop function if exists public.bounty_done(p_profile uuid, p_league uuid, p_spec jsonb, p_day date) cascade;
 drop function if exists public.bounty_dow() cascade;
 drop function if exists public.bounty_index(p_week date) cascade;
+drop function if exists public.bounty_pick(p_week date) cascade;
+drop function if exists public.bounty_cat_points(p_profile uuid, p_league uuid, p_cat text, p_day date) cascade;
+drop function if exists public.builtin_bounty_count() cascade;
+drop function if exists public.admin_schedule() cascade;
+drop function if exists public.admin_bounties() cascade;
+drop function if exists public.admin_pin_bounty(p_week date, p_idx int, p_note text) cascade;
+drop function if exists public.admin_unpin_bounty(p_week date) cascade;
+drop function if exists public.admin_add_bounty(p_name text, p_descr text, p_points numeric, p_ex text, p_mode text, p_min numeric, p_from_h int, p_to_h int) cascade;
+drop function if exists public.admin_delete_bounty(p_idx int) cascade;
 drop function if exists public.bounty_req(p_profile uuid, p_league uuid, p_req jsonb, p_day date) cascade;
 drop function if exists public.calc_points(p_key text, p_mode text, p_amount numeric) cascade;
 drop function if exists public.calc_points(p_key text, p_mode text, p_amount numeric, p_bw numeric, p_load numeric) cascade;
@@ -53,7 +63,7 @@ drop function if exists public.enforce_league_capacity() cascade;
 drop function if exists public.exercise_category(p_key text) cascade;
 drop function if exists public.has_open_challenge(p_profile uuid) cascade;
 drop function if exists public.is_member(p_league uuid) cascade;
-drop function if exists public.is_rest_day() cascade;
+drop function if exists public.is_rest_day(p_league uuid) cascade;
 drop function if exists public.join_league_by_code(p_code text) cascade;
 drop function if exists public.league_leaderboard(p_league uuid, p_week date) cascade;
 drop function if exists public.league_preview(p_code text) cascade;
@@ -93,6 +103,15 @@ drop function if exists public.week_combo_bonus(p_league uuid, p_week date) casc
 drop function if exists public.weekly_history(p_league uuid) cascade;
 drop function if exists public.workouts_stamp() cascade;
 drop function if exists public.workouts_update_guard() cascade;
+
+-- These functions call each other in both directions, and two of them read
+-- tables created further down. Postgres resolves a SQL function body at the
+-- moment the function is created, so a strict run would stop at the first
+-- forward reference and the file would only work if it were sorted into an
+-- order no human could maintain. Turning that one check off for the length of
+-- the script is what makes it runnable top to bottom on a fresh database —
+-- every body is still parsed, so a typo is still an error.
+set check_function_bodies = off;
 
 -- ---------------------------------------------------------------------
 -- 1. Timezone + week helpers
@@ -144,6 +163,7 @@ begin
     raise exception 'REST_DAY_DONE';
   end if;
 end $$;
+
 
 -- ---------------------------------------------------------------------
 -- 2. Points engine  (must stay in sync with EXERCISES in app.js)
@@ -338,6 +358,19 @@ create table public.bounties (
   points numeric not null check (points > 0),
   spec   jsonb   not null
 );
+
+-- Which bounty runs in a given week is normally a shuffle of the pool (see
+-- bounty_index below). A row here overrides that for one week — the control
+-- room's way of putting a chosen quest on a chosen date.
+create table public.bounty_schedule (
+  week_start date primary key,
+  bounty_idx int  not null references public.bounties(idx) on delete cascade,
+  note       text,
+  set_at     timestamptz not null default now()
+);
+alter table public.bounty_schedule enable row level security;
+create policy bounty_schedule_read on public.bounty_schedule
+  for select to authenticated using (true);
 create index challenges_ppl_idx    on public.challenges (challenger_id, opponent_id);
 
 create index workouts_board_idx on public.workouts (league_id, week_start);
@@ -999,8 +1032,14 @@ begin
 end $$;
 
 -- Log once, counted in every league you belong to.
+-- p_bw and p_load are the gym pair: your bodyweight and what is on the bar.
+-- They are null for everything else. The parameter list was left behind when
+-- gym scoring arrived, so the body used two names the signature never
+-- declared — a rebuild from this file produced a log_workout that could not
+-- score a lift.
 create function public.log_workout(
-  p_league uuid, p_key text, p_mode text, p_amount numeric)
+  p_league uuid, p_key text, p_mode text, p_amount numeric,
+  p_bw numeric default null, p_load numeric default null)
 returns table (id uuid, group_id uuid, exercise_key text, mode text,
                amount numeric, points numeric, leagues int)
 language plpgsql security definer set search_path = public as $$
@@ -1202,9 +1241,31 @@ $$;
 create function public.bounty_dow() returns int
 language sql immutable set search_path = public as $$ select 4 $$;   -- Thursday
 
+-- Which bounty a week gets. A hash of (year, idx) puts the pool in a
+-- different order every year; the week number then picks a position in that
+-- order. It is deterministic, so every league in the world sees the same
+-- quest on the same day and can talk about it — but no two years run the same
+-- sequence, and with a pool this size most of it is unseen in any one year.
 create function public.bounty_index(p_week date) returns int
-language sql immutable set search_path = public as $$
-  select ((floor((p_week - date '2026-01-05') / 7)::int % 52) + 52) % 52
+language sql stable set search_path = public as $$
+  with n as (select count(*)::int as total from public.bounties),
+       y as (select extract(isoyear from p_week)::int as yr,
+                    extract(week    from p_week)::int as wk),
+       shuffled as (
+         select b.idx,
+                (row_number() over (order by md5((select yr from y)::text
+                                                 || ':' || b.idx::text)) - 1)::int as slot
+         from public.bounties b)
+  select s.idx from shuffled s
+  where s.slot = ((select wk from y) - 1) % greatest((select total from n), 1)
+$$;
+
+-- A pinned week wins over the shuffle. Everything downstream asks this one.
+create function public.bounty_pick(p_week date) returns int
+language sql stable set search_path = public as $$
+  select coalesce((select bounty_idx from public.bounty_schedule
+                   where week_start = p_week),
+                  public.bounty_index(p_week))
 $$;
 
 create function public.bounty_date(p_week date) returns date
@@ -1229,6 +1290,19 @@ language sql stable set search_path = public as $$
          extract(hour from (w.created_at at time zone public.app_timezone())) <  (p_req->>'to_h')::int)
 $$;
 
+-- Points earned today inside one muscle group. This is what lets a bounty say
+-- "pulling only" — everything else logged that day simply does not count.
+create function public.bounty_cat_points(
+  p_profile uuid, p_league uuid, p_cat text, p_day date) returns numeric
+language sql stable set search_path = public as $$
+  select coalesce(sum(w.points), 0)
+  from public.workouts w
+  where w.profile_id = p_profile
+    and w.league_id  = p_league
+    and (w.created_at at time zone public.app_timezone())::date = p_day
+    and public.exercise_category(w.exercise_key) = p_cat
+$$;
+
 create function public.bounty_done(
   p_profile uuid, p_league uuid, p_spec jsonb, p_day date) returns boolean
 language plpgsql stable set search_path = public as $$
@@ -1238,7 +1312,18 @@ declare
   r    jsonb;
   n    int;
 begin
-  if kind = 'reqs' then
+  if kind = 'cat_points' then
+    return public.bounty_cat_points(p_profile, p_league, p_spec->>'cat', p_day)
+           >= (p_spec->>'min')::numeric;
+
+  elsif kind = 'cats' then
+    for r in select * from jsonb_array_elements(p_spec->'cats') loop
+      if public.bounty_cat_points(p_profile, p_league, r->>'cat', p_day)
+         < (r->>'min')::numeric then return false; end if;
+    end loop;
+    return true;
+
+  elsif kind = 'reqs' then
     for r in select * from jsonb_array_elements(p_spec->'reqs') loop
       if not public.bounty_req(p_profile, p_league, r, p_day) then return false; end if;
     end loop;
@@ -1343,7 +1428,7 @@ end $$;
 create function public.week_bounty_points(p_league uuid, p_week date)
 returns table (profile_id uuid, bounty numeric)
 language sql stable set search_path = public as $$
-  with b as (select * from public.bounties where idx = public.bounty_index(p_week)),
+  with b as (select * from public.bounties where idx = public.bounty_pick(p_week)),
        d as (select public.bounty_date(p_week) as day)
   select m.profile_id, (select points from b)::numeric
   from public.league_members m
@@ -1459,13 +1544,128 @@ begin
   if u is not null then delete from auth.users where id = u; end if;
 end $$;
 
+-- The next six months of bounties, so the control room can see what is coming
+-- and change it. `pinned` marks a week somebody chose rather than the shuffle.
+create function public.admin_schedule()
+returns table (week_start date, bounty_idx int, name text, descr text,
+               points numeric, pinned boolean, note text)
+language sql stable security definer set search_path = public as $$
+  with weeks as (
+    select (public.current_week_start() + (n * 7))::date as w
+    from generate_series(0, 25) n)
+  select k.w, public.bounty_pick(k.w), b.name, b.descr, b.points,
+         exists (select 1 from public.bounty_schedule s where s.week_start = k.w),
+         (select note from public.bounty_schedule s where s.week_start = k.w)
+  from weeks k
+  join public.bounties b on b.idx = public.bounty_pick(k.w)
+  where public.is_admin()
+  order by k.w
+$$;
+
+-- The whole pool, with the next week each one is due to run.
+create function public.admin_bounties()
+returns table (idx int, name text, descr text, points numeric, spec jsonb,
+               runs_on date, custom boolean)
+language sql stable security definer set search_path = public as $$
+  with weeks as (
+    select (public.current_week_start() + (n * 7))::date as w
+    from generate_series(0, 51) n),
+  built as (select max(idx) as top from public.bounties)
+  select b.idx, b.name, b.descr, b.points, b.spec,
+         (select min(w) from weeks where public.bounty_pick(w) = b.idx),
+         b.idx >= public.builtin_bounty_count()
+  from public.bounties b
+  where public.is_admin()
+  order by b.idx
+$$;
+
+-- How many bounties shipped with the app. Anything above this line was added
+-- from the control room and may be deleted again; the built-ins may not.
+create function public.builtin_bounty_count() returns int
+language sql immutable set search_path = public as $$ select 110 $$;
+
+create function public.admin_pin_bounty(p_week date, p_idx int, p_note text default null)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if p_week < public.current_week_start() then
+    raise exception 'That week has already been played';
+  end if;
+  if p_week <> date_trunc('week', p_week)::date then
+    raise exception 'Pin a Monday — a bounty week starts on one';
+  end if;
+  if not exists (select 1 from public.bounties where idx = p_idx) then
+    raise exception 'No bounty has that number';
+  end if;
+  insert into public.bounty_schedule (week_start, bounty_idx, note)
+  values (p_week, p_idx, nullif(btrim(coalesce(p_note, '')), ''))
+  on conflict (week_start) do update
+    set bounty_idx = excluded.bounty_idx, note = excluded.note, set_at = now();
+end $$;
+
+create function public.admin_unpin_bounty(p_week date)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  delete from public.bounty_schedule where week_start = p_week;
+end $$;
+
+-- Writing a bounty by hand. The spec language is deliberately not exposed:
+-- one exercise, one amount, an optional hour window. That covers most of the
+-- pool and cannot produce a quest nobody is able to finish.
+create function public.admin_add_bounty(
+  p_name text, p_descr text, p_points numeric,
+  p_ex text, p_mode text, p_min numeric,
+  p_from_h int default null, p_to_h int default null)
+returns int language plpgsql security definer set search_path = public as $$
+declare next_idx int; req jsonb;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if char_length(btrim(coalesce(p_name, ''))) < 3 then
+    raise exception 'Give it a name';
+  end if;
+  if p_points is null or p_points < 5 or p_points > 100 then
+    raise exception 'Points must be between 5 and 100';
+  end if;
+  if not exists (select 1 from public.exercises e
+                 where e.key = p_ex and e.modes ? p_mode) then
+    raise exception 'That exercise cannot be logged that way';
+  end if;
+  if p_min is null or p_min <= 0 then raise exception 'Set an amount'; end if;
+  if p_from_h is not null and (p_from_h < 0 or p_from_h > 23) then
+    raise exception 'An hour is 0 to 23';
+  end if;
+  if p_to_h is not null and (p_to_h < 1 or p_to_h > 24) then
+    raise exception 'An hour is 1 to 24';
+  end if;
+
+  req := jsonb_strip_nulls(jsonb_build_object(
+    'ex', p_ex, 'mode', p_mode, 'min', p_min,
+    'from_h', p_from_h, 'to_h', p_to_h));
+  select coalesce(max(idx), -1) + 1 into next_idx from public.bounties;
+  insert into public.bounties (idx, name, descr, points, spec)
+  values (next_idx, upper(btrim(p_name)), btrim(coalesce(p_descr, '')), p_points,
+          jsonb_build_object('reqs', jsonb_build_array(req)));
+  return next_idx;
+end $$;
+
+create function public.admin_delete_bounty(p_idx int)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if p_idx < public.builtin_bounty_count() then
+    raise exception 'A built-in bounty cannot be deleted, only left unpinned';
+  end if;
+  delete from public.bounties where idx = p_idx;
+end $$;
+
 create function public.current_bounty(p_league uuid)
 returns table (idx int, name text, descr text, points numeric,
                on_date date, mine boolean, winners int, first_name text,
                first_avatar text)
 language sql stable security definer set search_path = public as $$
   with wk as (select public.current_week_start() as w),
-       b  as (select * from public.bounties where idx = public.bounty_index((select w from wk))),
+       b  as (select * from public.bounties where idx = public.bounty_pick((select w from wk))),
        d  as (select public.bounty_date((select w from wk)) as day),
        done as (select profile_id from public.week_bounty_points(p_league, (select w from wk))),
        firsts as (
@@ -1512,11 +1712,20 @@ revoke all on function public.set_avatar(text)              from public, anon;
 revoke all on function public.my_combo_today(uuid)          from public, anon;
 revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.combo_threshold()             from public, anon;
-revoke all on function public.is_rest_day()                 from public, anon;
+revoke all on function public.is_rest_day(uuid)             from public, anon;
 revoke all on function public.week_bounty_points(uuid,date) from public, anon;
 revoke all on function public.current_bounty(uuid)          from public, anon;
 revoke all on function public.bounty_done(uuid,uuid,jsonb,date) from public, anon;
 revoke all on function public.bounty_req(uuid,uuid,jsonb,date)  from public, anon;
+revoke all on function public.bounty_pick(date)             from public, anon;
+revoke all on function public.bounty_cat_points(uuid,uuid,text,date) from public, anon;
+revoke all on function public.admin_schedule()              from public, anon;
+revoke all on function public.admin_bounties()              from public, anon;
+revoke all on function public.admin_pin_bounty(date,int,text) from public, anon;
+revoke all on function public.admin_unpin_bounty(date)      from public, anon;
+revoke all on function public.admin_add_bounty(text,text,numeric,text,text,numeric,int,int)
+  from public, anon;
+revoke all on function public.admin_delete_bounty(int)      from public, anon;
 revoke all on function public.log_workout(uuid,text,text,numeric,numeric,numeric) from public, anon;
 revoke all on function public.create_challenge(uuid)        from public, anon;
 revoke all on function public.accept_challenge(text)        from public, anon;
@@ -1551,6 +1760,17 @@ grant execute on function public.admin_leagues()               to authenticated;
 grant execute on function public.admin_players()               to authenticated;
 grant execute on function public.admin_delete_league(uuid)     to authenticated;
 grant execute on function public.admin_delete_profile(uuid)    to authenticated;
+grant execute on function public.admin_schedule()              to authenticated;
+grant execute on function public.admin_bounties()              to authenticated;
+grant execute on function public.admin_pin_bounty(date,int,text) to authenticated;
+grant execute on function public.admin_unpin_bounty(date)      to authenticated;
+grant execute on function public.admin_add_bounty(text,text,numeric,text,text,numeric,int,int)
+  to authenticated;
+grant execute on function public.admin_delete_bounty(int)      to authenticated;
+grant execute on function public.builtin_bounty_count()        to authenticated;
+grant execute on function public.bounty_pick(date)             to authenticated;
+grant execute on function public.bounty_cat_points(uuid,uuid,text,date) to authenticated;
+grant select on public.bounty_schedule to authenticated;
 grant execute on function public.league_streaks(uuid,numeric)  to authenticated;
 grant execute on function public.set_pinned_badges(text[])     to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;
@@ -1561,7 +1781,7 @@ grant execute on function public.set_league_badge(uuid,jsonb)  to authenticated;
 grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
 grant execute on function public.combo_threshold()             to authenticated;
-grant execute on function public.is_rest_day()                 to authenticated;
+grant execute on function public.is_rest_day(uuid)              to authenticated;
 grant execute on function public.bounty_dow()                  to authenticated;
 grant execute on function public.bounty_index(date)            to authenticated;
 grant execute on function public.bounty_date(date)             to authenticated;
@@ -1603,6 +1823,30 @@ insert into public.raids (idx,name,descr,ex_keys,mode,per_member,unit) values
 
 -- ---------------------------------------------------------------------
 delete from public.bounties;
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
 insert into public.bounties (idx, name, descr, points, spec) values
 (0,'DAWN PRESS','40 push-ups before 09:00',30,'{"reqs":[{"ex":"pushups","mode":"reps","min":40,"to_h":9}]}'),
 (1,'CENTURY PUSH','100 push-ups across the day',40,'{"reqs":[{"ex":"pushups","mode":"reps","min":100}]}'),
@@ -1655,4 +1899,64 @@ insert into public.bounties (idx, name, descr, points, spec) values
 (48,'PERSONAL RECORD','Beat your own best single day of points',50,'{"kind":"pr"}'),
 (49,'TEAM SURGE','If 4 of you log today, everybody scores',30,'{"kind":"team","members":4}'),
 (50,'TRIPLE THREAT','Train three different muscle groups today',40,'{"kind":"distinct","what":"cat","min":3}'),
-(51,'NIGHT OWL','Two different exercises after 21:00',25,'{"kind":"distinct","what":"ex","min":2,"from_h":21}');
+(51,'NIGHT OWL','Two different exercises after 21:00',25,'{"kind":"distinct","what":"ex","min":2,"from_h":21}'),
+(52,'MINUTE OF PUSH','As many push-ups as you can in one minute — 30 or more',20,'{"reqs":[{"ex":"pushups","mode":"reps","min":30}]}'),
+(53,'THREE-MINUTE PLANK','Three minutes of plank, in as many goes as you like',20,'{"reqs":[{"ex":"plank","mode":"minutes","min":3}]}'),
+(54,'SIXTY SQUATS','Sixty air squats — under two minutes if you keep moving',20,'{"reqs":[{"ex":"airsquats","mode":"reps","min":60}]}'),
+(55,'DEAD HANG','Ninety seconds hanging from a bar',20,'{"reqs":[{"ex":"deadhang","mode":"seconds","min":90}]}'),
+(56,'TEN PULL','Ten pull-ups. That is the whole bounty',20,'{"reqs":[{"ex":"pullups","mode":"reps","min":10}]}'),
+(57,'WALL SIT','Two minutes in a wall sit',20,'{"reqs":[{"ex":"wallsit","mode":"seconds","min":120}]}'),
+(58,'ROPE MINUTE','Five minutes of skipping',20,'{"reqs":[{"ex":"jumprope","mode":"minutes","min":5}]}'),
+(59,'STAIR SPRINT','Five minutes of stairs',20,'{"reqs":[{"ex":"stairs","mode":"minutes","min":5}]}'),
+(60,'HOLLOW HOLD','Ninety seconds of hollow hold',20,'{"reqs":[{"ex":"hollowhold","mode":"seconds","min":90}]}'),
+(61,'BURST OF DIPS','Twenty dips, any bar or bench',20,'{"kind":"any","any":[{"ex":"dips","mode":"reps","min":20},{"ex":"benchdips","mode":"reps","min":30}]}'),
+(62,'FORTY CRUNCH','Forty crunches',20,'{"reqs":[{"ex":"crunches","mode":"reps","min":40}]}'),
+(63,'TWO MINUTES OF ANYTHING','Any two minutes of held work — plank, hang, wall sit or L-sit',20,'{"kind":"any","any":[{"ex":"plank","mode":"minutes","min":2},{"ex":"deadhang","mode":"seconds","min":120},{"ex":"wallsit","mode":"seconds","min":120},{"ex":"lsit","mode":"seconds","min":120}]}'),
+(64,'PUSH DAY','60 points of pushing and nothing else counts',45,'{"kind":"cat_points","cat":"PUSH","min":60}'),
+(65,'PULL DAY','50 points of pulling and nothing else counts',45,'{"kind":"cat_points","cat":"PULL","min":50}'),
+(66,'LEG DAY','60 points of legs and nothing else counts',45,'{"kind":"cat_points","cat":"LEGS","min":60}'),
+(67,'CORE DAY','45 points of core and nothing else counts',40,'{"kind":"cat_points","cat":"CORE","min":45}'),
+(68,'ENDURANCE ONLY','50 points of cardio and nothing else counts',45,'{"kind":"cat_points","cat":"CARDIO","min":50}'),
+(69,'IRON ONLY','60 points under a bar — gym lifts only',50,'{"kind":"cat_points","cat":"GYM","min":60}'),
+(70,'PLAY DAY','40 points from a sport',40,'{"kind":"cat_points","cat":"SPORT","min":40}'),
+(71,'UPPER LOCK','40 points of push and 40 of pull, same day',55,'{"kind":"cats","cats":[{"cat":"PUSH","min":40},{"cat":"PULL","min":40}]}'),
+(72,'TWO HUNDRED','200 push-ups across the day',60,'{"reqs":[{"ex":"pushups","mode":"reps","min":200}]}'),
+(73,'ARCHER''S DAY','30 archer push-ups',45,'{"reqs":[{"ex":"archerpush","mode":"reps","min":30}]}'),
+(74,'PIKE POWER','40 pike push-ups',40,'{"reqs":[{"ex":"pikepush","mode":"reps","min":40}]}'),
+(75,'CLAP IT OUT','25 clapping push-ups',45,'{"reqs":[{"ex":"clappush","mode":"reps","min":25}]}'),
+(76,'RING WORK','25 ring dips',50,'{"reqs":[{"ex":"ringdips","mode":"reps","min":25}]}'),
+(77,'CHIN COLLECTOR','40 chin-ups',50,'{"reqs":[{"ex":"chinups","mode":"reps","min":40}]}'),
+(78,'TOES TO BAR','30 toes to bar',45,'{"reqs":[{"ex":"toestobar","mode":"reps","min":30}]}'),
+(79,'FRONT LEVER HOLD','20 seconds of front lever, any tuck',50,'{"reqs":[{"ex":"frontlever","mode":"seconds","min":20}]}'),
+(80,'DRAGON','15 dragon flags',50,'{"reqs":[{"ex":"dragonflag","mode":"reps","min":15}]}'),
+(81,'PISTOL DUEL','20 pistol squats',45,'{"reqs":[{"ex":"pistols","mode":"reps","min":20}]}'),
+(82,'NORDIC NIGHT','12 nordic curls',50,'{"reqs":[{"ex":"nordic","mode":"reps","min":12}]}'),
+(83,'JUMP DAY','80 jump squats',45,'{"reqs":[{"ex":"jumpsquats","mode":"reps","min":80}]}'),
+(84,'LUNGE MILE','120 lunges',45,'{"reqs":[{"ex":"lunges","mode":"reps","min":120}]}'),
+(85,'BRIDGE BUILDER','100 glute bridges',35,'{"reqs":[{"ex":"gluteBridge","mode":"reps","min":100}]}'),
+(86,'ROLLOUT','30 ab rollouts',40,'{"reqs":[{"ex":"rollout","mode":"reps","min":30}]}'),
+(87,'SIDE ON','Three minutes of side plank, both sides',35,'{"reqs":[{"ex":"sideplank","mode":"minutes","min":3}]}'),
+(88,'SUPERMAN','80 supermans',30,'{"reqs":[{"ex":"supermans","mode":"reps","min":80}]}'),
+(89,'BICYCLE RACE','150 bicycle crunches',35,'{"reqs":[{"ex":"bicycle","mode":"reps","min":150}]}'),
+(90,'CLIMBER','200 mountain climbers',35,'{"reqs":[{"ex":"mountainclimb","mode":"reps","min":200}]}'),
+(91,'TEN K','Ten kilometres on foot, running or walking',55,'{"kind":"any","any":[{"ex":"run","mode":"km","min":10},{"ex":"walk","mode":"km","min":12}]}'),
+(92,'LONG RIDE','25 km on a bike',45,'{"reqs":[{"ex":"bike","mode":"km","min":25}]}'),
+(93,'POOL LENGTHS','45 minutes in the water',45,'{"reqs":[{"ex":"swim","mode":"minutes","min":45}]}'),
+(94,'ROW HARD','20 minutes on the rower',40,'{"reqs":[{"ex":"row","mode":"minutes","min":20}]}'),
+(95,'ON THE WALL','40 minutes of climbing',45,'{"reqs":[{"ex":"climbing","mode":"minutes","min":40}]}'),
+(96,'GLOVES ON','30 minutes of boxing',40,'{"reqs":[{"ex":"boxing","mode":"minutes","min":30}]}'),
+(97,'BENCH DAY','30 reps of barbell bench press',45,'{"reqs":[{"ex":"gymbench","mode":"reps","min":30}]}'),
+(98,'SQUAT RACK','40 barbell squats',45,'{"reqs":[{"ex":"gymsquat","mode":"reps","min":40}]}'),
+(99,'PULL THE FLOOR','20 deadlifts',50,'{"reqs":[{"ex":"gymdeadlift","mode":"reps","min":20}]}'),
+(100,'SEVEN HOURS','One set in each of 7 different hours',50,'{"kind":"hourly","ex":"pushups","each":5,"hours":7}'),
+(101,'SUNRISE AND SUNSET','30 pull-ups before noon and 30 after',50,'{"kind":"split","ex":"pullups","min":30}'),
+(102,'FIVE WAYS','Train five different muscle groups',50,'{"kind":"distinct","what":"cat","min":5}'),
+(103,'TEN EXERCISES','Ten different exercises in one day',45,'{"kind":"distinct","what":"ex","min":10}'),
+(104,'SPREAD THE LOAD','300 reps across at least 6 exercises',55,'{"kind":"reps_across","exercises":6,"min":300}'),
+(105,'BEAT YESTERDAY','Score more points today than on any day before it',45,'{"kind":"pr"}'),
+(106,'SIX OF YOU','Six people in the league log something today',45,'{"kind":"team","members":6}'),
+(107,'FULL HOUSE','Ten people in the league log something today',60,'{"kind":"team","members":10}'),
+(108,'TRAINING PARTNER','Log within an hour of somebody else in the league',35,'{"kind":"duo"}'),
+(109,'BACK FROM THE DEAD','Bottom of the table and still turned up',40,'{"kind":"underdog"}');
+
+reset check_function_bodies;

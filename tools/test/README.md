@@ -1,0 +1,44 @@
+# The browser tests
+
+Twelve Playwright runs against the real `index.html` and `admin.html`, with
+Supabase replaced by `mock-supabase.js` — a hand-written stand-in that keeps a
+database in `localStorage` and answers the same RPCs the server does.
+
+```bash
+node tools/test/run.js        # …through run12.js
+```
+
+Each file prints a list of PASS/FAIL lines, reports any JavaScript error the
+page threw, and exits non-zero if anything failed. Screenshots land in
+`tools/test/shots/`, which is not committed.
+
+They need Playwright and a Chromium; the paths at the top of each file point at
+where this project's container keeps them, so adjust those two lines if you run
+them somewhere else.
+
+## What each one covers
+
+| file | area |
+|---|---|
+| `run.js` | onboarding, logging, the scoring matrix end to end |
+| `run2.js` | joining, league capacity, switching, restore codes |
+| `run3.js` | editing and deleting your own entries |
+| `run4.js` | the exercise picker, variants, themes |
+| `run5.js` | the daily combo, emblems and avatars |
+| `run6.js` | rest days, the week strip, bounties |
+| `run7.js` | duels |
+| `run8.js` | the hall of fame |
+| `run9.js` | rivalries, badges, raids, the settings layout |
+| `run10.js` | banners and name colours |
+| `run11.js` | the league crest: shape, colour, emblem, banner |
+| `run12.js` | the control room, including the bounty tools |
+
+## The mock is not the server
+
+It answers the same calls, but it is JavaScript pretending to be Postgres. It
+has been wrong twice in ways that hid real behaviour — once dropping `badge`
+from `my_leagues`, once ignoring which column `order()` was given — so when a
+test disagrees with the app, suspect the mock first and check the SQL.
+
+The SQL itself is tested separately, against a real Postgres. See
+`supabase/README.md`.
