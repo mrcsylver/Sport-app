@@ -17,6 +17,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Rivalries** — every Monday you are paired 1v1 with your nearest rank.
 - **Badges** — earned inside a league; wear three of them next to your name.
 - **Iron Will** — a board for consecutive days, not raw volume.
+- **League raids** — one target the whole league carries together each week.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
 - **Personal leagues** — create your own league, share a link, 30 people max.
@@ -504,3 +505,37 @@ what you put on show says as much as what you have.
 Badge art is a **fourth, separate icon set**. Avatars are people, crests are
 leagues, badges are rewards, and category marks are muscle groups — a build
 step asserts no icon appears in two sets, so nothing ever means two things.
+
+## League raids
+
+A raid is the one job the whole league does **together**: 5,000 push-ups in a
+week is impossible alone and ordinary for twenty-nine people. One raid a week,
+rotating through eight.
+
+The target is **per member multiplied by headcount**, so a group of eight and a
+group of twenty-nine both get something that needs everybody rather than one
+strong person carrying it. Targets are set at roughly **1.5x what a league
+actually produces** — measured against real logs, because a raid nobody can
+reach is a raid nobody tries. They are one `UPDATE` away from being retuned.
+
+## Master dashboard
+
+Every league, every player, who is active, who never logged, and the ability to
+delete either. It lives behind a button in the Leagues tab, for admins only.
+
+**How the permission works, and why it is safe.** `is_admin` is a flag on a
+profile, and every admin function checks it *inside the database*. The browser
+never holds a privileged key — the app can only ask, and Postgres decides. A
+member who forces the screen open gets an empty list, and any delete they
+attempt is refused server-side. This is tested: a non-admin sees zero players
+and a delete raises.
+
+To make someone an admin:
+
+```sql
+update public.profiles set is_admin = true where display_name = 'THEIR NAME';
+```
+
+Deleting a player removes their account and every workout they logged, in every
+league. Deleting a league removes it for everyone, but each member keeps their
+logs in the other leagues they are in.

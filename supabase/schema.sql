@@ -23,6 +23,7 @@
 -- ---------------------------------------------------------------------
 drop table if exists public.bounties       cascade;
 drop table if exists public.exercises      cascade;
+drop table if exists public.raids          cascade;
 drop table if exists public.challenges     cascade;
 drop table if exists public.workouts       cascade;
 drop table if exists public.league_members cascade;
@@ -72,6 +73,13 @@ drop function if exists public.set_avatar(p_avatar text) cascade;
 drop function if exists public.set_bodyweight(p_kg numeric) cascade;
 drop function if exists public.set_units(p_units text) cascade;
 drop function if exists public.set_banner(p_banner text) cascade;
+drop function if exists public.set_name_color(p_color text) cascade;
+drop function if exists public.current_raid(p_league uuid) cascade;
+drop function if exists public.is_admin() cascade;
+drop function if exists public.admin_leagues() cascade;
+drop function if exists public.admin_players() cascade;
+drop function if exists public.admin_delete_league(p_league uuid) cascade;
+drop function if exists public.admin_delete_profile(p_profile uuid) cascade;
 drop function if exists public.league_streaks(p_league uuid, p_min numeric) cascade;
 drop function if exists public.set_pinned_badges(p_keys text[]) cascade;
 drop function if exists public.my_badges(p_league uuid) cascade;
@@ -226,6 +234,12 @@ create table public.profiles (
   banner       text constraint profiles_banner_check
                  check (banner is null or char_length(banner) between 1 and 24),
   -- which badges to wear on the board, in order, at most three
+  -- chosen text colour for the name, so a banner never swallows it
+  name_color   text constraint profiles_name_color_check
+                 check (name_color is null or char_length(name_color) <= 16),
+  -- admin is a flag the DATABASE checks inside every admin function; no
+  -- service key ever reaches a browser
+  is_admin     boolean not null default false,
   pinned_badges text[] not null default '{}'
                  constraint profiles_pinned_sane
                  check (array_length(pinned_badges, 1) is null
@@ -300,6 +314,23 @@ create index challenges_league_idx on public.challenges (league_id);
 -- One side quest per week, always on the same weekday. Everyone who does it
 -- scores; the first to finish also takes a badge worth nothing. Completion is
 -- read from the workouts already logged, so there is nothing to claim.
+-- A raid is one target the whole league carries together for a week. The
+-- target scales with headcount, so a group of 8 and a group of 28 both get
+-- something that needs everybody rather than one strong person.
+-- per_member is calibrated at roughly 1.5x what a league actually produces:
+-- a raid nobody can reach is a raid nobody tries. Retune with one UPDATE.
+create table public.raids (
+  idx        int primary key,
+  name       text not null,
+  descr      text not null,
+  ex_keys    text[] not null,
+  mode       text not null,
+  per_member numeric not null,
+  unit       text not null
+);
+alter table public.raids enable row level security;
+create policy raids_read on public.raids for select to authenticated using (true);
+
 create table public.bounties (
   idx    int primary key,
   name   text    not null,
@@ -613,7 +644,7 @@ create function public.league_leaderboard(p_league uuid, p_week date default nul
 returns table (profile_id uuid, display_name text, avatar text, points numeric,
                base_points numeric, bonus numeric, entries bigint,
                joined_at timestamptz, lifetime numeric, banner text,
-               pinned_badges text[])
+               pinned_badges text[], name_color text)
 language sql stable security definer set search_path = public as $$
   -- `lifetime` drives the rank banner on each row. Like divisions and duel
   -- records it is derived on read, so there is nothing to store or award.
@@ -634,7 +665,7 @@ language sql stable security definer set search_path = public as $$
          coalesce(sum(w.points), 0)::numeric,
          (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
          count(w.id), m.joined_at,
-         coalesce(max(lt.total), 0)::numeric, p.banner, p.pinned_badges
+         coalesce(max(lt.total), 0)::numeric, p.banner, p.pinned_badges, p.name_color
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
   left join public.workouts w
@@ -644,7 +675,8 @@ language sql stable security definer set search_path = public as $$
   left join bb on bb.profile_id = p.id
   left join lt on lt.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
-  group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges, m.joined_at
+  group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
+           p.name_color, m.joined_at
   order by 4 desc, 8 asc
 $$;
 
@@ -953,13 +985,15 @@ begin
        coalesce(length(p_badge->>'shape'), 0)  > 20 or
        coalesce(length(p_badge->>'color'), 0)  > 20 or
        coalesce(length(p_badge->>'skin'), 0)   > 24 or
+       coalesce(length(p_badge->>'text'), 0)   > 16 or
        coalesce(length(p_badge->>'emblem'), 0) > 40) then
     raise exception 'Badge values are too long';
   end if;
   update public.leagues
      set badge = case when p_badge is null then null else jsonb_strip_nulls(jsonb_build_object(
        'shape', p_badge->>'shape', 'color', p_badge->>'color',
-       'emblem', p_badge->>'emblem', 'skin', p_badge->>'skin')) end
+       'emblem', p_badge->>'emblem', 'skin', p_badge->>'skin',
+       'text', p_badge->>'text')) end
    where id = p_league returning * into row;
   return row;
 end $$;
@@ -1318,6 +1352,113 @@ language sql stable set search_path = public as $$
     and public.bounty_done(m.profile_id, p_league, (select spec from b), (select day from d))
 $$;
 
+create function public.current_raid(p_league uuid)
+returns table (idx int, name text, descr text, unit text,
+               target numeric, progress numeric, members int,
+               done boolean, top_name text, top_amount numeric)
+language sql stable security definer set search_path = public as $$
+  with wk as (select public.current_week_start() as w),
+  r as (select * from public.raids
+        where idx = ((extract(epoch from (select w from wk))::bigint / 604800)
+                     % (select count(*) from public.raids))::int),
+  n as (select count(*)::int c from public.league_members where league_id = p_league),
+  contrib as (
+    select w.profile_id, sum(w.amount) as amt
+    from public.workouts w, r
+    where w.league_id = p_league
+      and w.week_start = (select w from wk)
+      and w.exercise_key = any (r.ex_keys)
+      and w.mode = r.mode
+    group by 1
+  ),
+  top as (select p.display_name, c.amt from contrib c
+          join public.profiles p on p.id = c.profile_id
+          order by c.amt desc limit 1)
+  select r.idx, r.name, r.descr, r.unit,
+         (r.per_member * (select c from n))::numeric,
+         coalesce((select sum(amt) from contrib), 0)::numeric,
+         (select c from n),
+         coalesce((select sum(amt) from contrib), 0) >= r.per_member * (select c from n),
+         (select display_name from top), (select amt from top)
+  from r
+  where public.is_member(p_league)
+$$;
+
+create function public.set_name_color(p_color text)
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); row public.profiles;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  update public.profiles set name_color = nullif(p_color, '') where id = me returning * into row;
+  return row;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Master dashboard. Admin is a flag on a profile and every function below
+-- checks it server-side, so the browser never holds a privileged key: a
+-- member who forces the screen open still gets nothing back, and any delete
+-- they attempt is refused here.
+-- ---------------------------------------------------------------------
+create function public.is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select is_admin from public.profiles
+                   where id = public.my_profile_id()), false)
+$$;
+
+create function public.admin_leagues()
+returns table (id uuid, name text, code text, owner_name text, members int,
+               workouts bigint, last_log timestamptz, created_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select l.id, l.name, l.code, o.display_name,
+         (select count(*)::int from public.league_members m where m.league_id = l.id),
+         (select count(*) from public.workouts w where w.league_id = l.id),
+         (select max(w.created_at) from public.workouts w where w.league_id = l.id),
+         l.created_at
+  from public.leagues l
+  join public.profiles o on o.id = l.owner_id
+  where public.is_admin()
+  order by l.created_at
+$$;
+
+create function public.admin_players()
+returns table (id uuid, display_name text, avatar text, restore_code text,
+               leagues int, workouts bigint, points numeric,
+               last_log timestamptz, created_at timestamptz, is_admin boolean)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.display_name, p.avatar, p.restore_code,
+         (select count(*)::int from public.league_members m where m.profile_id = p.id),
+         (select count(distinct w.group_id) from public.workouts w where w.profile_id = p.id),
+         coalesce((select sum(points) from (
+            select distinct on (group_id) group_id, points
+            from public.workouts where profile_id = p.id
+            order by group_id, league_id) x), 0),
+         (select max(w.created_at) from public.workouts w where w.profile_id = p.id),
+         p.created_at, p.is_admin
+  from public.profiles p
+  where public.is_admin()
+  order by p.created_at
+$$;
+
+create function public.admin_delete_league(p_league uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  delete from public.leagues where id = p_league;
+end $$;
+
+create function public.admin_delete_profile(p_profile uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare u uuid;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if p_profile = public.my_profile_id() then
+    raise exception 'You cannot delete your own account from here';
+  end if;
+  select user_id into u from public.profiles where id = p_profile;
+  delete from public.profiles where id = p_profile;
+  if u is not null then delete from auth.users where id = u; end if;
+end $$;
+
 create function public.current_bounty(p_league uuid)
 returns table (idx int, name text, descr text, points numeric,
                on_date date, mine boolean, winners int, first_name text,
@@ -1386,6 +1527,7 @@ revoke all on function public.exercise_category(text)       from public, anon;
 revoke all on function public.current_week_start()          from public, anon;
 
 grant select on public.exercises to authenticated;
+grant select on public.raids     to authenticated;
 
 grant execute on function public.create_profile(text)          to authenticated;
 grant execute on function public.rename_profile(text)          to authenticated;
@@ -1402,6 +1544,13 @@ grant execute on function public.set_avatar(text)              to authenticated;
 grant execute on function public.set_bodyweight(numeric)       to authenticated;
 grant execute on function public.set_units(text)               to authenticated;
 grant execute on function public.set_banner(text)              to authenticated;
+grant execute on function public.set_name_color(text)          to authenticated;
+grant execute on function public.current_raid(uuid)            to authenticated;
+grant execute on function public.is_admin()                    to authenticated;
+grant execute on function public.admin_leagues()               to authenticated;
+grant execute on function public.admin_players()               to authenticated;
+grant execute on function public.admin_delete_league(uuid)     to authenticated;
+grant execute on function public.admin_delete_profile(uuid)    to authenticated;
 grant execute on function public.league_streaks(uuid,numeric)  to authenticated;
 grant execute on function public.set_pinned_badges(text[])     to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;
@@ -1440,6 +1589,17 @@ grant execute on function public.current_week_start()          to authenticated;
 insert into public.exercises (key,name,cat,variants,aliases,sort,modes)
 select e->>0, e->>1, e->>2, e->>3, e->>4, (e->>5)::int, e->6
 from jsonb_array_elements($j$[["wallpush","Wall Push-up","PUSH","","wall easy beginner",0,{"reps":{"rate":0.25}}],["kneepush","Knee Push-up","PUSH","","knees modified beginner",1,{"reps":{"rate":0.75}}],["inclinepush","Incline Push-up","PUSH","","bench elevated hands raised",2,{"reps":{"rate":0.75}}],["pushups","Push-ups","PUSH","Any hand position. Wide, diamond and decline have their own entries.","pushup press floor",3,{"reps":{"rate":1.0}}],["widepush","Wide Push-up","PUSH","","wide grip chest",4,{"reps":{"rate":1.0}}],["diamondpush","Diamond Push-up","PUSH","","triceps close narrow",5,{"reps":{"rate":1.0}}],["declinepush","Decline Push-up","PUSH","","feet elevated",6,{"reps":{"rate":1.25}}],["pikepush","Pike Push-up","PUSH","","shoulders delts",7,{"reps":{"rate":1.25}}],["clappush","Clap Push-up","PUSH","","explosive plyo power",8,{"reps":{"rate":1.5}}],["archerpush","Archer Push-up","PUSH","","one side unilateral",9,{"reps":{"rate":1.5}}],["planchepush","Pseudo Planche Push-up","PUSH","","lean planche straight arm",10,{"reps":{"rate":1.5}}],["benchdips","Bench Dips","PUSH","","tricep chair",11,{"reps":{"rate":0.75}}],["dips","Dips","PUSH","Parallel bars, rings or between two chairs","parallel bars triceps",12,{"reps":{"rate":1.5}}],["ringdips","Ring Dips","PUSH","","rings unstable",13,{"reps":{"rate":1.75}}],["onearmpush","One-arm Push-up","PUSH","","single arm",14,{"reps":{"rate":2.0}}],["sphinxpush","Sphinx Push-up","PUSH","","sphinx forearm tricep",15,{"reps":{"rate":0.75}}],["handstand","Handstand Push-up","PUSH","Against a wall, freestanding, or hanging from a bar","hspu wall overhead invert",16,{"reps":{"rate":2.5},"seconds":{"rate":0.2}}],["rows","Inverted Rows","PULL","","australian bodyweight row horizontal",17,{"reps":{"rate":1.0}}],["scapulapull","Scapular Pull-up","PULL","","scap shrug",18,{"reps":{"rate":0.75}}],["bandpullup","Assisted Pull-up","PULL","","band assisted machine",19,{"reps":{"rate":1.25}}],["chinups","Chin-ups","PULL","","supinated underhand biceps",20,{"reps":{"rate":2.0}}],["pullups","Pull-ups","PULL","Overhand grip. Kipping counts, but be honest.","pullup overhand lats",21,{"reps":{"rate":2.0}}],["widepullup","Wide-grip Pull-up","PULL","","wide lats",22,{"reps":{"rate":2.25}}],["commandopull","Commando Pull-up","PULL","","mixed grip",23,{"reps":{"rate":2.25}}],["lsitpullup","L-sit Pull-up","PULL","","lsit legs out",24,{"reps":{"rate":2.5}}],["typewriter","Typewriter Pull-up","PULL","","side to side",25,{"reps":{"rate":2.5}}],["archerpull","Archer Pull-up","PULL","","one side unilateral",26,{"reps":{"rate":2.5}}],["muscleup","Muscle-up / Flag","PULL","Bar or rings. The human flag scores here too.","muscleup bar ring humanflag",27,{"reps":{"rate":3.5},"seconds":{"rate":2.0}}],["deadhang","Dead Hang","PULL","","hang grip forearm",28,{"seconds":{"rate":0.033333}}],["frontlever","Front Lever","PULL","","lever static hold",29,{"seconds":{"rate":0.5}}],["calves","Calf Raises","LEGS","","calf standing seated",30,{"reps":{"rate":0.2}}],["airsquats","Air Squats","LEGS","","bodyweight squat",31,{"reps":{"rate":0.5}}],["jumpsquats","Jump Squats","LEGS","","plyo explosive",32,{"reps":{"rate":0.75}}],["lunges","Lunges","LEGS","","walking reverse forward",33,{"reps":{"rate":0.5}}],["splitsquat","Bulgarian Split Squat","LEGS","","bulgarian rear foot elevated",34,{"reps":{"rate":0.75}}],["stepups","Step-ups","LEGS","","box bench",35,{"reps":{"rate":0.5}}],["gluteBridge","Glute Bridge","LEGS","","hip thrust glutes",36,{"reps":{"rate":0.25}}],["nordic","Nordic Curl","LEGS","","hamstring eccentric",37,{"reps":{"rate":1.0}}],["sissy","Sissy Squat","LEGS","","quads",38,{"reps":{"rate":0.75}}],["shrimp","Shrimp Squat","LEGS","","advanced single leg",39,{"reps":{"rate":1.0}}],["pistols","Pistol Squats","LEGS","","single leg one",40,{"reps":{"rate":2.0}}],["wallsit","Wall Sit","LEGS","","isometric quads",41,{"seconds":{"rate":0.025}}],["crunches","Crunches","CORE","","crunch sit abs",42,{"reps":{"rate":0.25}}],["situps","Sit-ups","CORE","","situp full",43,{"reps":{"rate":0.5}}],["twists","Russian Twists","CORE","","oblique twist side",44,{"reps":{"rate":0.25}}],["legraises","Lying Leg Raises","CORE","","floor lying",45,{"reps":{"rate":0.5}}],["kneeraises","Hanging Knee Raises","CORE","","hanging knee tuck",46,{"reps":{"rate":1.0}}],["hangingleg","Hanging Leg Raises","CORE","","straight leg toes",47,{"reps":{"rate":1.5}}],["toestobar","Toes to Bar","CORE","","ttb crossfit",48,{"reps":{"rate":2.0}}],["dragonflag","Dragon Flag","CORE","","dragon advanced",49,{"reps":{"rate":3.0}}],["vups","V-ups","CORE","","v up jackknife",50,{"reps":{"rate":0.75}}],["supermans","Supermans","CORE","","lower back extension",51,{"reps":{"rate":0.25}}],["sidecrunch","Lateral Crunches","CORE","","side oblique lateral crunch",52,{"reps":{"rate":0.25}}],["bicycle","Bicycle Crunches","CORE","","bicycle cycling abs",53,{"reps":{"rate":0.25}}],["deadbug","Dead Bug","CORE","","deadbug stability",54,{"reps":{"rate":0.5}}],["birddog","Bird Dog","CORE","","birddog stability back",55,{"reps":{"rate":0.5}}],["flutterkick","Flutter Kicks","CORE","","flutter scissor kicks",56,{"reps":{"rate":0.25}}],["mountainclimb","Mountain Climbers","CORE","","mountain climber cardio abs",57,{"reps":{"rate":0.25}}],["rollout","Ab Wheel Rollout","CORE","","ab wheel rollout barbell",58,{"reps":{"rate":2.0}}],["plank","Plank","CORE","","front elbow forearm",59,{"minutes":{"rate":2.0}}],["sideplank","Side Plank","CORE","","oblique side",60,{"minutes":{"rate":2.5}}],["hollowhold","Hollow Hold","CORE","","hollow body",61,{"seconds":{"rate":0.05}}],["lsit","L-sit","CORE","","lsit legs parallel",62,{"seconds":{"rate":0.333333}}],["run","Run","CARDIO","Outdoor or treadmill","running jog jogging",63,{"km":{"rate":5.0}}],["sprints","Sprint Intervals","CARDIO","One sprint = 15 sec flat out, 100 m minimum","sprint interval hiit",64,{"reps":{"rate":2.0}}],["bike","Biking","CARDIO","Road / Trail / Stationary","cycling bicycle spin",65,{"km":{"rate":1.5}}],["swim","Swim","CARDIO","Any stroke, active swim time","swimming pool crawl",66,{"minutes":{"rate":0.2}}],["walk","Walking","CARDIO","Hiking counts too","walk hike hiking steps",67,{"km":{"rate":2.5}}],["row","Rowing Machine","CARDIO","Indoor erg","erg ergometer concept2",68,{"minutes":{"rate":0.166667}}],["jumprope","Jump Rope","CARDIO","Skipping","skipping rope",69,{"minutes":{"rate":0.133333}}],["stairs","Stair Climbing","CARDIO","Real stairs or machine","stairmaster steps",70,{"minutes":{"rate":0.15}}],["football","Football / Soccer","SPORT","Actual playing time, not time at the venue","soccer foot futbol match",71,{"minutes":{"rate":0.166667}}],["basketball","Basketball","SPORT","Actual playing time, not time at the venue","basket hoops ball",72,{"minutes":{"rate":0.166667}}],["rugby","Rugby","SPORT","Actual playing time, not time at the venue","rugby union league",73,{"minutes":{"rate":0.166667}}],["handball","Handball","SPORT","Actual playing time, not time at the venue","hand ball",74,{"minutes":{"rate":0.166667}}],["hockey","Hockey","SPORT","Actual playing time, not time at the venue","ice field puck",75,{"minutes":{"rate":0.166667}}],["squash","Squash","SPORT","Actual playing time, not time at the venue","squash racket court",76,{"minutes":{"rate":0.166667}}],["boxing","Boxing / Martial Arts","SPORT","Actual playing time, not time at the venue","box mma judo bjj karate muay sparring",77,{"minutes":{"rate":0.166667}}],["climbing","Climbing","SPORT","Actual playing time, not time at the venue","bouldering rock wall",78,{"minutes":{"rate":0.166667}}],["tennis","Tennis","SPORT","Actual playing time, not time at the venue","tennis racket court",79,{"minutes":{"rate":0.116667}}],["padel","Padel","SPORT","Actual playing time, not time at the venue","padel paddle",80,{"minutes":{"rate":0.116667}}],["volleyball","Volleyball","SPORT","Actual playing time, not time at the venue","volley beach net",81,{"minutes":{"rate":0.116667}}],["badminton","Badminton","SPORT","Actual playing time, not time at the venue","badminton shuttle",82,{"minutes":{"rate":0.116667}}],["tabletennis","Table Tennis","SPORT","Actual playing time, not time at the venue","ping pong",83,{"minutes":{"rate":0.116667}}],["othersport","Other Sport","SPORT","Actual playing time, not time at the venue","other misc game match",84,{"minutes":{"rate":0.116667}}],["gymbench","Bench Press","GYM","Type the total on the bar, not counting your own weight","bench barbell chest press flat",85,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymdbbench","Dumbbell Bench Press","GYM","Type the total on the bar, not counting your own weight","dumbbell db incline chest",86,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymohp","Overhead Press","GYM","Type the total on the bar, not counting your own weight","ohp military shoulder press standing",87,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymdip","Weighted Dips","GYM","Type the total on the bar, not counting your own weight","weighted dip belt",88,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymchestmach","Chest Press (Machine)","GYM","Type the total on the bar, not counting your own weight","machine chest press pec",89,{"reps":{"k":1.5625,"equip":0.75,"legs":false,"pattern":"push"}}],["gymtricep","Tricep Pushdown","GYM","One side at a time \u2014 type the weight of the single dumbbell","cable pushdown tricep rope",90,{"reps":{"k":1.5625,"equip":0.6,"legs":false,"pattern":"push"}}],["gymlatraise","Lateral Raise","GYM","One side at a time \u2014 type the weight of the single dumbbell","side delt raise shoulder",91,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymdeadlift","Deadlift","GYM","Type the total on the bar, not counting your own weight","deadlift conventional sumo barbell",92,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymbarbellrow","Barbell Row","GYM","Type the total on the bar, not counting your own weight","bent over row pendlay",93,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymdbrow","Dumbbell Row","GYM","One side at a time \u2014 type the weight of the single dumbbell","one arm db row",94,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymlatpull","Lat Pulldown","GYM","Type the total on the bar, not counting your own weight","pulldown machine lats",95,{"reps":{"k":2.0,"equip":0.75,"legs":false,"pattern":"pull"}}],["gymcablerow","Seated Cable Row","GYM","Type the total on the bar, not counting your own weight","cable row seated",96,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}}],["gymweightpull","Weighted Pull-up","GYM","Type the total on the bar, not counting your own weight","weighted pullup belt",97,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymcurl","Bicep Curl","GYM","One side at a time \u2014 type the weight of the single dumbbell","curl barbell dumbbell biceps",98,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymfacepull","Face Pull","GYM","Type the total on the bar, not counting your own weight","cable rear delt",99,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}}],["gymsquat","Back Squat","GYM","Type the total on the bar, not counting your own weight","squat barbell back high bar",100,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymfrontsquat","Front Squat","GYM","Type the total on the bar, not counting your own weight","front squat clean grip",101,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymlegpress","Leg Press","GYM","Type the total on the bar, not counting your own weight","leg press machine",102,{"reps":{"k":0.588,"equip":0.75,"legs":true,"pattern":"legs"}}],["gymrdl","Romanian Deadlift","GYM","Type the total on the bar, not counting your own weight","rdl stiff leg hamstring",103,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymhipthrust","Hip Thrust","GYM","Type the total on the bar, not counting your own weight","glute bridge barbell",104,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymlegcurl","Leg Curl","GYM","Type the total on the bar, not counting your own weight","hamstring machine curl",105,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}}],["gymlegext","Leg Extension","GYM","Type the total on the bar, not counting your own weight","quad machine extension",106,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}}],["gymlunge","Weighted Lunge","GYM","Type the total on the bar, not counting your own weight","dumbbell lunge walking",107,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymcalf","Weighted Calf Raise","GYM","Type the total on the bar, not counting your own weight","calf machine standing",108,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}}],["gymcablecrunch","Cable Crunch","GYM","Type the total on the bar, not counting your own weight","cable crunch kneeling abs",109,{"reps":{"k":1.0,"equip":0.6,"legs":false,"pattern":"core"}}],["gymwoodchop","Woodchoppers","GYM","One side at a time \u2014 type the weight of the single dumbbell","woodchop cable oblique rotation",110,{"reps":{"k":1.0,"equip":0.6,"legs":false,"pattern":"core"}}],["gympullover","Dumbbell Pullover","GYM","Type the total on the bar, not counting your own weight","pullover lats chest",111,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymshrug","Shrug","GYM","Type the total on the bar, not counting your own weight","shrug traps barbell",112,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}}],["gymincline","Incline Bench Press","GYM","Type the total on the bar, not counting your own weight","incline bench upper chest",113,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}}],["gymgoblet","Goblet Squat","GYM","Type the total on the bar, not counting your own weight","goblet kettlebell squat",114,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["gymstepup","Weighted Step-up","GYM","Type the total on the bar, not counting your own weight","step up box weighted",115,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}}],["stretch","Stretching Session","RECOVERY","At least 10 minutes of stretching, mobility or yoga","stretch mobility yoga flexibility",116,{"flat":{"rate":5.0}}],["sauna","Sauna / Cold Plunge","RECOVERY","","sauna ice bath cold recovery",117,{"flat":{"rate":3.0}}]]$j$::jsonb) as e;
+
+-- The eight raids, rotating one a week.
+insert into public.raids (idx,name,descr,ex_keys,mode,per_member,unit) values
+  (0,'THE WALL','Push-ups, all of you, one pile','{pushups,widepush,diamondpush,declinepush,kneepush,inclinepush,archerpush,clappush,sphinxpush}','reps',175,'push-ups'),
+  (1,'DEAD LIFT','Pull-ups and rows, together','{pullups,chinups,rows,widepullup,commandopull,archerpull,lsitpullup,typewriter}','reps',25,'pulls'),
+  (2,'LEG DAY','Squats until the league cannot walk','{airsquats,jumpsquats,lunges,splitsquat,stepups,sissy,shrimp,pistols}','reps',170,'squats'),
+  (3,'THE MARCH','Kilometres covered by the whole league','{run,walk,bike}','km',15,'km'),
+  (4,'CORE OF IRON','Every ab rep counts','{crunches,situps,twists,legraises,kneeraises,hangingleg,toestobar,vups,sidecrunch,bicycle,flutterkick,mountainclimb}','reps',150,'reps'),
+  (5,'THE DIP TANK','Dips and presses','{dips,benchdips,ringdips,pikepush,handstand}','reps',40,'dips'),
+  (6,'LONG HAUL','Minutes of cardio and sport, pooled','{swim,row,jumprope,stairs,football,basketball,rugby,handball,hockey,squash,boxing,climbing,tennis,padel,volleyball,badminton,tabletennis,othersport}','minutes',35,'minutes'),
+  (7,'HOLD THE LINE','Seconds of holding still','{hollowhold,lsit,wallsit,deadhang,frontlever}','seconds',45,'seconds');
 
 -- ---------------------------------------------------------------------
 delete from public.bounties;

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.4.0';
+  var APP_VERSION = '2.5.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -286,8 +286,33 @@
     { key: 'azure',   name: 'AZURE',   css: '#3ba6ff' },
     { key: 'violet',  name: 'VIOLET',  css: '#a86bff' },
     { key: 'steel',   name: 'STEEL',   css: '#c9d3e2' },
-    { key: 'bone',    name: 'BONE',    css: '#e8e2d4' }
+    { key: 'bone',    name: 'BONE',    css: '#e8e2d4' },
+    { key: 'toxic',   name: 'TOXIC',   css: '#b6ff2e' },
+    { key: 'rose',    name: 'ROSE',    css: '#ff5c9d' },
+    { key: 'cyan',    name: 'CYAN',    css: '#22e0e0' },
+    { key: 'copper',  name: 'COPPER',  css: '#d08442' },
+    { key: 'ink',     name: 'INK',     css: '#8792a8' }
   ];
+
+  /* Text colours for a name. Deliberately a short, high-contrast list: this
+     exists so a banner never swallows the name, not to be a paint box. */
+  var NAME_COLORS = [
+    { key: '',        name: 'DEFAULT', css: 'var(--txt)' },
+    { key: 'white',   name: 'WHITE',   css: '#ffffff' },
+    { key: 'black',   name: 'BLACK',   css: '#101216' },
+    { key: 'gold',    name: 'GOLD',    css: '#ffc93c' },
+    { key: 'crimson', name: 'CRIMSON', css: '#ff5555' },
+    { key: 'jade',    name: 'JADE',    css: '#3ce68f' },
+    { key: 'azure',   name: 'AZURE',   css: '#5cb8ff' },
+    { key: 'violet',  name: 'VIOLET',  css: '#c08cff' },
+    { key: 'toxic',   name: 'TOXIC',   css: '#c8ff4a' }
+  ];
+  function nameColor(key) {
+    for (var i = 0; i < NAME_COLORS.length; i++) {
+      if (NAME_COLORS[i].key === key) return NAME_COLORS[i].css;
+    }
+    return null;
+  }
   function avColor(key) {
     for (var i = 0; i < AV_COLORS.length; i++) if (AV_COLORS[i].key === key) return AV_COLORS[i];
     return null;
@@ -405,6 +430,34 @@
 
   /* A fighter's banner is their lifetime rank — derived from points they
      already have, so there is nothing to store and nothing to award. */
+  /* A raid is the one job the whole league carries together for a week. The
+     target scales with headcount, so a group of 8 and a group of 28 both get
+     something that needs everybody rather than one strong person. */
+  async function loadRaid() {
+    var box = $('#raidCard'); if (!box) return;
+    var r = await sb.rpc('current_raid', { p_league: state.leagueId });
+    var d = r.error ? null : (r.data && r.data[0]);
+    if (!d) { box.hidden = true; return; }
+    var pct = Math.min(100, Number(d.progress) / Number(d.target) * 100);
+    var left = Math.max(0, Number(d.target) - Number(d.progress));
+    box.hidden = false;
+    box.className = 'raid' + (d.done ? ' done' : '');
+    box.innerHTML =
+      '<div class="raid-h"><span class="raid-t">LEAGUE RAID</span>' +
+        '<span class="raid-n">' + esc(d.name) + '</span>' +
+        (d.done ? '<span class="raid-b">CLEARED</span>' : '') + '</div>' +
+      '<p class="raid-d">' + esc(d.descr) + ' — together, before Sunday.</p>' +
+      '<div class="raid-bar"><span style="width:' + pct.toFixed(1) + '%"></span></div>' +
+      '<div class="raid-f">' +
+        '<span><b>' + num(d.progress) + '</b> / ' + num(d.target) + ' ' + esc(d.unit) + '</span>' +
+        '<span>' + (d.done
+          ? 'The whole league scores'
+          : num(left) + ' to go · ' + d.members + ' of you') + '</span>' +
+      '</div>' +
+      (d.top_name ? '<p class="raid-top">Carrying it: <b>' + esc(d.top_name) +
+        '</b> with ' + num(d.top_amount) + '</p>' : '');
+  }
+
   /* Badges. Earned in a league, derived from what already happened, and worn
      three at a time by choice — the board stays readable and the choice is
      itself a small statement. */
@@ -974,6 +1027,7 @@
     $('#leagueBtn').className = 'leaguepill' + (lskin ? ' skin ' + lskin : '');
     $('#lgBadge').innerHTML = leagueBadgeHtml(l, 'sm');
     $('#lgName').textContent = l.name;
+    $('#lgName').style.color = nameColor(l.badge && l.badge.text) || '';
     $('#lgMeta').textContent = l.members + '/' + l.max_members + ' · CODE ' + l.code;
     $('#weekLabel').textContent = weekRangeLabel(state.week);
   }
@@ -1023,8 +1077,17 @@
   /* ===================================================================
      9. Live leaderboard
      =================================================================== */
+  /* The tab only appears for an admin. The gate that matters is in the
+     database — this is presentation. */
+  function applyAdminUi() {
+    state.isAdmin = !!(state.profile && state.profile.is_admin);
+    var b = $('#adminOpen'); if (b) b.hidden = !state.isAdmin;
+  }
+
   async function refreshAll() {
-    await Promise.all([loadBoard(), loadHistory(), loadCombo(), loadBounty(), loadStreaks()]);
+    applyAdminUi();
+    await Promise.all([loadBoard(), loadHistory(), loadCombo(), loadBounty(),
+                       loadStreaks(), loadRaid()]);
     renderHeader();
   }
 
@@ -1084,7 +1147,9 @@
       '<button class="rowbtn" type="button" data-toggle="' + p.profile_id + '">' +
         '<span class="rank">' + (rank && pts > 0 ? rank : '–') + '</span>' +
         avatarHtml(p.avatar, { name: p.display_name, tier: tierKey }) +
-        '<span class="who"><span class="nm">' + esc(p.display_name) +
+        '<span class="who"><span class="nm"' +
+          (nameColor(p.name_color) ? ' style="color:' + nameColor(p.name_color) + '"' : '') +
+          '>' + esc(p.display_name) +
           ((p.pinned_badges || []).length
             ? '<span class="wornrow">' + p.pinned_badges.map(function (k) {
                 return '<span class="worn">' + iconSvg(badgeArt(k)) + '</span>';
@@ -1351,6 +1416,7 @@
       paintUnits();
       $('#restoreCode').textContent = state.profile.restore_code;
       buildAvatarGrid();
+      paintNameColors();
     }
     paintLeagueRules();
     buildShop();
@@ -1989,6 +2055,137 @@
   });
   $('#avatarClear').addEventListener('click', function () { saveAvatar(''); });
 
+  /* ---- name colours ---------------------------------------------------- */
+  function paintNameColors() {
+    var mine = (state.profile && state.profile.name_color) || '';
+    $('#nameColors').innerHTML = NAME_COLORS.map(function (c) {
+      return '<button type="button" class="nc' + (c.key === mine ? ' on' : '') +
+             '" data-nc="' + c.key + '" style="--nc:' + c.css + '">' + c.name + '</button>';
+    }).join('');
+    var l = league(), owner = l && state.profile && l.owner_id === state.profile.id;
+    $('#leagueTextBox').hidden = !owner;
+    if (owner) {
+      var cur = (l.badge && l.badge.text) || '';
+      $('#lgNameColors').innerHTML = NAME_COLORS.map(function (c) {
+        return '<button type="button" class="nc' + (c.key === cur ? ' on' : '') +
+               '" data-lnc="' + c.key + '" style="--nc:' + c.css + '">' + c.name + '</button>';
+      }).join('');
+    }
+  }
+  $('#nameColors').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-nc]'); if (!b) return;
+    try {
+      var r = await sb.rpc('set_name_color', { p_color: b.getAttribute('data-nc') });
+      if (r.error) throw r.error;
+      state.profile = r.data; paintNameColors(); await refreshAll();
+    } catch (err) { toast(niceError(err), true); }
+  });
+  $('#lgNameColors').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-lnc]'); if (!b) return;
+    var l = league(); if (!l) return;
+    var cur = badgeOf(l);
+    try {
+      var r = await sb.rpc('set_league_badge', { p_league: l.id, p_badge: {
+        shape: cur.shape, color: cur.color, emblem: cur.emblem,
+        skin: (l.badge && l.badge.skin) || null, text: b.getAttribute('data-lnc') } });
+      if (r.error) throw r.error;
+      await loadLeagues(); renderMe(); renderHeader();
+    } catch (err) { toast(niceError(err), true); }
+  });
+
+  /* ---- master dashboard -------------------------------------------------
+     Admin is a flag the DATABASE checks inside every admin function. Hiding
+     the tab is only tidiness: a member who forces the view still gets nothing
+     back, and a delete they try is refused server-side. No service key is
+     ever shipped to a browser. */
+  function fmtWhen(t) {
+    if (!t) return 'never';
+    var d = new Date(t), days = Math.floor((Date.now() - d) / 86400000);
+    return days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago';
+  }
+
+  async function loadAdmin() {
+    if (!state.isAdmin) return;
+    var lg = await sb.rpc('admin_leagues');
+    var pl = await sb.rpc('admin_players');
+    if (lg.error || pl.error) { toast('Could not load the dashboard', true); return; }
+    state.adminPlayers = pl.data || [];
+    var L = lg.data || [], P = state.adminPlayers;
+    var active = P.filter(function (x) {
+      return x.last_log && (Date.now() - new Date(x.last_log)) < 7 * 86400000; }).length;
+    var ghosts = P.filter(function (x) { return !x.workouts; }).length;
+
+    $('#adminStats').innerHTML = [
+      ['LEAGUES', L.length], ['PLAYERS', P.length],
+      ['ACTIVE 7D', active], ['NEVER LOGGED', ghosts]
+    ].map(function (x) {
+      return '<div class="ast"><b>' + x[1] + '</b><i>' + x[0] + '</i></div>';
+    }).join('');
+
+    $('#adminLeagueCount').textContent = L.length + ' total';
+    $('#adminLeagues').innerHTML = L.map(function (x) {
+      return '<div class="arow"><span class="arow-m">' +
+        '<b>' + esc(x.name) + '</b>' +
+        '<i>' + esc(x.code) + ' · ' + x.members + ' members · ' + x.workouts +
+          ' logs · last ' + fmtWhen(x.last_log) + ' · by ' + esc(x.owner_name) + '</i>' +
+        '</span><button class="btn ghost sm danger" data-dl="' + x.id +
+        '" data-name="' + esc(x.name) + '">DELETE</button></div>';
+    }).join('') || '<div class="empty">No leagues.</div>';
+    renderAdminPlayers();
+  }
+
+  function renderAdminPlayers() {
+    var q = ($('#adminSearch').value || '').trim().toLowerCase();
+    var P = (state.adminPlayers || []).filter(function (x) {
+      return !q || x.display_name.toLowerCase().indexOf(q) >= 0;
+    });
+    $('#adminPlayerCount').textContent = P.length + ' shown';
+    $('#adminPlayers').innerHTML = P.map(function (x) {
+      return '<div class="arow' + (x.is_admin ? ' is-admin' : '') + '">' +
+        avatarHtml(x.avatar, { name: x.display_name, size: 'sm' }) +
+        '<span class="arow-m"><b>' + esc(x.display_name) +
+          (x.is_admin ? ' <i class="atag">ADMIN</i>' : '') + '</b>' +
+        '<i>' + x.leagues + ' league' + (x.leagues === 1 ? '' : 's') + ' · ' +
+          x.workouts + ' logs · ' + num(x.points) + ' pts · last ' + fmtWhen(x.last_log) +
+          ' · code ' + esc(x.restore_code) + '</i></span>' +
+        (x.is_admin ? '' : '<button class="btn ghost sm danger" data-dp="' + x.id +
+          '" data-name="' + esc(x.display_name) + '">DELETE</button>') +
+      '</div>';
+    }).join('') || '<div class="empty">Nobody matches.</div>';
+  }
+
+  $('#adminOpen').addEventListener('click', function () { switchView('admin'); });
+  $('#adminBack').addEventListener('click', function () { switchView('me'); });
+  $('#adminSearch').addEventListener('input', renderAdminPlayers);
+  $('#adminRefresh').addEventListener('click', loadAdmin);
+
+  $('#adminLeagues').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-dl]'); if (!b) return;
+    var nm = b.getAttribute('data-name');
+    if (!confirm('Delete the league "' + nm + '" for everyone?\n\nIts members keep ' +
+                 'their logs in every other league they are in.')) return;
+    try {
+      var r = await sb.rpc('admin_delete_league', { p_league: b.getAttribute('data-dl') });
+      if (r.error) throw r.error;
+      await loadAdmin(); await loadLeagues(); await refreshAll();
+      toast(nm + ' deleted');
+    } catch (err) { toast(niceError(err), true); }
+  });
+
+  $('#adminPlayers').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-dp]'); if (!b) return;
+    var nm = b.getAttribute('data-name');
+    if (!confirm('Delete ' + nm + '?\n\nTheir account and every workout they ever ' +
+                 'logged go with them, in every league. This cannot be undone.')) return;
+    if (!confirm('Last check — permanently delete ' + nm + '?')) return;
+    try {
+      var r = await sb.rpc('admin_delete_profile', { p_profile: b.getAttribute('data-dp') });
+      if (r.error) throw r.error;
+      await loadAdmin(); await refreshAll();
+      toast(nm + ' deleted');
+    } catch (err) { toast(niceError(err), true); }
+  });
+
   $('#badges').addEventListener('click', async function (e) {
     var b = e.target.closest('[data-badge]'); if (!b || b.disabled) return;
     var key = b.getAttribute('data-badge');
@@ -2049,13 +2246,21 @@
     { key: 'standard',  name: 'STANDARD' },  { key: 'stadium',   name: 'STADIUM' },
     { key: 'goldrush',  name: 'GOLD RUSH' }, { key: 'neon',      name: 'NEON ARENA' },
     { key: 'tactical',  name: 'OVERDRIVE' }, { key: 'varsity',   name: 'VARSITY' },
-    { key: 'holo',      name: 'PRISM' },     { key: 'luxury',    name: 'DOMINION' }
+    { key: 'holo',      name: 'PRISM' },     { key: 'luxury',    name: 'DOMINION' },
+    { key: 'jungle',    name: 'JUNGLE' },    { key: 'sandstorm', name: 'SANDSTORM' },
+    { key: 'abyss',     name: 'ABYSS' },     { key: 'circuit',   name: 'CIRCUIT' },
+    { key: 'aurora',    name: 'AURORA' },    { key: 'magma',     name: 'MAGMA' },
+    { key: 'steelwork', name: 'STEELWORK' }, { key: 'nightops',  name: 'NIGHT OPS' }
   ];
   var PLAYER_SKINS = [
     { key: 'carbon',    name: 'CARBON' },    { key: 'ember',     name: 'INFERNO' },
     { key: 'frost',     name: 'FROSTBITE' }, { key: 'velocity',  name: 'VELOCITY' },
     { key: 'blueprint', name: 'BLUEPRINT' }, { key: 'grunge',    name: 'GLITCH' },
-    { key: 'obsidian',  name: 'OBSIDIAN' },  { key: 'inverted',  name: 'CLEAN SLATE' }
+    { key: 'obsidian',  name: 'OBSIDIAN' },  { key: 'inverted',  name: 'CLEAN SLATE' },
+    { key: 'venom',     name: 'VENOM' },     { key: 'bloodline', name: 'BLOODLINE' },
+    { key: 'glacier',   name: 'GLACIER' },   { key: 'brass',     name: 'BRASS' },
+    { key: 'static',    name: 'STATIC' },    { key: 'orchid',    name: 'ORCHID' },
+    { key: 'moss',      name: 'MOSS' },      { key: 'ash',       name: 'ASH' }
   ];
   var ALL_SKINS = LEAGUE_SKINS.concat(PLAYER_SKINS);
   function skinClass(key) {
@@ -2217,16 +2422,17 @@
      =================================================================== */
   function switchView(v) {
     state.view = v;
-    $('#view-live').hidden  = v !== 'live';
-    $('#view-duel').hidden  = v !== 'duel';
-    $('#view-hall').hidden  = v !== 'hall';
-    $('#view-stats').hidden = v !== 'stats';
-    $('#view-me').hidden    = v !== 'me';
+    /* Driven off the DOM, so adding a section cannot leave it permanently
+       hidden because this list was not updated. */
+    Array.prototype.forEach.call(document.querySelectorAll('.view'), function (sec) {
+      sec.hidden = sec.id !== 'view-' + v;
+    });
     Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
       t.classList.toggle('is-active', t.getAttribute('data-view') === v);
     });
     if (v === 'me') renderMe();
     if (v === 'stats') { loadStats(); loadBadges(); }
+    if (v === 'admin') loadAdmin();
     if (v === 'duel') { loadDuels(); loadRivalries(); }
     window.scrollTo(0, 0);
   }

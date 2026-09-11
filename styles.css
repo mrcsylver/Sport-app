@@ -899,3 +899,89 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .wornrow{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
 .worn{width:13px;height:13px;color:var(--gold);display:inline-block}
 .worn .gi{width:100%;height:100%}
+
+/* --- sixteen more skins ------------------------------------------------ */
+.sk-jungle{--sk-bg:radial-gradient(ellipse at 30% 110%,rgba(40,140,80,.45),transparent 50%),
+  linear-gradient(135deg,#04120b,#123522,#050f09);--sk-shine:rgba(150,255,190,.5)}
+.sk-sandstorm{--sk-bg:linear-gradient(135deg,#2a2014,#6b4f2a,#1a130c);
+  --sk-fx:repeating-linear-gradient(100deg,transparent 0 18px,rgba(255,220,150,.16) 19px 22px,transparent 23px 44px);
+  --sk-fx-anim:skDrift 5s linear infinite;--sk-shine:rgba(255,225,160,.6)}
+.sk-abyss{--sk-bg:radial-gradient(ellipse at 50% -20%,rgba(20,90,140,.5),transparent 55%),
+  linear-gradient(180deg,#01060d,#031725);--sk-shine:rgba(90,200,255,.4);--sk-speed:8s}
+.sk-circuit{--sk-bg:linear-gradient(135deg,#04140f,#02261b);
+  --sk-fx:linear-gradient(rgba(38,208,124,.18) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(38,208,124,.18) 1px,transparent 1px);
+  --sk-fx-size:12px 12px;--sk-shine:rgba(38,208,124,.6);--sk-speed:4s}
+.sk-aurora{--sk-bg:linear-gradient(120deg,#06121f,#1d5c6e,#5a2f8f,#0a1526);
+  background-size:280% 280%;animation:skHolo 12s ease infinite;--sk-shine:rgba(180,255,235,.5)}
+.sk-magma{--sk-bg:radial-gradient(circle at 30% 110%,rgba(255,90,0,.6),transparent 45%),
+  repeating-linear-gradient(120deg,#150604 0 16px,#2c0c05 17px 19px);
+  --sk-fx:repeating-linear-gradient(60deg,transparent 0 30px,rgba(255,140,40,.25) 31px,transparent 33px);
+  --sk-fx-anim:skDrift 4s linear infinite;--sk-shine:rgba(255,170,80,.6)}
+.sk-steelwork{--sk-bg:repeating-linear-gradient(90deg,#14171c 0 10px,#0d1014 10px 12px),
+  linear-gradient(180deg,#191d24,#0a0c10);--sk-shine:rgba(210,225,255,.5)}
+.sk-nightops{--sk-bg:linear-gradient(135deg,#070b09,#0e1a14);
+  --sk-fx:radial-gradient(circle at 82% 26%,rgba(38,208,124,.35),transparent 34%);
+  --sk-shine:rgba(38,208,124,.35);--sk-speed:7s}
+.sk-venom{--sk-bg:radial-gradient(circle at 70% 40%,rgba(150,255,40,.32),transparent 45%),
+  linear-gradient(135deg,#0a1204,#1d3305,#070d03);--sk-shine:rgba(200,255,90,.7)}
+.sk-bloodline{--sk-bg:radial-gradient(circle at 25% 30%,rgba(190,20,30,.5),transparent 45%),
+  linear-gradient(135deg,#120305,#3a070d,#0a0204);--sk-shine:rgba(255,90,100,.6)}
+.sk-glacier{--sk-bg:linear-gradient(135deg,#0a1a26,#2c6d8c,#0b1c28);
+  --sk-fx:repeating-linear-gradient(115deg,transparent 0 20px,rgba(220,250,255,.14) 21px 24px,transparent 25px 48px);
+  --sk-shine:rgba(235,252,255,.8)}
+.sk-brass{--sk-bg:repeating-linear-gradient(135deg,#151008 0 12px,#241a0b 12px 14px);
+  --sk-shine:rgba(255,205,120,.75);--sk-speed:5s}
+.sk-static{--sk-bg:#0b0b0e;
+  --sk-fx:repeating-linear-gradient(0deg,rgba(255,255,255,.09) 0 1px,transparent 1px 3px);
+  --sk-fx-anim:skStatic .3s steps(3) infinite;--sk-shine:rgba(255,255,255,.35);--sk-speed:3s}
+@keyframes skStatic{0%{transform:translateY(0)}50%{transform:translateY(-1px)}100%{transform:translateY(1px)}}
+.sk-orchid{--sk-bg:radial-gradient(circle at 70% 35%,rgba(200,90,220,.4),transparent 45%),
+  linear-gradient(135deg,#12061a,#3a1049,#0b0410);--sk-shine:rgba(240,170,255,.6)}
+.sk-moss{--sk-bg:linear-gradient(135deg,#0c1408,#243a15,#0a1006);--sk-shine:rgba(190,230,140,.45)}
+.sk-ash{--sk-bg:linear-gradient(135deg,#1b1b1d,#37373b,#141416);--sk-shine:rgba(255,255,255,.3)}
+
+/* --- name colour swatches --------------------------------------------- */
+.ncrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px}
+.nc{padding:9px 4px;border-radius:4px;background:var(--panel-2);border:1px solid var(--line);
+  cursor:pointer;font:800 10px/1 var(--display);letter-spacing:.06em;color:var(--nc)}
+.nc.on{border-color:var(--red);background:rgba(255,46,46,.12)}
+
+/* --- league raid ------------------------------------------------------- */
+.raid{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--red);
+  border-radius:4px;padding:13px 14px;margin-bottom:10px}
+.raid.done{border-left-color:var(--green)}
+.raid-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.raid-t{font:800 9px/1 var(--display);letter-spacing:.16em;color:var(--red)}
+.raid.done .raid-t{color:var(--green)}
+.raid-n{font:800 17px/1 var(--display);letter-spacing:.05em;font-style:italic}
+.raid-b{margin-left:auto;font:800 9px/1 var(--display);letter-spacing:.1em;
+  color:var(--bg);background:var(--green);border-radius:3px;padding:4px 6px}
+.raid-d{margin:7px 0 10px;font:600 12px/1.35 var(--sans);color:var(--muted)}
+.raid-bar{height:8px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+.raid-bar span{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--red),var(--gold));transition:width .5s ease}
+.raid.done .raid-bar span{background:var(--green)}
+.raid-f{display:flex;justify-content:space-between;gap:10px;margin-top:7px;
+  font:600 11px/1 var(--sans);color:var(--muted)}
+.raid-f b{font:800 14px/1 var(--display);color:var(--txt)}
+.raid-top{margin:8px 0 0;font:600 11px/1 var(--sans);color:var(--muted)}
+.raid-top b{color:var(--txt)}
+
+/* --- master dashboard -------------------------------------------------- */
+.adminstats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.ast{display:flex;flex-direction:column;align-items:center;gap:3px;padding:11px 4px;
+  border-radius:4px;background:var(--panel);border:1px solid var(--line)}
+.ast b{font:800 21px/1 var(--display);color:var(--txt)}
+.ast i{font:700 8px/1.1 var(--display);letter-spacing:.07em;font-style:normal;
+  color:var(--muted);text-align:center}
+.arow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:4px;
+  background:var(--panel);border:1px solid var(--line)}
+.arow.is-admin{border-color:rgba(255,201,60,.45)}
+.arow-m{flex:1 1 auto;display:flex;flex-direction:column;gap:3px;min-width:0}
+.arow-m b{font:800 14px/1 var(--display);letter-spacing:.03em}
+.arow-m i{font:600 10px/1.3 var(--mono);font-style:normal;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis}
+.atag{font:800 8px/1 var(--display);letter-spacing:.1em;color:var(--gold);
+  font-style:normal;border:1px solid rgba(255,201,60,.5);border-radius:3px;padding:2px 4px}
+#view-admin .tab-i{color:var(--gold)}
