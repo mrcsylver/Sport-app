@@ -39,14 +39,35 @@ struct League: Codable, Identifiable, Hashable {
     var badge: Badge?
     var restDow: [Int]?
     var seasonWeeks: Int?
+    var scoring: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, code, badge
+        case id, name, code, badge, scoring
         case ownerId = "owner_id"
         case members
         case maxMembers = "max_members"
         case restDow = "rest_dow"
         case seasonWeeks = "season_weeks"
+    }
+
+    /// How this league reads the same logs. A league that has never been told
+    /// otherwise is hardcore, which is what every league was before the
+    /// setting existed.
+    var mode: Scoring { Scoring(rawValue: scoring ?? "") ?? .hardcore }
+
+    enum Scoring: String, CaseIterable, Identifiable {
+        case hardcore, balanced
+        var id: String { rawValue }
+
+        var title: String { rawValue.uppercased() }
+        var blurb: String {
+            switch self {
+            case .hardcore:
+                return "Every rep counts the same, however many you do. Raw volume, raw competition. If everyone in your league can train as long as they like, this is the honest one."
+            case .balanced:
+                return "Volume in one exercise tapers after a point, so a fifteen-minute session stays in the running. A short session loses about 3%; three hours grinding one movement loses about half. Running, swimming and sport get twice the allowance, and bounties are untouched."
+            }
+        }
     }
 
     /// `my_leagues()` counts the members for us; the functions that return a
@@ -64,6 +85,7 @@ struct League: Codable, Identifiable, Hashable {
         badge       = try c.decodeIfPresent(Badge.self, forKey: .badge)
         restDow     = try c.decodeIfPresent([Int].self, forKey: .restDow)
         seasonWeeks = try c.decodeIfPresent(Int.self, forKey: .seasonWeeks)
+        scoring     = try c.decodeIfPresent(String.self, forKey: .scoring)
     }
 
     struct Badge: Codable, Hashable {
@@ -87,17 +109,24 @@ struct Standing: Codable, Identifiable, Hashable {
     var banner: String?
     var pinnedBadges: [String]?
     var nameColor: String?
+    /// What was put in before the league's taper, if it has one. Equal to
+    /// `basePoints` in a hardcore league.
+    var logged: Double?
 
     var id: UUID { profileId }
 
     enum CodingKeys: String, CodingKey {
         case profileId = "profile_id"
         case displayName = "display_name"
-        case avatar, points, entries, bonus, lifetime, banner
+        case avatar, points, entries, bonus, lifetime, banner, logged
         case basePoints = "base_points"
         case pinnedBadges = "pinned_badges"
         case nameColor = "name_color"
     }
+
+    /// How much the taper took. Zero unless the league is balanced and you
+    /// went past the allowance on something.
+    var tapered: Double { max(0, (logged ?? basePoints) - basePoints) }
 }
 
 struct Exercise: Codable, Identifiable, Hashable {

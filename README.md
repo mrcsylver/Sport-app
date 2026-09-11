@@ -465,6 +465,45 @@ It brings:
 - **Pinned weeks.** The control room can put a chosen quest on a chosen week,
   and write new ones.
 
+## Choosing how your league scores
+
+Also in `supabase/`, run **`scoring-modes.sql`** once. Every league keeps
+scoring exactly as it does today — the setting defaults to the behaviour that
+has always existed — but the person who created a league can now choose.
+
+**HARDCORE.** Every rep counts the same, however many you do. Raw volume, raw
+competition. This is what every league is now, and what a league of people who
+can all train as long as they like should stay on.
+
+**BALANCED.** Volume in one exercise tapers, so somebody with fifteen minutes
+stays in the running. The first 40 points from **one exercise on one day**
+count in full, 40–85 at 70%, past 85 at 40%. Running, swimming and sport get
+twice the allowance — you cannot farm a marathon. Recovery is never tapered.
+
+It is points rather than reps on purpose: the rate table already makes a point
+mean the same effort in every exercise, so one threshold is consistent across
+all 118 of them without tuning any. It is per day, so splitting 400 push-ups
+into ten sets changes nothing, and midnight empties the bucket. And it is per
+exercise, so varying the same effort is worth about a third more than putting
+it all into one movement.
+
+| a week of… | hardcore | balanced |
+|---|---:|---:|
+| 15 min a day, 5 days | 450 | 435 |
+| 30 min a day, 5 days | 880 | 790 |
+| an hour a day, 6 days | 2,040 | 1,644 |
+| 400 push-ups a day, 5 days | 2,000 | 988 |
+| 12 km a day, 5 days | 300 | 300 |
+
+Bounties, the daily combo and raids are flat and untouched, so the rewards a
+busy person can actually reach are worth relatively more in a balanced league.
+Duels stay raw — a duel is an agreed volume contest. Lifetime points and your
+grade stay raw too, because they follow you across every league and cannot
+belong to one league's setting.
+
+Switching modes re-reads the same logs a different way. Nothing is rewritten,
+and you can switch back.
+
 ## The iPhone app
 
 `ios/` is a native SwiftUI app on the same Supabase project. It is a separate

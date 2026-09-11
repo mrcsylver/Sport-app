@@ -1,0 +1,3 @@
+# Screenshots the runs produce. Useful while looking at a change, worthless in
+# history — they are regenerated every time the suite runs.
+shots/

@@ -130,10 +130,9 @@ def write_schema(pool):
     return len(block.splitlines())
 
 
-# The migration is not written by hand. It is lifted out of schema.sql, which
-# is the one definition of every one of these objects — two hand-kept copies
-# of a hundred-line function drift, and the drift is always found in
-# production.
+from sqllift import lift, grants                                 # noqa: E402
+
+
 MIGRATION_OBJECTS = [
     ("table", "bounty_schedule"),
     ("function", "bounty_cat_points"),
@@ -150,74 +149,6 @@ MIGRATION_OBJECTS = [
     ("function", "admin_add_bounty"),
     ("function", "admin_delete_bounty"),
 ]
-
-
-def lift(schema, kind, name):
-    """One object out of schema.sql, made safe to run on a live database."""
-    if kind == "function":
-        # A body ends with "$$;" — on its own line for most, after "end " for
-        # plpgsql, and at the end of the same line for a one-liner. Requiring
-        # any particular shape made the match run on and swallow whole
-        # functions that came after it, so this stops at the first line that
-        # ends there, whatever precedes it.
-        m = re.search(r"^create function public\.%s\(.*?\$\$;$"
-                      % re.escape(name), schema, re.S | re.M)
-        if not m:
-            raise SystemExit("cannot find function %s in schema.sql" % name)
-        return one_object(m.group(0), name).replace(
-            "create function", "create or replace function", 1)
-
-    m = re.search(r"^create table public\.%s \(.*?^\);$" % re.escape(name),
-                  schema, re.S | re.M)
-    if not m:
-        raise SystemExit("cannot find table %s in schema.sql" % name)
-    body = one_object(m.group(0), name).replace(
-        "create table public.", "create table if not exists public.", 1)
-    # the RLS lines that belong with it
-    rls = re.search(r"^alter table public\.%s enable row level security;\n"
-                    r"create policy (\w+) on public\.%s\n(.*?);$"
-                    % (re.escape(name), re.escape(name)), schema, re.S | re.M)
-    if rls:
-        body += ("\nalter table public.%s enable row level security;"
-                 "\ndrop policy if exists %s on public.%s;"
-                 "\ncreate policy %s on public.%s\n%s;"
-                 % (name, rls.group(1), name, rls.group(1), name, rls.group(2)))
-    return body
-
-
-def one_object(block, name):
-    """A lifted block must contain exactly one definition.
-
-    An over-greedy match looks fine until the migration is run: the swallowed
-    function keeps its plain "create function", and applying the file twice
-    fails on "already exists". Cheaper to notice here.
-    """
-    n = len(re.findall(r"^create (?:table|function) ", block, re.M))
-    if n != 1:
-        raise SystemExit("lifting %s picked up %d definitions — the match ran on"
-                         % (name, n))
-    return block
-
-
-def grants(schema):
-    """The revokes and grants schema.sql already spells out for these."""
-    wanted = ("bounty_pick", "bounty_cat_points", "builtin_bounty_count",
-              "admin_schedule", "admin_bounties", "admin_pin_bounty",
-              "admin_unpin_bounty", "admin_add_bounty", "admin_delete_bounty",
-              "bounty_schedule")
-    out = []
-    for line in schema.splitlines():
-        t = line.strip()
-        if not (t.startswith("grant ") or t.startswith("revoke ") or
-                t.startswith("to authenticated;") or t.startswith("from public, anon;")):
-            continue
-        if t.startswith(("to authenticated;", "from public, anon;")):
-            if out:
-                out[-1] = out[-1] + "\n" + line
-            continue
-        if any(w in line for w in wanted):
-            out.append(line)
-    return "\n".join(out)
 
 
 def write_migration(pool):

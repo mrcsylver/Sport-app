@@ -25,25 +25,37 @@ fi
 
 psql() { command psql -h /var/tmp -p "$PORT" -U postgres -v ON_ERROR_STOP=1 "$@"; }
 
+# Each test file gets its own database. They seed the same fixture ids, and a
+# shared database only means one of them fails on a duplicate key.
+fresh() {
+  psql -q -c "drop database if exists $1;" -c "create database $1;" 2>/dev/null
+  psql -q -d "$1" -f "$HERE/bootstrap.sql"
+  psql -q -d "$1" -f "$ROOT/supabase/schema.sql" >/dev/null 2>&1
+}
+clean() { grep -viE '^(SET|INSERT|DO|ALTER|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
+
 echo "· a fresh database from schema.sql"
-psql -q -c "drop database if exists iron;" -c "create database iron;"
-psql -q -d iron -f "$HERE/bootstrap.sql"
-psql -q -d iron -f "$ROOT/supabase/schema.sql" >/dev/null 2>&1
+fresh iron
 psql -tAd iron -c "select (select count(*) from bounties)||' bounties, '
   ||(select count(*) from exercises)||' exercises, '
   ||(select count(*) from raids)||' raids';"
 
-echo "· the bounty system"
-psql -d iron -f "$HERE/bounties.sql" 2>&1 | grep -viE '^(SET|INSERT|DO|Output format)' | grep -v '^$'
+echo "· how a league scores"
+fresh ironsc
+psql -d ironsc -f "$HERE/scoring.sql" 2>&1 | clean
 
-echo "· the migration, onto a database that looks like the live one"
-psql -q -c "drop database if exists ironlive;" -c "create database ironlive;"
-psql -q -d ironlive -f "$HERE/bootstrap.sql"
-psql -q -d ironlive -f "$ROOT/supabase/schema.sql" >/dev/null 2>&1
+echo "· the bounty system"
+psql -d iron -f "$HERE/bounties.sql" 2>&1 | clean
+
+echo "· the migrations, onto a database that looks like the live one"
+fresh ironlive
 psql -q -d ironlive -f "$HERE/rewind.sql" >/dev/null 2>&1
 for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/bounty-pool.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/scoring-modes.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
+psql -tAd ironlive -c "select 'every league still scores '
+  ||coalesce((select distinct scoring from leagues), 'hardcore (none yet)');"
 psql -tAd ironlive -c "select count(*)||' bounties after three runs' from bounties;"
 echo "· all clear"

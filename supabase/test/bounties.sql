@@ -5,7 +5,8 @@
 -- two people in one league, one of them an admin
 insert into auth.users (id) values
   ('11111111-1111-1111-1111-111111111111'),
-  ('22222222-2222-2222-2222-222222222222');
+  ('22222222-2222-2222-2222-222222222222')
+on conflict (id) do nothing;
 insert into public.profiles (id, user_id, display_name, restore_code, is_admin) values
   ('aaaaaaaa-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','MARCO','RC1', true),
   ('aaaaaaaa-0000-0000-0000-000000000002','22222222-2222-2222-2222-222222222222','SARAH','RC2', false);

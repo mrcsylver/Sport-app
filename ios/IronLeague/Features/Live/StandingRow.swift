@@ -115,6 +115,12 @@ struct StandingRow: View {
                         Text("+\(Int(standing.bonus)) bonus")
                             .font(.caption2.weight(.bold)).foregroundStyle(Theme.gold)
                     }
+                    // In a balanced league, say what the taper took — on your
+                    // own row only. Everyone else's is none of your business.
+                    if isMe, standing.tapered >= 1 {
+                        Text("\(Int(standing.logged ?? 0)) logged")
+                            .font(.caption2).foregroundStyle(Theme.inkFaint)
+                    }
                 }
             }
 

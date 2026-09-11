@@ -32,6 +32,7 @@ struct LeagueSettingsSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
+                    scoringSection
                     crestSection
                     restSection
                     seasonSection
@@ -58,6 +59,58 @@ struct LeagueSettingsSheet: View {
                 endless = false
             } else {
                 endless = true
+            }
+        }
+    }
+
+    // MARK: how it scores
+
+    /// Named and described rather than left as a switch. "Diminishing returns
+    /// on volume" is not something anybody should have to work out from a
+    /// toggle, and the choice changes what the whole league is about.
+    private var scoringSection: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("HOW THIS LEAGUE SCORES")
+                    .font(Theme.display(10, .heavy)).kerning(1.6)
+                    .foregroundStyle(Theme.inkFaint)
+
+                ForEach(League.Scoring.allCases) { mode in
+                    let on = league?.mode == mode
+                    Button {
+                        guard !on else { return }
+                        Haptic.solid()
+                        Task { await session.saveScoring(mode) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(mode.title)
+                                    .font(Theme.display(13, .black)).kerning(1)
+                                    .foregroundStyle(on ? Theme.flame : Theme.ink)
+                                if on { Chip(text: "IN USE", color: Theme.flame) }
+                            }
+                            Text(mode.blurb)
+                                .font(.caption)
+                                .foregroundStyle(Theme.inkMuted)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background {
+                            RoundedRectangle(cornerRadius: Theme.cornerSmall, style: .continuous)
+                                .fill(on ? Theme.flame.opacity(0.1) : Theme.raised)
+                                .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall,
+                                                          style: .continuous)
+                                    .strokeBorder(on ? Theme.flame.opacity(0.7) : .clear))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .pressable()
+                }
+
+                Text("Changing this re-reads the same logs a different way. Nothing anybody has done is lost, and you can switch back.")
+                    .font(.caption2).foregroundStyle(Theme.inkFaint)
             }
         }
     }

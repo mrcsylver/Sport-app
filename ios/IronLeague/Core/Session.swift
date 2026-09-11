@@ -303,6 +303,21 @@ final class Session {
         }
     }
 
+    /// Switching how a league scores re-reads the same logs a different way.
+    /// Nothing is rewritten, so it can be switched back.
+    func saveScoring(_ mode: League.Scoring) async {
+        guard let id = leagueId else { return }
+        do {
+            _ = try await API.shared.setLeagueScoring(id, mode: mode)
+            leagues = try await API.shared.myLeagues()
+            await refresh()
+            show("This league now scores \(mode.rawValue).")
+            Haptic.win()
+        } catch {
+            show(Friendly.message(error)); Haptic.refuse()
+        }
+    }
+
     func saveCrest(_ badge: League.Badge) async {
         guard let id = leagueId else { return }
         do {

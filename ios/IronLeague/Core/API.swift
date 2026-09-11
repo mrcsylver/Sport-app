@@ -216,6 +216,12 @@ actor API {
             "p_season_weeks": seasonWeeks.map { .integer($0) } ?? .null
         ])
     }
+    func setLeagueScoring(_ id: UUID, mode: League.Scoring) async throws -> League {
+        try await rpc("set_league_scoring", [
+            "p_league": .string(id.uuidString),
+            "p_mode": .string(mode.rawValue)
+        ])
+    }
     func setLeagueBadge(_ id: UUID, badge: League.Badge) async throws -> League {
         var fields: [String: AnyJSON] = [:]
         if let v = badge.shape  { fields["shape"]  = .string(v) }

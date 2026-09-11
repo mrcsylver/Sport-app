@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.6.1';
+  var APP_VERSION = '2.7.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1187,6 +1187,7 @@
           (bn ? '<b class="rankchip rank-' + bn.tier + '">' + bn.name + '</b> · ' : '') +
           p.entries + (Number(p.entries) === 1 ? ' entry' : ' entries') +
           (Number(p.bonus) > 0 ? ' · <b class="cbadge">+' + num(p.bonus) + ' combo</b>' : '') +
+          taperNote(p) +
         '</span></span>' +
         '<span class="pts">' + num(pts) + '<small>PTS</small></span>' +
         '<span class="chev">' + (open ? '▲' : '▼') + '</span>' +
@@ -1196,6 +1197,17 @@
                  '<div class="muted small" style="padding:8px 0">Loading…</div>') +
               '</div>' : '') +
     '</div>';
+  }
+
+  /* In a balanced league, say plainly what the taper took — on your own row
+     only. Everyone else's is none of your business, and a table full of it
+     would read as a complaint rather than a rule. */
+  function taperNote(p) {
+    if (scoringOf(league()) !== 'balanced') return '';
+    if (!state.profile || p.profile_id !== state.profile.id) return '';
+    var logged = Number(p.logged || 0), base = Number(p.base_points || 0);
+    if (logged - base < 1) return '';
+    return ' · <span class="tapered">' + num(logged) + ' logged</span>';
   }
 
   function renderBoard() {
@@ -2314,9 +2326,27 @@
   /* ---- rules a league creator owns -------------------------------------- */
   var DOW = [[1,'MON'],[2,'TUE'],[3,'WED'],[4,'THU'],[5,'FRI'],[6,'SAT'],[7,'SUN']];
 
+  /* The two ways a league can score. Named and described rather than left as
+     a switch, because "diminishing returns on volume" is not something anybody
+     should have to work out from a toggle. */
+  var SCORING_MODES = [
+    { key: 'hardcore', name: 'HARDCORE',
+      what: 'Every rep counts the same, however many you do. Raw volume, raw ' +
+            'competition. If everyone in your league can train as long as they ' +
+            'like, this is the honest one.' },
+    { key: 'balanced', name: 'BALANCED',
+      what: 'Volume in one exercise tapers after a point, so a fifteen-minute ' +
+            'session stays in the running. A short session loses about 3%; three ' +
+            'hours grinding one movement loses about half. Running, swimming and ' +
+            'sport get twice the allowance, and bounties are untouched.' }
+  ];
+
+  function scoringOf(l) { return (l && l.scoring) || 'hardcore'; }
+
   function paintLeagueRules() {
     var l = league(), mine = l && state.profile && l.owner_id === state.profile.id;
     $('#leagueOwnerBox').hidden = !mine;
+    paintScoring(l, mine);
     $('#deleteLeagueBtn').hidden = !mine;
     if (!l) return;
     var rest = l.rest_dow || [7];
@@ -2329,6 +2359,35 @@
       ? 'Leaving keeps the league alive for everyone else. Deleting removes it for everybody.'
       : 'Your logs stay in every other league you are in.';
   }
+
+  function paintScoring(l, mine) {
+    var cur = scoringOf(l);
+    $('#scoringPick').innerHTML = SCORING_MODES.map(function (m) {
+      return '<button type="button" class="mode' + (m.key === cur ? ' on' : '') +
+             '" data-mode="' + m.key + '"' + (mine ? '' : ' disabled') + '>' +
+             '<b>' + m.name + (m.key === cur ? ' · IN USE' : '') + '</b>' +
+             '<i>' + esc(m.what) + '</i></button>';
+    }).join('');
+    $('#scoringNote').textContent = mine
+      ? 'Changing this re-reads the same logs a different way. Nothing anybody ' +
+        'has done is lost, and you can switch back.'
+      : 'Only the person who created the league can change this.';
+  }
+
+  $('#scoringPick').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-mode]'); if (!b || b.disabled) return;
+    var mode = b.getAttribute('data-mode');
+    if (mode === scoringOf(league())) return;
+    try {
+      var r = await sb.rpc('set_league_scoring',
+                           { p_league: state.leagueId, p_mode: mode });
+      if (r.error) throw r.error;
+      await loadLeagues();
+      paintLeagueRules();
+      await refreshAll();
+      toast('This league now scores ' + mode);
+    } catch (err) { toast(niceError(err), true); }
+  });
 
   $('#restDows').addEventListener('click', function (e) {
     var b = e.target.closest('[data-dow]'); if (!b || b.disabled) return;

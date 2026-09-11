@@ -39,6 +39,11 @@ drop function if exists public.bounty_dow() cascade;
 drop function if exists public.bounty_index(p_week date) cascade;
 drop function if exists public.bounty_pick(p_week date) cascade;
 drop function if exists public.bounty_cat_points(p_profile uuid, p_league uuid, p_cat text, p_day date) cascade;
+drop function if exists public.decay_points(p_points numeric, p_cat text) cascade;
+drop function if exists public.decay_full(p_cat text) cascade;
+drop function if exists public.decay_half(p_cat text) cascade;
+drop function if exists public.week_base_points(p_league uuid, p_week date) cascade;
+drop function if exists public.set_league_scoring(p_league uuid, p_mode text) cascade;
 drop function if exists public.builtin_bounty_count() cascade;
 drop function if exists public.admin_schedule() cascade;
 drop function if exists public.admin_bounties() cascade;
@@ -227,6 +232,68 @@ language sql stable set search_path = public as $$
   from public.exercises x where x.key = p_key
 $$;
 
+
+-- ---------------------------------------------------------------------
+-- 2b. Diminishing returns  (only in a 'balanced' league)
+-- ---------------------------------------------------------------------
+-- The first N points from ONE exercise on ONE day score in full; past that
+-- they taper. It is deliberately points rather than reps: the rate table
+-- already makes a point mean the same effort in every exercise, so one
+-- threshold is consistent across all 118 of them without tuning any.
+--
+-- Time and distance work gets twice the allowance. You cannot farm a
+-- marathon — a second one does not fit in the day — so the taper there is
+-- only a brake on somebody logging 100 km every day, not on running far.
+--
+-- Recovery is exempt: it is flat-rate and already limited to once a day.
+create function public.decay_full(p_cat text) returns numeric
+language sql immutable set search_path = public as $$
+  select case when p_cat in ('CARDIO', 'SPORT') then 80 else 40 end::numeric
+$$;
+create function public.decay_half(p_cat text) returns numeric
+language sql immutable set search_path = public as $$
+  select case when p_cat in ('CARDIO', 'SPORT') then 170 else 85 end::numeric
+$$;
+
+create function public.decay_points(p_points numeric, p_cat text) returns numeric
+language sql immutable set search_path = public as $$
+  select case
+    when p_cat = 'RECOVERY' then p_points
+    when p_points <= t.f then p_points
+    when p_points <= t.h then t.f + (p_points - t.f) * 0.70
+    else t.f + (t.h - t.f) * 0.70 + (p_points - t.h) * 0.40
+  end
+  from (select public.decay_full(p_cat) as f, public.decay_half(p_cat) as h) t
+$$;
+
+-- A week of base points for every member, with the league's mode applied.
+-- The bucket is one person, one exercise, one calendar day, so splitting a
+-- set into ten entries changes nothing and a rest day empties it.
+create function public.week_base_points(p_league uuid, p_week date)
+returns table (profile_id uuid, base numeric, logged numeric)
+language sql stable set search_path = public as $$
+  with mode as (
+    select coalesce((select scoring from public.leagues where id = p_league),
+                    'hardcore') as m),
+  per_day as (
+    select w.profile_id,
+           (w.created_at at time zone public.app_timezone())::date as d,
+           w.exercise_key,
+           public.exercise_category(w.exercise_key) as cat,
+           sum(w.points) as pts
+    from public.workouts w
+    where w.league_id = p_league and w.week_start = p_week
+    group by 1, 2, 3, 4)
+  select profile_id,
+         sum(case when (select m from mode) = 'balanced'
+                  then public.decay_points(pts, cat)
+                  else pts end)::numeric,
+         sum(pts)::numeric
+  from per_day
+  group by 1
+$$;
+
+
 -- ---------------------------------------------------------------------
 -- 3. Tables
 -- ---------------------------------------------------------------------
@@ -282,6 +349,12 @@ create table public.leagues (
   -- how long a season runs; null means it just keeps going
   season_weeks int constraint leagues_season_sane
                  check (season_weeks is null or season_weeks between 1 and 26),
+  -- 'hardcore': every rep counts the same, however many you do.
+  -- 'balanced': volume in one exercise tapers, so a short session competes.
+  -- Existing leagues stay hardcore, which is what they have always been.
+  scoring      text not null default 'hardcore'
+                 constraint leagues_scoring_known
+                 check (scoring in ('hardcore', 'balanced')),
   created_at  timestamptz not null default now()
 );
 
@@ -659,12 +732,13 @@ end $$;
 create function public.my_leagues()
 returns table (id uuid, name text, code text, owner_id uuid, members int,
                max_members int, joined_at timestamptz,
-               badge jsonb, rest_dow int[], season_weeks int, created_at timestamptz)
+               badge jsonb, rest_dow int[], season_weeks int, scoring text,
+               created_at timestamptz)
 language sql stable security definer set search_path = public as $$
   select l.id, l.name, l.code, l.owner_id,
          (select count(*)::int from public.league_members m2 where m2.league_id = l.id),
          l.max_members, m.joined_at,
-         l.badge, l.rest_dow, l.season_weeks, l.created_at
+         l.badge, l.rest_dow, l.season_weeks, l.scoring, l.created_at
   from public.leagues l
   join public.league_members m on m.league_id = l.id
   where m.profile_id = public.my_profile_id()
@@ -677,13 +751,16 @@ create function public.league_leaderboard(p_league uuid, p_week date default nul
 returns table (profile_id uuid, display_name text, avatar text, points numeric,
                base_points numeric, bonus numeric, entries bigint,
                joined_at timestamptz, lifetime numeric, banner text,
-               pinned_badges text[], name_color text)
+               pinned_badges text[], name_color text, logged numeric)
 language sql stable security definer set search_path = public as $$
   -- `lifetime` drives the rank banner on each row. Like divisions and duel
   -- records it is derived on read, so there is nothing to store or award.
   with wk as (select coalesce(p_week, public.current_week_start()) as w),
   cb as (select * from public.week_combo_bonus(p_league, (select w from wk))),
   bb as (select * from public.week_bounty_points(p_league, (select w from wk))),
+  -- base points already have the league's scoring mode applied; `logged` is
+  -- what was put in before any taper, so a row can show both
+  wb as (select * from public.week_base_points(p_league, (select w from wk))),
   lt as (
     -- Lifetime follows the person, not the league. A log fans out to one row
     -- per league, so count each log once (by group_id) or joining a second
@@ -693,12 +770,13 @@ language sql stable security definer set search_path = public as $$
           from public.workouts order by group_id, league_id) one_per_log
     group by profile_id)
   select p.id, p.display_name, p.avatar,
-         (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0)
-                                     + coalesce(max(bb.bounty), 0))::numeric,
-         coalesce(sum(w.points), 0)::numeric,
+         (coalesce(max(wb.base), 0) + coalesce(max(cb.bonus), 0)
+                                    + coalesce(max(bb.bounty), 0))::numeric,
+         coalesce(max(wb.base), 0)::numeric,
          (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
          count(w.id), m.joined_at,
-         coalesce(max(lt.total), 0)::numeric, p.banner, p.pinned_badges, p.name_color
+         coalesce(max(lt.total), 0)::numeric, p.banner, p.pinned_badges,
+         p.name_color, coalesce(max(wb.logged), 0)::numeric
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
   left join public.workouts w
@@ -707,6 +785,7 @@ language sql stable security definer set search_path = public as $$
   left join cb on cb.profile_id = p.id
   left join bb on bb.profile_id = p.id
   left join lt on lt.profile_id = p.id
+  left join wb on wb.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
   group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
            p.name_color, m.joined_at
@@ -859,11 +938,15 @@ create function public.weekly_history(p_league uuid)
 returns table (week_start date, profile_id uuid, display_name text, avatar text,
                points numeric, entries bigint)
 language sql stable security definer set search_path = public as $$
+  -- Finished weeks are scored the same way the live board scores this one,
+  -- so a league that taper volume does not have a history that does not.
   select t.week_start, t.profile_id, t.display_name, t.avatar,
          (t.pts + coalesce(cb.bonus, 0))::numeric, t.n
   from (
     select w.week_start, p.id as profile_id, p.display_name, p.avatar,
-           sum(w.points) as pts, count(*) as n
+           coalesce((select wb.base from public.week_base_points(p_league, w.week_start) wb
+                     where wb.profile_id = p.id), 0) as pts,
+           count(*) as n
     from public.workouts w
     join public.profiles p on p.id = w.profile_id
     where w.league_id = p_league
@@ -1002,6 +1085,25 @@ begin
   end if;
   update public.leagues
      set rest_dow = coalesce(p_rest_dow, rest_dow), season_weeks = p_season_weeks
+   where id = p_league returning * into row;
+  return row;
+end $$;
+
+-- Which way a league scores. Only the person who made it decides, and the
+-- change lands on the live week immediately — it is a way of reading the
+-- same logs, not a rewrite of them, so nothing anybody did is lost either way.
+create function public.set_league_scoring(p_league uuid, p_mode text)
+returns public.leagues language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); row public.leagues;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  if not exists (select 1 from public.leagues where id = p_league and owner_id = me) then
+    raise exception 'Only the person who created a league can change how it scores';
+  end if;
+  if p_mode not in ('hardcore', 'balanced') then
+    raise exception 'A league scores either hardcore or balanced';
+  end if;
+  update public.leagues set scoring = p_mode
    where id = p_league returning * into row;
   return row;
 end $$;
@@ -1719,6 +1821,11 @@ revoke all on function public.bounty_done(uuid,uuid,jsonb,date) from public, ano
 revoke all on function public.bounty_req(uuid,uuid,jsonb,date)  from public, anon;
 revoke all on function public.bounty_pick(date)             from public, anon;
 revoke all on function public.bounty_cat_points(uuid,uuid,text,date) from public, anon;
+revoke all on function public.decay_points(numeric,text)    from public, anon;
+revoke all on function public.decay_full(text)              from public, anon;
+revoke all on function public.decay_half(text)              from public, anon;
+revoke all on function public.week_base_points(uuid,date)   from public, anon;
+revoke all on function public.set_league_scoring(uuid,text) from public, anon;
 revoke all on function public.admin_schedule()              from public, anon;
 revoke all on function public.admin_bounties()              from public, anon;
 revoke all on function public.admin_pin_bounty(date,int,text) from public, anon;
@@ -1770,6 +1877,11 @@ grant execute on function public.admin_delete_bounty(int)      to authenticated;
 grant execute on function public.builtin_bounty_count()        to authenticated;
 grant execute on function public.bounty_pick(date)             to authenticated;
 grant execute on function public.bounty_cat_points(uuid,uuid,text,date) to authenticated;
+grant execute on function public.decay_points(numeric,text)    to authenticated;
+grant execute on function public.decay_full(text)              to authenticated;
+grant execute on function public.decay_half(text)              to authenticated;
+grant execute on function public.week_base_points(uuid,date)   to authenticated;
+grant execute on function public.set_league_scoring(uuid,text) to authenticated;
 grant select on public.bounty_schedule to authenticated;
 grant execute on function public.league_streaks(uuid,numeric)  to authenticated;
 grant execute on function public.set_pinned_badges(text[])     to authenticated;
@@ -1823,6 +1935,18 @@ insert into public.raids (idx,name,descr,ex_keys,mode,per_member,unit) values
 
 -- ---------------------------------------------------------------------
 delete from public.bounties;
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
 -- The bounty pool: 110 side quests. One is drawn each week; which one is a
 -- deterministic shuffle of the whole pool, reseeded every year, so no two
 -- years run the same order and nothing repeats inside a year.

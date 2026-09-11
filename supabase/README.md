@@ -4,8 +4,9 @@
 RUN, and you have a working database. It drops everything first, so running it
 twice is a rebuild, not a mess — and running it on a live database wipes it.
 
-`bounty-pool.sql` is a migration for a database that is already running. It
-only adds; nothing logged is touched, and it is safe to run twice.
+`bounty-pool.sql` and `scoring-modes.sql` are migrations for a database that
+is already running. They only add; nothing logged is touched, and both are
+safe to run twice.
 
 ## Testing it for real
 
@@ -40,16 +41,22 @@ Do not hand-edit these:
 | the `exercises` seed in `schema.sql` | `tools/build_exercises.py` |
 | the `bounties` seed in `schema.sql` | `tools/build_bounties.py` |
 | `bounty-pool.sql` | `tools/build_bounties.py` |
+| `scoring-modes.sql` | `tools/build_scoring.py` |
 
 `build_bounties.py` validates before it writes: every exercise a bounty names
 must exist, and must be loggable in the mode the bounty asks for. It has
 already caught six quests that nobody could have completed — a three-minute
 plank asked for seconds, and plank is only logged in minutes.
 
-The migration is not written by hand either. Every function in it is lifted
-out of `schema.sql`, which is the one definition of each, because two
-hand-kept copies of a hundred-line function drift and the drift is always
-found in production.
+Neither migration is written by hand. Every function in them is lifted out of
+`schema.sql`, which is the one definition of each, because two hand-kept
+copies of a hundred-line function drift and the drift is always found in
+production. `tools/sqllift.py` does the lifting; the two generators only say
+which objects they need.
+
+One thing the lift has to know: `create or replace function` cannot change
+what a function returns. `league_leaderboard` and `my_leagues` both gained a
+column, so `build_scoring.py` drops those two first and rebuilds them.
 
 ## Why `check_function_bodies` is off
 
