@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.8.0';
+  var APP_VERSION = '2.8.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -224,13 +224,16 @@
   /* Divisions. Where you are is where you finished, so it maintains itself
      with no bookkeeping. Each one is a place with a name and a crest, not a
      colour with a number — you are in the VANGUARD, not in "tier 2".
-     The sizes narrow sharply at the top on purpose: two seats on the THRONE
+     The sizes narrow sharply at the top on purpose: two seats in the MARSHAL
      and three in the APEX means the top of the table is somewhere you can be
-     pushed out of by one good evening, which is the whole point of it. */
+     pushed out of by one good evening, which is the whole point of it.
+
+     A marshal was the knight who led the army, not a king or a god — the
+     names here are ranks people earn, not thrones people sit on. */
   var TIERS = [
-    { key: 'DIAMOND', name: 'THRONE',   sub: 'Two seats. One of them is yours to lose',
-      icon: 'chess-king',     size: 2 },
-    { key: 'GOLD',    name: 'APEX',     sub: 'Three deep, and one push from the throne',
+    { key: 'DIAMOND', name: 'MARSHAL',  sub: 'The two at the head of the army',
+      icon: 'chess-knight',   size: 2 },
+    { key: 'GOLD',    name: 'APEX',     sub: 'Three deep, and one push off the front',
       icon: 'crown',          size: 3 },
     { key: 'SILVER',  name: 'VANGUARD', sub: 'Chasing the Apex',
       icon: 'crossed-swords', size: 10 },
@@ -1232,7 +1235,7 @@
                  return boardRow(p, p.points > 0 ? seen : null, g.tier.key, i === 0);
                }).join('');
       }).join('') +
-      '<p class="hint">Two on the throne, three in the apex, ten in the vanguard. ' +
+      '<p class="hint">Two marshals, three in the apex, ten in the vanguard. ' +
       'Pass the person above you and you take their place.</p>';
       return;
     }

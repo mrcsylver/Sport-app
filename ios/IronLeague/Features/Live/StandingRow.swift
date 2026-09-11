@@ -74,7 +74,7 @@ struct StandingRow: View {
     }
 
     private var borderColor: Color {
-        if let d = division, d == .throne { return Theme.diamond.opacity(0.6) }
+        if let d = division, d == .marshal { return Theme.diamond.opacity(0.6) }
         if isLeader, let d = division { return Theme.metal(d).opacity(0.65) }
         if isLeader { return Theme.gold.opacity(0.6) }
         if isMe { return Theme.flame.opacity(0.5) }
@@ -140,7 +140,7 @@ struct StandingRow: View {
     }
 
     /// In a divided league the rank wears its division's metal, so the two
-    /// on the throne read as a pair. In a small league it is the old podium.
+    /// in the Marshal read as a pair. In a small league it is the old podium.
     private var rankColor: Color {
         if let d = division { return Theme.metal(d) }
         switch rank {

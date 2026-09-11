@@ -535,20 +535,25 @@ bookkeeping at all.
 
 | division | seats | |
 |---|---:|---|
-| **THRONE** | 2 | Two seats. One of them is yours to lose |
-| **APEX** | 3 | Three deep, and one push from the throne |
+| **MARSHAL** | 2 | The two at the head of the army |
+| **APEX** | 3 | Three deep, and one push off the front |
 | **VANGUARD** | 10 | Chasing the Apex |
 | **FORGE** | 15 + | Where everyone starts |
 
-The sizes narrow sharply at the top on purpose. Two seats on the throne means
+The sizes narrow sharply at the top on purpose. Two seats in the Marshal means
 it is somewhere you can be pushed out of by one good evening, which is the
 only reason to have divisions at all.
+
+A marshal was the knight who led the army — the highest thing a fighting man
+could be without being born to it. These are ranks people earn, not thrones
+people sit on, which is why there is no king, god or immortal anywhere on the
+board.
 
 The rank number is your position in **the whole league** and runs straight
 through the divisions — being 11th is being 11th, not "1st in Vanguard". Each
 division still highlights whoever is top of it.
 
-The throne is diamond: bronze, silver, gold, and above gold a pale ice blue.
+The Marshal is diamond: bronze, silver, gold, and above gold a pale ice blue.
 The board is already red and gold, so the very top of it is the one thing on
 screen that is cold.
 

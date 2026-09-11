@@ -75,10 +75,10 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  const heads=await pg.$$eval('.divhead', e=>e.map(x=>x.textContent.replace(/\s+/g,' ').trim()));
  T('four divisions shown', heads.length===4, heads.join(' | '));
  const sizes=await pg.$$eval('.divhead-n', e=>e.map(x=>x.textContent.trim()));
- T('two on the throne, three in the apex, ten in the vanguard',
+ T('two marshals, three in the apex, ten in the vanguard',
    sizes.join(',')==='2,3,10,9', sizes.join(',') || 'no division headers rendered');
  T('divisions are named places, not numbers',
-   /THRONE/.test(heads[0]) && /APEX/.test(heads[1]) && /VANGUARD/.test(heads[2])
+   /MARSHAL/.test(heads[0]) && /APEX/.test(heads[1]) && /VANGUARD/.test(heads[2])
    && /FORGE/.test(heads[3]),
    heads.join(' | '));
  // divisions must follow THIS week's points, highest first
@@ -86,7 +86,7 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  T('divisions follow current points, descending',
    pts.every((v,i)=>i===0||pts[i-1]>=v), pts.slice(0,6).join(' > ')+' …');
  const goldTop=await pg.$eval('#board .row', e=>parseFloat(e.querySelector('.pts').textContent));
- T('the throne holds the current leader', goldTop===Math.max(...pts), goldTop+' vs max '+Math.max(...pts));
+ T('the top division holds the current leader', goldTop===Math.max(...pts), goldTop+' vs max '+Math.max(...pts));
  /* the rank number is a position in the whole league, not inside a division */
  const ranks=await pg.$$eval('#board .row .rank', e=>e.map(x=>x.textContent.trim()));
  T('ranks run straight through the divisions',
@@ -97,7 +97,7 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  T('board is grouped, not one flat list', order[0]==='divhead', order.slice(0,3).join(','));
  T('a leader is highlighted per division',
    (await pg.$$('.row.lead-diamond')).length===1 && (await pg.$$('.row.lead-gold')).length===1,
-   'throne and apex both marked');
+   'marshal and apex both marked');
  await pg.screenshot({path:path.join(OUT,'80-tiers.png')});
 
  /* ---- most improved ---- */

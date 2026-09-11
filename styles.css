@@ -610,7 +610,7 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 .t-gold{--dv:var(--gold)}
 .t-silver{--dv:var(--silver)}
 .t-bronze{--dv:var(--bronze)}
-/* the throne gets a glow the other divisions do not */
+/* the top division gets a glow the others do not */
 .divhead.t-diamond .divhead-t b{text-shadow:0 0 14px color-mix(in srgb,var(--diamond) 55%,transparent)}
 .divhead.t-diamond{border-bottom-width:3px}
 
