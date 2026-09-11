@@ -87,12 +87,16 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
    pts.every((v,i)=>i===0||pts[i-1]>=v), pts.slice(0,6).join(' > ')+' …');
  const goldTop=await pg.$eval('#board .row', e=>parseFloat(e.querySelector('.pts').textContent));
  T('the top division holds the current leader', goldTop===Math.max(...pts), goldTop+' vs max '+Math.max(...pts));
- /* the rank number is a position in the whole league, not inside a division */
+ /* The Royal Guard and the Apex share one run of numbers, so the top five
+    read 1..5 straight through; every division below starts again at 1. */
  const ranks=await pg.$$eval('#board .row .rank', e=>e.map(x=>x.textContent.trim()));
- T('ranks run straight through the divisions',
-   ranks.slice(0,14).join(',')==='1,2,3,4,5,6,7,8,9,10,11,12,13,14', ranks.slice(0,14).join(','));
- T('nobody is 1st twice', new Set(ranks.filter(r=>r!=='–')).size
-   === ranks.filter(r=>r!=='–').length, ranks.join(','));
+ T('the top five are numbered straight through',
+   ranks.slice(0,5).join(',')==='1,2,3,4,5', ranks.slice(0,5).join(','));
+ T('the vanguard starts again at 1',
+   ranks[5]==='1' && ranks.slice(5,15).join(',')==='1,2,3,4,5,6,7,8,9,10',
+   ranks.slice(5,15).join(','));
+ T('and so does the forge',
+   ranks[15]==='1', ranks.slice(15,20).join(','));
  const order=await pg.$$eval('#board > *', e=>e.map(x=>x.className.split(' ')[0]));
  T('board is grouped, not one flat list', order[0]==='divhead', order.slice(0,3).join(','));
  T('a leader is highlighted per division',

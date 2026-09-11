@@ -102,6 +102,18 @@ enum Division: String, CaseIterable {
         }
     }
 
+    /// Which numbering this division belongs to. The Royal Guard and the Apex
+    /// share one, so the top five read 1 to 5 straight through — they are the
+    /// top of the league, not two separate races. Everything below counts
+    /// from 1 again: your number is your place among the people you are
+    /// actually fighting.
+    var rankGroup: String {
+        switch self {
+        case .royalGuard, .apex: return "top"
+        default:                 return rawValue
+        }
+    }
+
     var title: String {
         switch self {
         case .royalGuard: return "ROYAL GUARD"

@@ -41,14 +41,20 @@ from (select public.bounty_index((date '2026-01-05' + (n*7))::date) as idx
       from generate_series(0,51) n) t;
 
 \echo '--- 5. pinning a week overrides the shuffle'
+-- Pin something the shuffle did NOT already choose, or unpinning it looks
+-- like a failure when it is really a coincidence. This test used to pin 53
+-- unconditionally and cry wolf whenever the shuffle happened to agree.
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
-select 'before pin: ' || public.bounty_pick(public.current_week_start());
-select public.admin_pin_bounty(public.current_week_start(), 53, 'micro week');
-select case when public.bounty_pick(public.current_week_start()) = 53
+select 'the shuffle would give: ' || public.bounty_index(public.current_week_start());
+select public.admin_pin_bounty(public.current_week_start(),
+  case when public.bounty_index(public.current_week_start()) = 53 then 52 else 53 end,
+  'micro week');
+select case when public.bounty_pick(public.current_week_start())
+              <> public.bounty_index(public.current_week_start())
             then 'pin honoured' else 'PIN IGNORED' end;
 select public.admin_unpin_bounty(public.current_week_start());
-select case when public.bounty_pick(public.current_week_start()) <> 53
-            or (select count(*) from public.bounties) = 54
+select case when public.bounty_pick(public.current_week_start())
+              = public.bounty_index(public.current_week_start())
             then 'unpin restored the shuffle' else 'UNPIN FAILED' end;
 
 \echo '--- 6. a non-admin cannot pin'

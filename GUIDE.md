@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.9.1*
+*Last updated 12 September 2026 · app version 2.9.2*
 
 ---
 
@@ -107,8 +107,11 @@ Royal Guard, c'est un endroit d'où une bonne soirée suffit à te déloger. Et
 le total fait 36, un nombre pair, pour que la rivalité du lundi apparie tout
 le monde.
 
-Ton numéro de rang est ta **position dans toute la ligue** — être 11e c'est
-être 11e, pas « 1er en Vanguard ». Chaque division met quand même en évidence
+**La numérotation.** La Royal Guard et l'Apex partagent une seule suite : le
+top 5 se lit 1, 2, 3, 4, 5 d'affilée, parce que c'est le haut de la ligue et
+pas deux courses séparées. Chaque division en dessous repart de 1 —
+Vanguard 1 à 10, Forge 1 à 15, Commoner 1 à 6 — donc ton numéro est ta place
+parmi les gens que tu affrontes vraiment. Chaque division met en évidence
 celui qui est en tête.
 
 **Deux vainqueurs par semaine :**
@@ -256,9 +259,12 @@ The sizes narrow sharply at the top on purpose: two seats in the Royal Guard
 makes it somewhere one good evening can push you out of. And the total comes
 to 36, an even number, so the Monday rivalry pairs everybody.
 
-Your rank number is your position in **the whole league** — being 11th is
-being 11th, not "1st in Vanguard". Each division still highlights whoever is
-top of it.
+**The numbering.** The Royal Guard and the Apex share one run: the top five
+read 1, 2, 3, 4, 5 straight through, because they are the top of the league
+and not two separate races. Every division below counts from 1 again —
+Vanguard 1–10, Forge 1–15, Commoner 1–6 — so your number is your place among
+the people you are actually fighting. Each division highlights whoever is top
+of it.
 
 **Two winners a week:**
 

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.9.1';
+  var APP_VERSION = '2.9.2';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -231,18 +231,24 @@
      Nothing here is a god or a throne. They are posts in an order: you start
      outside it, you are made in the forge, you fight in the line, and two
      people stand at the crown. Every one of them is somewhere you can be
-     moved out of by Sunday. */
+     moved out of by Sunday.
+
+     `rank` is which numbering a division belongs to. The Royal Guard and the
+     Apex share one, so the top five read 1 to 5 straight through — they are
+     the top of the league, not two separate races. Everything below counts
+     from 1 again: your number is your place among the people you are
+     actually fighting. */
   var TIERS = [
     { key: 'DIAMOND', name: 'ROYAL GUARD', sub: 'The two who stand closest to the crown',
-      icon: 'crown',              size: 2 },
+      icon: 'crown',              size: 2,  rank: 'top' },
     { key: 'GOLD',    name: 'APEX',        sub: 'Three deep, and one push off the front',
-      icon: 'crossed-swords',     size: 3 },
+      icon: 'crossed-swords',     size: 3,  rank: 'top' },
     { key: 'SILVER',  name: 'VANGUARD',    sub: 'The line that holds. Chasing the Apex',
-      icon: 'crenulated-shield',  size: 10 },
+      icon: 'crenulated-shield',  size: 10, rank: 'vanguard' },
     { key: 'BRONZE',  name: 'FORGE',       sub: 'Where a fighter is hammered into shape',
-      icon: 'anvil-impact',       size: 15 },
+      icon: 'anvil-impact',       size: 15, rank: 'forge' },
     { key: 'STONE',   name: 'COMMONER',    sub: 'Everyone starts here. Nobody stays',
-      icon: 'triple-gate',        size: 6 }
+      icon: 'triple-gate',        size: 6,  rank: 'commoner' }
   ];
   /* 2 + 3 + 10 + 15 + 6 = 36, and 36 is even on purpose: the Monday rivalry
      pairs the table off two by two, and an odd league always leaves the last
@@ -1225,11 +1231,10 @@
     var groups = withTiers(state.board);
     if (groups) {
       var mine = state.profile ? state.profile.id : null;
-      /* One position for the whole league, counted straight through the
-         divisions. Being 11th is being 11th; it is not "1st in vanguard". */
-      var seen = 0;
+      var seen = 0, numbering = null;
       box.innerHTML = groups.map(function (g) {
         var here = g.rows.some(function (p) { return p.profile_id === mine; });
+        if (g.tier.rank !== numbering) { seen = 0; numbering = g.tier.rank; }
         return '<div class="divhead t-' + g.tier.key.toLowerCase() +
                  (here ? ' is-mine' : '') + '">' +
                  '<span class="divhead-c">' + iconSvg(g.tier.icon) + '</span>' +
@@ -1242,8 +1247,9 @@
                  return boardRow(p, p.points > 0 ? seen : null, g.tier.key, i === 0);
                }).join('');
       }).join('') +
-      '<p class="hint">Two in the royal guard, three in the apex, ten in the vanguard. ' +
-      'Pass the person above you and you take their place.</p>';
+      '<p class="hint">The top five are numbered straight through; every ' +
+      'division below counts from one. Pass the person above you and you ' +
+      'take their place.</p>';
       return;
     }
     var me = state.profile ? state.profile.id : null;

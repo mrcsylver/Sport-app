@@ -565,9 +565,12 @@ Nothing here is a god or a throne. They are posts in an order — you start
 outside it, you are made in the forge, you fight in the line, and two people
 stand at the crown — and every one of them can be taken off you by Sunday.
 
-The rank number is your position in **the whole league** and runs straight
-through the divisions — being 11th is being 11th, not "1st in Vanguard". Each
-division still highlights whoever is top of it.
+**The numbering.** The Royal Guard and the Apex share one run: the top five
+read 1, 2, 3, 4, 5 straight through, because they are the top of the league
+rather than two separate races. Every division below counts from 1 again —
+Vanguard 1–10, Forge 1–15, Commoner 1–6 — so your number is your place among
+the people you are actually fighting. Each division highlights whoever is top
+of it.
 
 The Royal Guard is diamond: stone, bronze, silver, gold, and above gold a pale
 ice blue.

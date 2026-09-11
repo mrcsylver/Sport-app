@@ -119,10 +119,21 @@ def stamp_count(n):
         open(SCHEMA, "w", encoding="utf-8").write(fixed)
 
 
+SEED_MARK = "-- The bounty pool:"
+
+
 def write_schema(pool):
+    """Replace the seed AND the header above it.
+
+    Replacing only the INSERT left the previous run's header in place and
+    prepended a new one, so the comment grew by four lines every time this
+    was run. Start from the marker when it is there.
+    """
     s = open(SCHEMA, encoding="utf-8").read()
-    start = s.index("insert into public.bounties (idx, name, descr, points, spec) values")
-    end = s.index(";\n", start) + 2
+    insert = s.index("insert into public.bounties (idx, name, descr, points, spec) values")
+    mark = s.rfind(SEED_MARK, 0, insert)
+    start = mark if mark >= 0 else insert
+    end = s.index(";\n", insert) + 2
     block = (HEAD % len(pool)
              + "insert into public.bounties (idx, name, descr, points, spec) values\n"
              + sql_rows(pool) + ";\n")

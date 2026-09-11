@@ -42,6 +42,8 @@ final class Session {
         let sorted = standings.sorted { $0.points > $1.points }
         var out: [DivisionGroup] = []
         var i = 0
+        var counted = 0
+        var numbering: String?
         for d in Division.allCases {
             guard i < sorted.count else { break }
             let end = min(i + d.size, sorted.count)
@@ -49,9 +51,14 @@ final class Session {
             // whoever spills past the last division joins it rather than
             // forming a sixth
             if d == .commoner && end < sorted.count { slice += sorted[end...] }
-            // the rank shown is the position in the whole league, counted
-            // straight through: being 11th is being 11th, not "1st in vanguard"
-            out.append(DivisionGroup(division: d, rows: slice, firstRank: i + 1))
+            // the Royal Guard and the Apex share a numbering; everything
+            // below starts again at 1
+            if d.rankGroup != numbering {
+                counted = 0
+                numbering = d.rankGroup
+            }
+            out.append(DivisionGroup(division: d, rows: slice, firstRank: counted + 1))
+            counted += slice.count
             i = end
         }
         return out
@@ -419,7 +426,9 @@ final class Session {
 struct DivisionGroup: Identifiable {
     let division: Division
     let rows: [Standing]
-    /// The league-wide position of this division's first row.
+    /// The number the first row in this division wears. Not a league-wide
+    /// position: the Royal Guard and the Apex share a run of 1 to 5, and
+    /// every division below counts from 1 again.
     let firstRank: Int
     var id: String { division.rawValue }
 }
