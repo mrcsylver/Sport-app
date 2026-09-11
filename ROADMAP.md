@@ -123,9 +123,54 @@ nothing is ever turned away.
 
 ## 6. Still to build from the motivation list
 
-- **Co-op league raids** — a shared weekly target scaled to member count,
-  everyone unlocks a badge if the league hits it.
-- **Badges tab** — earnable only as a league, distinct art from the emblems,
-  show/hide with a maximum of three on display.
-- **Sponsored bounties** — needs an upload path for quests, and enough users
-  to be worth a sponsor's time.
+- ~~**Co-op league raids**~~ — built.
+- ~~**Badges tab**~~ — built.
+- **Sponsored bounties** — the upload path exists now (the control room can
+  write a quest and pin it to a week). What is missing is a sponsor worth
+  the trouble, and a way to show whose quest it is without it reading as an
+  advert inside somebody's training log.
+
+
+## 7. A season that does not restart every week
+
+**Asked for on 11 September.** The board resets every Monday. That is right
+for most people — a bad week is forgotten by Tuesday, which is most of why
+anybody comes back. But a serious athlete on a training block wants the
+opposite: one table that runs for a month, with rest days, and no weekly
+wipe.
+
+This is not a setting we can add in an afternoon, and it is worth being
+honest about why. `week_start` is stamped on every workout row and is the
+key that the leaderboard, the combo bonus, the bounty, the raid, the
+rivalry pairing and the whole hall of fame all group by. A league that does
+not reset weekly needs a second grouping — call it a block — that those
+seven things read instead, and every one of them needs an answer to a
+question it has never been asked:
+
+- **The leaderboard** is the easy one: group by block instead of week.
+- **The daily combo** is unaffected; it is already per-day.
+- **The bounty** runs once a week on a fixed weekday. In a month-long block
+  it should probably still be weekly — four bounties inside one table —
+  rather than one bounty a month, which would be forgettable.
+- **The raid** is calibrated on a week of the league's real output. Over a
+  month the target has to be four times bigger, and a league that falls
+  behind in week one can see it is unreachable by week two, which is worse
+  than no raid.
+- **Rivalries** pair off using last week's finish. In a block they would
+  have to re-pair weekly anyway, or the same two people are stuck together
+  for a month.
+- **The hall of fame** currently shows finished weeks. It would show
+  finished blocks, and a league that switched mid-way has a history of two
+  different shapes.
+- **Streaks** are per-day and unaffected.
+
+The shape that probably works: keep the week as the unit everything is
+*scored* in, and add a block that is only a way of *totalling* weeks. A
+month-long league is then four normal weeks whose points are added up, the
+bounty and raid keep working exactly as they do, and the only new thing is
+which total the table shows. That is a much smaller change than a second
+grouping key, and it gives the athlete what they actually want: a table
+that does not wipe.
+
+Worth doing when somebody actually asks for it twice. Right now it is one
+person's guess about what other people would like.
