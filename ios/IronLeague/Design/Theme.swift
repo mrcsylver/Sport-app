@@ -23,6 +23,9 @@ enum Theme {
     // MARK: Signal
     static let flame     = Color(hex: 0xFF2E2E)   // the brand red
     static let ember     = Color(hex: 0xFF6A1F)
+    /// Above gold. A pale ice blue, because the board is already red and gold
+    /// and the very top of it should be the one thing on screen that is cold.
+    static let diamond   = Color(hex: 0x8CE9FF)
     static let gold      = Color(hex: 0xFFC93C)
     static let silver    = Color(hex: 0xC9D3E2)
     static let bronze    = Color(hex: 0xD08442)
@@ -38,6 +41,7 @@ enum Theme {
 
     static func metal(_ tier: Division) -> Color {
         switch tier {
+        case .throne:   return diamond
         case .apex:     return gold
         case .vanguard: return silver
         case .forge:    return bronze
@@ -69,11 +73,26 @@ extension Color {
 }
 
 /// A division is a place with a name, not a colour with a number.
+///
+/// The sizes narrow sharply at the top on purpose. Two seats on the throne and
+/// three in the apex means the top of the table is somewhere you can be pushed
+/// out of by one good evening — which is the only reason to have divisions.
 enum Division: String, CaseIterable {
-    case apex, vanguard, forge
+    case throne, apex, vanguard, forge
+
+    /// How many people it holds. Whoever spills past the last one joins it.
+    var size: Int {
+        switch self {
+        case .throne:   return 2
+        case .apex:     return 3
+        case .vanguard: return 10
+        case .forge:    return 15
+        }
+    }
 
     var title: String {
         switch self {
+        case .throne:   return "THRONE"
         case .apex:     return "APEX"
         case .vanguard: return "VANGUARD"
         case .forge:    return "FORGE"
@@ -81,14 +100,16 @@ enum Division: String, CaseIterable {
     }
     var subtitle: String {
         switch self {
-        case .apex:     return "Top ten of the league"
+        case .throne:   return "Two seats. One of them is yours to lose"
+        case .apex:     return "Three deep, and one push from the throne"
         case .vanguard: return "Chasing the Apex"
         case .forge:    return "Where everyone starts"
         }
     }
     var symbol: String {
         switch self {
-        case .apex:     return "crown.fill"
+        case .throne:   return "crown.fill"
+        case .apex:     return "shield.fill"
         case .vanguard: return "shield.lefthalf.filled"
         case .forge:    return "hammer.fill"
         }

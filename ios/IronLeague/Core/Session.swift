@@ -38,18 +38,20 @@ final class Session {
     /// Divisions: ten per division, ranked on live points. Below eleven
     /// people there is only one group, so showing divisions would be theatre.
     var divisions: [DivisionGroup] {
-        guard standings.count > Tuning.divisionSize else { return [] }
+        guard standings.count >= Tuning.divisionMinimum else { return [] }
         let sorted = standings.sorted { $0.points > $1.points }
         var out: [DivisionGroup] = []
         var i = 0
         for d in Division.allCases {
             guard i < sorted.count else { break }
-            let end = min(i + Tuning.divisionSize, sorted.count)
+            let end = min(i + d.size, sorted.count)
             var slice = Array(sorted[i..<end])
             // whoever spills past the last division joins it rather than
-            // forming a fourth
+            // forming a fifth
             if d == .forge && end < sorted.count { slice += sorted[end...] }
-            out.append(DivisionGroup(division: d, rows: slice))
+            // the rank shown is the position in the whole league, counted
+            // straight through: being 11th is being 11th, not "1st in vanguard"
+            out.append(DivisionGroup(division: d, rows: slice, firstRank: i + 1))
             i = end
         }
         return out
@@ -290,28 +292,15 @@ final class Session {
         }
     }
 
-    func saveLeagueSettings(restDow: [Int], seasonWeeks: Int?) async {
+    func saveLeagueSettings(restDow: [Int], seasonWeeks: Int?,
+                            catchupDow: Int?) async {
         guard let id = leagueId else { return }
         do {
             _ = try await API.shared.setLeagueSettings(id, restDow: restDow,
-                                                       seasonWeeks: seasonWeeks)
+                                                       seasonWeeks: seasonWeeks,
+                                                       catchupDow: catchupDow)
             leagues = try await API.shared.myLeagues()
             show("League settings saved.")
-            Haptic.win()
-        } catch {
-            show(Friendly.message(error)); Haptic.refuse()
-        }
-    }
-
-    /// Switching how a league scores re-reads the same logs a different way.
-    /// Nothing is rewritten, so it can be switched back.
-    func saveScoring(_ mode: League.Scoring) async {
-        guard let id = leagueId else { return }
-        do {
-            _ = try await API.shared.setLeagueScoring(id, mode: mode)
-            leagues = try await API.shared.myLeagues()
-            await refresh()
-            show("This league now scores \(mode.rawValue).")
             Haptic.win()
         } catch {
             show(Friendly.message(error)); Haptic.refuse()
@@ -430,11 +419,14 @@ final class Session {
 struct DivisionGroup: Identifiable {
     let division: Division
     let rows: [Standing]
+    /// The league-wide position of this division's first row.
+    let firstRank: Int
     var id: String { division.rawValue }
 }
 
 enum Tuning {
-    static let divisionSize = 10
+    /// Below this many people a division is just the table with headings in it.
+    static let divisionMinimum = 10
     static let comboMinimum: Double = 10
     static let comboGroups = ["PUSH", "PULL", "LEGS", "CORE", "CARDIO"]
 }

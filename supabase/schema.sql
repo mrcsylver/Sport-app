@@ -39,11 +39,6 @@ drop function if exists public.bounty_dow() cascade;
 drop function if exists public.bounty_index(p_week date) cascade;
 drop function if exists public.bounty_pick(p_week date) cascade;
 drop function if exists public.bounty_cat_points(p_profile uuid, p_league uuid, p_cat text, p_day date) cascade;
-drop function if exists public.decay_points(p_points numeric, p_cat text) cascade;
-drop function if exists public.decay_full(p_cat text) cascade;
-drop function if exists public.decay_half(p_cat text) cascade;
-drop function if exists public.week_base_points(p_league uuid, p_week date) cascade;
-drop function if exists public.set_league_scoring(p_league uuid, p_mode text) cascade;
 drop function if exists public.builtin_bounty_count() cascade;
 drop function if exists public.admin_schedule() cascade;
 drop function if exists public.admin_bounties() cascade;
@@ -69,6 +64,11 @@ drop function if exists public.exercise_category(p_key text) cascade;
 drop function if exists public.has_open_challenge(p_profile uuid) cascade;
 drop function if exists public.is_member(p_league uuid) cascade;
 drop function if exists public.is_rest_day(p_league uuid) cascade;
+drop function if exists public.is_catchup_day(p_league uuid) cascade;
+drop function if exists public.catchup_multiplier(p_league uuid, p_profile uuid) cascade;
+drop function if exists public.catchup_floor() cascade;
+drop function if exists public.catchup_ceiling() cascade;
+drop function if exists public.catchup_max() cascade;
 drop function if exists public.join_league_by_code(p_code text) cascade;
 drop function if exists public.league_leaderboard(p_league uuid, p_week date) cascade;
 drop function if exists public.league_preview(p_code text) cascade;
@@ -101,6 +101,7 @@ drop function if exists public.my_badges(p_league uuid) cascade;
 drop function if exists public.league_rivalries(p_league uuid, p_week date) cascade;
 drop function if exists public.delete_league(p_league uuid) cascade;
 drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int) cascade;
+drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int) cascade;
 drop function if exists public.set_league_badge(p_league uuid, p_badge jsonb) cascade;
 drop function if exists public.shares_league_with(p_profile uuid) cascade;
 drop function if exists public.week_bounty_points(p_league uuid, p_week date) cascade;
@@ -143,6 +144,54 @@ returns boolean language sql stable set search_path = public as $$
   -- so anything that has not been told about leagues keeps working.
   select extract(isodow from (now() at time zone public.app_timezone()))::int =
          any (coalesce((select rest_dow from public.leagues where id = p_league), '{7}'::int[]))
+$$;
+
+-- ---------------------------------------------------------------------
+-- 1b. The catch-up day
+-- ---------------------------------------------------------------------
+-- One day a week where being behind is worth something. Everything logged
+-- that day is multiplied by how far off the lead you are, so a person who
+-- missed three days has a reason to turn up rather than write the week off.
+--
+-- It is deliberately not a handicap: the leader still trains and still
+-- scores, they simply score at 1.0 like anybody within touching distance.
+-- Nobody loses anything, and the most it can be worth is 40 per cent.
+
+-- Under this many points behind, you are close enough that you do not need it.
+create function public.catchup_floor()   returns numeric
+language sql immutable set search_path = public as $$ select 150::numeric $$;
+-- At this many behind and beyond, the multiplier is at its maximum.
+create function public.catchup_ceiling() returns numeric
+language sql immutable set search_path = public as $$ select 500::numeric $$;
+create function public.catchup_max()     returns numeric
+language sql immutable set search_path = public as $$ select 1.40::numeric $$;
+
+create function public.is_catchup_day(p_league uuid) returns boolean
+language sql stable set search_path = public as $$
+  select coalesce(
+    (select l.catchup_dow from public.leagues l where l.id = p_league)
+      = extract(isodow from (now() at time zone public.app_timezone()))::int,
+    false)
+$$;
+
+-- How much this person's work is worth today, in this league. Straight line
+-- from 1.0 at the floor to the maximum at the ceiling.
+create function public.catchup_multiplier(p_league uuid, p_profile uuid)
+returns numeric language sql stable set search_path = public as $$
+  with tot as (
+    select w.profile_id, coalesce(sum(w.points), 0) as p
+    from public.workouts w
+    where w.league_id = p_league
+      and w.week_start = public.current_week_start()
+    group by 1),
+  best as (select coalesce(max(p), 0) as top from tot),
+  mine as (select coalesce((select p from tot where profile_id = p_profile), 0) as p),
+  gap  as (select greatest((select top from best) - (select p from mine), 0) as g)
+  select round(
+    1 + (public.catchup_max() - 1)
+        * least(greatest((select g from gap) - public.catchup_floor(), 0)
+                / (public.catchup_ceiling() - public.catchup_floor()), 1)
+  , 2)
 $$;
 
 -- Raises if an entry breaks the rest day rule. p_at is the day the entry
@@ -234,67 +283,6 @@ $$;
 
 
 -- ---------------------------------------------------------------------
--- 2b. Diminishing returns  (only in a 'balanced' league)
--- ---------------------------------------------------------------------
--- The first N points from ONE exercise on ONE day score in full; past that
--- they taper. It is deliberately points rather than reps: the rate table
--- already makes a point mean the same effort in every exercise, so one
--- threshold is consistent across all 118 of them without tuning any.
---
--- Time and distance work gets twice the allowance. You cannot farm a
--- marathon — a second one does not fit in the day — so the taper there is
--- only a brake on somebody logging 100 km every day, not on running far.
---
--- Recovery is exempt: it is flat-rate and already limited to once a day.
-create function public.decay_full(p_cat text) returns numeric
-language sql immutable set search_path = public as $$
-  select case when p_cat in ('CARDIO', 'SPORT') then 80 else 40 end::numeric
-$$;
-create function public.decay_half(p_cat text) returns numeric
-language sql immutable set search_path = public as $$
-  select case when p_cat in ('CARDIO', 'SPORT') then 170 else 85 end::numeric
-$$;
-
-create function public.decay_points(p_points numeric, p_cat text) returns numeric
-language sql immutable set search_path = public as $$
-  select case
-    when p_cat = 'RECOVERY' then p_points
-    when p_points <= t.f then p_points
-    when p_points <= t.h then t.f + (p_points - t.f) * 0.70
-    else t.f + (t.h - t.f) * 0.70 + (p_points - t.h) * 0.40
-  end
-  from (select public.decay_full(p_cat) as f, public.decay_half(p_cat) as h) t
-$$;
-
--- A week of base points for every member, with the league's mode applied.
--- The bucket is one person, one exercise, one calendar day, so splitting a
--- set into ten entries changes nothing and a rest day empties it.
-create function public.week_base_points(p_league uuid, p_week date)
-returns table (profile_id uuid, base numeric, logged numeric)
-language sql stable set search_path = public as $$
-  with mode as (
-    select coalesce((select scoring from public.leagues where id = p_league),
-                    'hardcore') as m),
-  per_day as (
-    select w.profile_id,
-           (w.created_at at time zone public.app_timezone())::date as d,
-           w.exercise_key,
-           public.exercise_category(w.exercise_key) as cat,
-           sum(w.points) as pts
-    from public.workouts w
-    where w.league_id = p_league and w.week_start = p_week
-    group by 1, 2, 3, 4)
-  select profile_id,
-         sum(case when (select m from mode) = 'balanced'
-                  then public.decay_points(pts, cat)
-                  else pts end)::numeric,
-         sum(pts)::numeric
-  from per_day
-  group by 1
-$$;
-
-
--- ---------------------------------------------------------------------
 -- 3. Tables
 -- ---------------------------------------------------------------------
 
@@ -349,12 +337,11 @@ create table public.leagues (
   -- how long a season runs; null means it just keeps going
   season_weeks int constraint leagues_season_sane
                  check (season_weeks is null or season_weeks between 1 and 26),
-  -- 'hardcore': every rep counts the same, however many you do.
-  -- 'balanced': volume in one exercise tapers, so a short session competes.
-  -- Existing leagues stay hardcore, which is what they have always been.
-  scoring      text not null default 'hardcore'
-                 constraint leagues_scoring_known
-                 check (scoring in ('hardcore', 'balanced')),
+  -- one day a week where being behind is worth something: everything logged
+  -- that day is multiplied by how far off the lead you are. Null means the
+  -- league does not have one, which is what every league is now.
+  catchup_dow  int constraint leagues_catchup_sane
+                 check (catchup_dow is null or catchup_dow between 1 and 7),
   created_at  timestamptz not null default now()
 );
 
@@ -383,7 +370,10 @@ create table public.workouts (
   bodyweight    numeric,
   load          numeric,
   week_start    date    not null default current_date,
-  created_at    timestamptz not null default now()
+  created_at    timestamptz not null default now(),
+  -- what the catch-up day multiplied this by, stamped at the moment it was
+  -- logged so it can never change afterwards. 1 on every other day.
+  boost         numeric not null default 1 check (boost between 1 and 3)
 );
 
 -- A duel is 24 hours, one on one, inside a league you both belong to. It
@@ -466,6 +456,14 @@ begin
   end if;
   new.points := public.calc_points(new.exercise_key, new.mode, new.amount,
                                    new.bodyweight, new.load);
+  -- On a catch-up day, what this is worth depends on how far behind you were
+  -- when you logged it. Stamped now, so it never changes afterwards and the
+  -- board never re-reads it: two people logging the same set an hour apart
+  -- can legitimately score differently, and both keep what they earned.
+  if public.is_catchup_day(new.league_id) then
+    new.boost  := public.catchup_multiplier(new.league_id, new.profile_id);
+    new.points := round(new.points * new.boost, 2);
+  end if;
   if new.points <= 0 then
     if (select cat = 'GYM' from public.exercises where key = new.exercise_key) then
       raise exception 'A gym lift needs your bodyweight (30-250 kg) and the weight lifted (0-500 kg)';
@@ -732,13 +730,13 @@ end $$;
 create function public.my_leagues()
 returns table (id uuid, name text, code text, owner_id uuid, members int,
                max_members int, joined_at timestamptz,
-               badge jsonb, rest_dow int[], season_weeks int, scoring text,
+               badge jsonb, rest_dow int[], season_weeks int, catchup_dow int,
                created_at timestamptz)
 language sql stable security definer set search_path = public as $$
   select l.id, l.name, l.code, l.owner_id,
          (select count(*)::int from public.league_members m2 where m2.league_id = l.id),
          l.max_members, m.joined_at,
-         l.badge, l.rest_dow, l.season_weeks, l.scoring, l.created_at
+         l.badge, l.rest_dow, l.season_weeks, l.catchup_dow, l.created_at
   from public.leagues l
   join public.league_members m on m.league_id = l.id
   where m.profile_id = public.my_profile_id()
@@ -751,16 +749,13 @@ create function public.league_leaderboard(p_league uuid, p_week date default nul
 returns table (profile_id uuid, display_name text, avatar text, points numeric,
                base_points numeric, bonus numeric, entries bigint,
                joined_at timestamptz, lifetime numeric, banner text,
-               pinned_badges text[], name_color text, logged numeric)
+               pinned_badges text[], name_color text)
 language sql stable security definer set search_path = public as $$
   -- `lifetime` drives the rank banner on each row. Like divisions and duel
   -- records it is derived on read, so there is nothing to store or award.
   with wk as (select coalesce(p_week, public.current_week_start()) as w),
   cb as (select * from public.week_combo_bonus(p_league, (select w from wk))),
   bb as (select * from public.week_bounty_points(p_league, (select w from wk))),
-  -- base points already have the league's scoring mode applied; `logged` is
-  -- what was put in before any taper, so a row can show both
-  wb as (select * from public.week_base_points(p_league, (select w from wk))),
   lt as (
     -- Lifetime follows the person, not the league. A log fans out to one row
     -- per league, so count each log once (by group_id) or joining a second
@@ -770,13 +765,13 @@ language sql stable security definer set search_path = public as $$
           from public.workouts order by group_id, league_id) one_per_log
     group by profile_id)
   select p.id, p.display_name, p.avatar,
-         (coalesce(max(wb.base), 0) + coalesce(max(cb.bonus), 0)
-                                    + coalesce(max(bb.bounty), 0))::numeric,
-         coalesce(max(wb.base), 0)::numeric,
+         (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0)
+                                     + coalesce(max(bb.bounty), 0))::numeric,
+         coalesce(sum(w.points), 0)::numeric,
          (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
          count(w.id), m.joined_at,
          coalesce(max(lt.total), 0)::numeric, p.banner, p.pinned_badges,
-         p.name_color, coalesce(max(wb.logged), 0)::numeric
+         p.name_color
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
   left join public.workouts w
@@ -785,7 +780,6 @@ language sql stable security definer set search_path = public as $$
   left join cb on cb.profile_id = p.id
   left join bb on bb.profile_id = p.id
   left join lt on lt.profile_id = p.id
-  left join wb on wb.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
   group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
            p.name_color, m.joined_at
@@ -938,15 +932,11 @@ create function public.weekly_history(p_league uuid)
 returns table (week_start date, profile_id uuid, display_name text, avatar text,
                points numeric, entries bigint)
 language sql stable security definer set search_path = public as $$
-  -- Finished weeks are scored the same way the live board scores this one,
-  -- so a league that taper volume does not have a history that does not.
   select t.week_start, t.profile_id, t.display_name, t.avatar,
          (t.pts + coalesce(cb.bonus, 0))::numeric, t.n
   from (
     select w.week_start, p.id as profile_id, p.display_name, p.avatar,
-           coalesce((select wb.base from public.week_base_points(p_league, w.week_start) wb
-                     where wb.profile_id = p.id), 0) as pts,
-           count(*) as n
+           sum(w.points) as pts, count(*) as n
     from public.workouts w
     join public.profiles p on p.id = w.profile_id
     where w.league_id = p_league
@@ -1068,7 +1058,8 @@ begin
 end $$;
 
 create function public.set_league_settings(
-  p_league uuid, p_rest_dow int[], p_season_weeks int)
+  p_league uuid, p_rest_dow int[], p_season_weeks int,
+  p_catchup_dow int default null)
 returns public.leagues language plpgsql security definer set search_path = public as $$
 declare me uuid := public.my_profile_id(); row public.leagues;
 begin
@@ -1083,27 +1074,17 @@ begin
   if array_length(p_rest_dow, 1) > 3 then
     raise exception 'At most three rest days a week';
   end if;
+  if p_catchup_dow is not null and (p_catchup_dow < 1 or p_catchup_dow > 7) then
+    raise exception 'A catch-up day is a weekday number 1 to 7';
+  end if;
+  -- A rest day closes the league, so it cannot also be the day being behind
+  -- is worth something. One or the other.
+  if p_catchup_dow is not null and p_catchup_dow = any (coalesce(p_rest_dow, '{}'::int[])) then
+    raise exception 'The catch-up day cannot also be a rest day';
+  end if;
   update public.leagues
-     set rest_dow = coalesce(p_rest_dow, rest_dow), season_weeks = p_season_weeks
-   where id = p_league returning * into row;
-  return row;
-end $$;
-
--- Which way a league scores. Only the person who made it decides, and the
--- change lands on the live week immediately — it is a way of reading the
--- same logs, not a rewrite of them, so nothing anybody did is lost either way.
-create function public.set_league_scoring(p_league uuid, p_mode text)
-returns public.leagues language plpgsql security definer set search_path = public as $$
-declare me uuid := public.my_profile_id(); row public.leagues;
-begin
-  if me is null then raise exception 'NO_PROFILE'; end if;
-  if not exists (select 1 from public.leagues where id = p_league and owner_id = me) then
-    raise exception 'Only the person who created a league can change how it scores';
-  end if;
-  if p_mode not in ('hardcore', 'balanced') then
-    raise exception 'A league scores either hardcore or balanced';
-  end if;
-  update public.leagues set scoring = p_mode
+     set rest_dow = coalesce(p_rest_dow, rest_dow), season_weeks = p_season_weeks,
+         catchup_dow = p_catchup_dow
    where id = p_league returning * into row;
   return row;
 end $$;
@@ -1815,17 +1796,14 @@ revoke all on function public.my_combo_today(uuid)          from public, anon;
 revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.combo_threshold()             from public, anon;
 revoke all on function public.is_rest_day(uuid)             from public, anon;
+revoke all on function public.is_catchup_day(uuid)          from public, anon;
+revoke all on function public.catchup_multiplier(uuid,uuid) from public, anon;
 revoke all on function public.week_bounty_points(uuid,date) from public, anon;
 revoke all on function public.current_bounty(uuid)          from public, anon;
 revoke all on function public.bounty_done(uuid,uuid,jsonb,date) from public, anon;
 revoke all on function public.bounty_req(uuid,uuid,jsonb,date)  from public, anon;
 revoke all on function public.bounty_pick(date)             from public, anon;
 revoke all on function public.bounty_cat_points(uuid,uuid,text,date) from public, anon;
-revoke all on function public.decay_points(numeric,text)    from public, anon;
-revoke all on function public.decay_full(text)              from public, anon;
-revoke all on function public.decay_half(text)              from public, anon;
-revoke all on function public.week_base_points(uuid,date)   from public, anon;
-revoke all on function public.set_league_scoring(uuid,text) from public, anon;
 revoke all on function public.admin_schedule()              from public, anon;
 revoke all on function public.admin_bounties()              from public, anon;
 revoke all on function public.admin_pin_bounty(date,int,text) from public, anon;
@@ -1877,23 +1855,23 @@ grant execute on function public.admin_delete_bounty(int)      to authenticated;
 grant execute on function public.builtin_bounty_count()        to authenticated;
 grant execute on function public.bounty_pick(date)             to authenticated;
 grant execute on function public.bounty_cat_points(uuid,uuid,text,date) to authenticated;
-grant execute on function public.decay_points(numeric,text)    to authenticated;
-grant execute on function public.decay_full(text)              to authenticated;
-grant execute on function public.decay_half(text)              to authenticated;
-grant execute on function public.week_base_points(uuid,date)   to authenticated;
-grant execute on function public.set_league_scoring(uuid,text) to authenticated;
 grant select on public.bounty_schedule to authenticated;
 grant execute on function public.league_streaks(uuid,numeric)  to authenticated;
 grant execute on function public.set_pinned_badges(text[])     to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;
 grant execute on function public.league_rivalries(uuid,date)   to authenticated;
 grant execute on function public.delete_league(uuid)           to authenticated;
-grant execute on function public.set_league_settings(uuid,int[],int) to authenticated;
+grant execute on function public.set_league_settings(uuid,int[],int,int) to authenticated;
 grant execute on function public.set_league_badge(uuid,jsonb)  to authenticated;
 grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;
 grant execute on function public.combo_threshold()             to authenticated;
 grant execute on function public.is_rest_day(uuid)              to authenticated;
+grant execute on function public.is_catchup_day(uuid)           to authenticated;
+grant execute on function public.catchup_multiplier(uuid,uuid)  to authenticated;
+grant execute on function public.catchup_floor()                to authenticated;
+grant execute on function public.catchup_ceiling()              to authenticated;
+grant execute on function public.catchup_max()                  to authenticated;
 grant execute on function public.bounty_dow()                  to authenticated;
 grant execute on function public.bounty_index(date)            to authenticated;
 grant execute on function public.bounty_date(date)             to authenticated;
@@ -1935,6 +1913,24 @@ insert into public.raids (idx,name,descr,ex_keys,mode,per_member,unit) values
 
 -- ---------------------------------------------------------------------
 delete from public.bounties;
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
+-- The bounty pool: 110 side quests. One is drawn each week; which one is a
+-- deterministic shuffle of the whole pool, reseeded every year, so no two
+-- years run the same order and nothing repeats inside a year.
+--
+-- GENERATED by tools/build_bounties.py from tools/bounty_pool.py — edit
+-- there and re-run, never here.
 -- The bounty pool: 110 side quests. One is drawn each week; which one is a
 -- deterministic shuffle of the whole pool, reseeded every year, so no two
 -- years run the same order and nothing repeats inside a year.

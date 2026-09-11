@@ -131,7 +131,26 @@ nothing is ever turned away.
   advert inside somebody's training log.
 
 
-## 7. A season that does not restart every week
+## 7. Scoring that tapers volume — tried, dropped
+
+Built on 11 September and removed the same day: a "balanced" mode where the
+first 40 points from one exercise in a day counted in full and the rest
+tapered. The numbers worked — a fifteen-minute session lost 3%, three hours
+grinding one movement lost half — but the answer was that people do not want
+it. They want the raw competition, and a scoring rule that quietly makes your
+work worth less is the wrong shape for that.
+
+The **catch-up day** replaces it, and is the better idea: instead of taking
+points off the person in front, it gives a multiplier to the people behind.
+Nobody loses anything, the leader is not punished, and the most it can be
+worth is 40 per cent.
+
+Worth remembering if the gap problem comes back: the lever that worked was
+per-exercise, per-day, in points rather than reps, because the rate table
+already makes a point mean the same effort everywhere.
+
+
+## 8. A season that does not restart every week
 
 **Asked for on 11 September.** The board resets every Monday. That is right
 for most people — a bad week is forgotten by Tuesday, which is most of why

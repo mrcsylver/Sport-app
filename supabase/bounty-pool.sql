@@ -461,6 +461,17 @@ begin
   delete from public.bounties where idx = p_idx;
 end $$;
 
+-- ------------------------------------------- the week already in progress ---
+-- Only pins a week somebody has actually logged in, so a fresh database is
+-- left alone and the shuffle starts clean.
+insert into public.bounty_schedule (week_start, bounty_idx, note)
+select public.current_week_start(),
+       ((floor((public.current_week_start() - date '2026-01-05') / 7)::int % 52) + 52) % 52,
+       'kept from the old rotation: this week was already being played'
+where exists (select 1 from public.workouts
+              where week_start = public.current_week_start())
+on conflict (week_start) do nothing;
+
 -- -------------------------------------------------------------- grants ---
 revoke all on function public.bounty_pick(date)             from public, anon;
 revoke all on function public.bounty_cat_points(uuid,uuid,text,date) from public, anon;

@@ -21,6 +21,7 @@
   --gold:#ffc93c;
   --silver:#c9d3e2;
   --bronze:#d08442;
+  --diamond:#8ce9ff;
   --green:#26d07c;
   --display:"Barlow Condensed",Oswald,"Arial Narrow",system-ui,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
@@ -43,6 +44,7 @@
   --gold:#b8860b;
   --silver:#7b8494;
   --bronze:#9c5f22;
+  --diamond:#1f8fb0;
   --green:#0f8f52;
 }
 @media (prefers-color-scheme: light){
@@ -264,9 +266,13 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .tierhead:first-child{margin-top:0}
 .tierhead i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--muted);
   letter-spacing:0;margin-left:auto}
+.tierhead.t-diamond{color:var(--diamond)}
 .tierhead.t-gold{color:var(--gold)}
 .tierhead.t-silver{color:var(--silver)}
 .tierhead.t-bronze{color:var(--bronze)}
+.row.lead-diamond{border-color:rgba(140,233,255,.6);
+  box-shadow:inset 0 0 40px -12px rgba(140,233,255,.55)}
+.row.lead-diamond .rank{color:var(--diamond)}
 .row.lead-gold{border-color:rgba(255,201,60,.55);box-shadow:inset 0 0 34px -14px rgba(255,201,60,.55)}
 .row.lead-gold .rank{color:var(--gold)}
 .row.lead-silver{border-color:rgba(201,211,226,.4)}
@@ -597,9 +603,16 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 .divhead-n{font:800 13px/1 var(--mono);color:var(--dv);opacity:.7;flex:0 0 auto}
 .divhead.is-mine .divhead-t b::after{content:" · YOU";font-size:10px;letter-spacing:.1em;
   opacity:.65}
+/* Bronze, silver, gold — and above gold, diamond. A pale ice blue rather
+   than another warm metal: the board is already red and gold, and the top of
+   it should be the one thing on screen that is cold. */
+.t-diamond{--dv:var(--diamond)}
 .t-gold{--dv:var(--gold)}
 .t-silver{--dv:var(--silver)}
 .t-bronze{--dv:var(--bronze)}
+/* the throne gets a glow the other divisions do not */
+.divhead.t-diamond .divhead-t b{text-shadow:0 0 14px color-mix(in srgb,var(--diamond) 55%,transparent)}
+.divhead.t-diamond{border-bottom-width:3px}
 
 /* --- emblem builder --------------------------------------------------- */
 .av-preview{display:flex;align-items:center;gap:14px;padding:12px 0 2px}
@@ -707,18 +720,13 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .shop-c.on{border-color:var(--red);color:var(--red)}
 /* shape and colour are picked by looking at the badge you would get, so the
    button is mostly badge and needs no padding of its own */
-/* the two scoring modes, picked by reading what they do */
-.modepick{display:grid;gap:8px}
-.mode{display:block;width:100%;text-align:left;padding:12px 14px;border-radius:5px;
-  background:var(--panel);border:1px solid var(--line);color:var(--muted);cursor:pointer}
-.mode:disabled{cursor:default;opacity:.75}
-.mode b{display:block;font:800 13px/1.2 var(--display);letter-spacing:.1em;
-  color:var(--txt);margin-bottom:3px}
-.mode i{font:600 11px/1.4 var(--sans);font-style:normal}
-.mode.on{border-color:var(--red);background:linear-gradient(180deg,rgba(255,46,46,.1),var(--panel))}
-.mode.on b{color:var(--red)}
-/* what the taper took, shown only on your own row and only when it took some */
-.tapered{color:var(--muted);opacity:.8}
+/* a day that is already a rest day cannot also be the catch-up day */
+.dow.catch.on{border-color:var(--diamond);color:var(--diamond);
+  background:color-mix(in srgb,var(--diamond) 14%,transparent)}
+.dow.off{opacity:.3}
+/* what the catch-up day multiplied an entry by */
+.boost{font:800 9px/1 var(--display);letter-spacing:.06em;color:var(--diamond);
+  margin-left:5px}
 .shop-badge{padding:6px}
 .shop-badge .lbadge{width:100%;height:100%}
 .shop-badge .lbadge svg{width:100%;height:100%}

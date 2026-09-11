@@ -113,6 +113,12 @@ struct FeedList: View {
             Text("+\(row.points.formatted(.number.precision(.fractionLength(row.points < 10 ? 1 : 0))))")
                 .font(Theme.display(13, .bold))
                 .foregroundStyle(Theme.flame)
+            // what the catch-up day multiplied it by, if anything
+            if let boost = row.boost, boost > 1 {
+                Text("×\(boost.formatted(.number.precision(.fractionLength(2))))")
+                    .font(Theme.display(9, .heavy))
+                    .foregroundStyle(Theme.diamond)
+            }
             if let onDelete {
                 Button {
                     Haptic.solid()

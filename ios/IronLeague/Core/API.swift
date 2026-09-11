@@ -117,7 +117,7 @@ actor API {
     func feed(_ league: UUID, profile: UUID) async throws -> [WorkoutRow] {
         try await client
             .from("workouts")
-            .select("id,exercise_key,mode,amount,points,created_at,profile_id")
+            .select("id,exercise_key,mode,amount,points,boost,created_at,profile_id")
             .eq("league_id", value: league.uuidString)
             .eq("profile_id", value: profile.uuidString)
             .order("created_at", ascending: false)
@@ -208,18 +208,13 @@ actor API {
 
     /// `seasonWeeks` is nil for a league that just keeps going — the column
     /// only accepts null or 1…26, so a zero would be rejected by the check.
-    func setLeagueSettings(_ id: UUID, restDow: [Int],
-                           seasonWeeks: Int?) async throws -> League {
+    func setLeagueSettings(_ id: UUID, restDow: [Int], seasonWeeks: Int?,
+                           catchupDow: Int?) async throws -> League {
         try await rpc("set_league_settings", [
             "p_league": .string(id.uuidString),
             "p_rest_dow": .array(restDow.map { .integer($0) }),
-            "p_season_weeks": seasonWeeks.map { .integer($0) } ?? .null
-        ])
-    }
-    func setLeagueScoring(_ id: UUID, mode: League.Scoring) async throws -> League {
-        try await rpc("set_league_scoring", [
-            "p_league": .string(id.uuidString),
-            "p_mode": .string(mode.rawValue)
+            "p_season_weeks": seasonWeeks.map { .integer($0) } ?? .null,
+            "p_catchup_dow": catchupDow.map { .integer($0) } ?? .null
         ])
     }
     func setLeagueBadge(_ id: UUID, badge: League.Badge) async throws -> League {

@@ -74,6 +74,7 @@ struct StandingRow: View {
     }
 
     private var borderColor: Color {
+        if let d = division, d == .throne { return Theme.diamond.opacity(0.6) }
         if isLeader, let d = division { return Theme.metal(d).opacity(0.65) }
         if isLeader { return Theme.gold.opacity(0.6) }
         if isMe { return Theme.flame.opacity(0.5) }
@@ -115,12 +116,6 @@ struct StandingRow: View {
                         Text("+\(Int(standing.bonus)) bonus")
                             .font(.caption2.weight(.bold)).foregroundStyle(Theme.gold)
                     }
-                    // In a balanced league, say what the taper took — on your
-                    // own row only. Everyone else's is none of your business.
-                    if isMe, standing.tapered >= 1 {
-                        Text("\(Int(standing.logged ?? 0)) logged")
-                            .font(.caption2).foregroundStyle(Theme.inkFaint)
-                    }
                 }
             }
 
@@ -144,8 +139,10 @@ struct StandingRow: View {
         .contentShape(Rectangle())
     }
 
+    /// In a divided league the rank wears its division's metal, so the two
+    /// on the throne read as a pair. In a small league it is the old podium.
     private var rankColor: Color {
-        if let d = division, rank == 1 { return Theme.metal(d) }
+        if let d = division { return Theme.metal(d) }
         switch rank {
         case 1: return Theme.gold
         case 2: return Theme.silver

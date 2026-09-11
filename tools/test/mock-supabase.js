@@ -27,16 +27,6 @@
   window.__EXERCISES__ = DB.exercises;
   window.__DB__ = DB;
   function save() { try { localStorage.setItem('mock.db', JSON.stringify(DB)); } catch (e) {} }
-  /* decay_points() from schema.sql. Points from ONE exercise on ONE day. */
-  function decayPoints(p, cat) {
-    if (cat === 'RECOVERY') return p;
-    var timed = cat === 'CARDIO' || cat === 'SPORT';
-    var f = timed ? 80 : 40, h = timed ? 170 : 85;
-    if (p <= f) return p;
-    if (p <= h) return f + (p - f) * 0.70;
-    return f + (h - f) * 0.70 + (p - h) * 0.40;
-  }
-  window.__decay__ = decayPoints;
   window.__save__ = save;
   var TZ = 'Europe/Paris';
   var uid = null;
@@ -148,7 +138,7 @@
           members: DB.members.filter(function (x) { return x.league_id === l.id; }).length,
           joined_at: m.joined_at, badge: l.badge || null,
           rest_dow: l.rest_dow || [7], season_weeks: l.season_weeks || null,
-          scoring: l.scoring || 'hardcore' };
+          catchup_dow: l.catchup_dow === undefined ? null : l.catchup_dow };
       }));
     },
     my_combo_today: function (a) {
@@ -167,28 +157,11 @@
     league_leaderboard: function (a) {
       if (!isMember(a.p_league)) return ok([]);
       var wk = a.p_week || weekStart();
-      var lg = DB.leagues.filter(function (x) { return x.id === a.p_league; })[0];
-      var balanced = lg && lg.scoring === 'balanced';
       var rows = DB.members.filter(function (m) { return m.league_id === a.p_league; }).map(function (m) {
         var p = DB.profiles.filter(function (x) { return x.id === m.profile_id; })[0];
         var ws = DB.workouts.filter(function (w) {
           return w.league_id === a.p_league && w.profile_id === p.id && w.week_start === wk; });
-        var logged = Math.round(ws.reduce(function (s, w) { return s + w.points; }, 0) * 100) / 100;
-        /* Mirrors week_base_points() in SQL: one bucket per exercise per day,
-           and the curve applied to each. */
-        var buckets = {};
-        ws.forEach(function (w) {
-          var k = w.created_at.slice(0, 10) + '|' + w.exercise_key;
-          buckets[k] = (buckets[k] || 0) + w.points;
-        });
-        var base = logged;
-        if (balanced) {
-          base = 0;
-          Object.keys(buckets).forEach(function (k) {
-            base += decayPoints(buckets[k], CATS[k.split('|')[1]]);
-          });
-          base = Math.round(base * 100) / 100;
-        }
+        var base = Math.round(ws.reduce(function (s, w) { return s + w.points; }, 0) * 100) / 100;
         var byDay = {};
         ws.forEach(function (w) {
           if (CATS[w.exercise_key] === 'RECOVERY') return;
@@ -207,7 +180,7 @@
         }).reduce(function (t, w) { return t + w.points; }, 0);
         return { profile_id: p.id, display_name: p.display_name, avatar: p.avatar || null,
           joined_at: m.joined_at, entries: ws.length, lifetime: Math.round(life * 100) / 100,
-          base_points: base, bonus: bonus, logged: logged,
+          base_points: base, bonus: bonus,
           points: Math.round((base + bonus) * 100) / 100 };
       });
       rows.sort(function (x, y) { return y.points - x.points || (x.joined_at < y.joined_at ? -1 : 1); });
@@ -421,18 +394,6 @@
       l.badge = Object.keys(out).length ? out : null;
       save(); return ok(l);
     },
-    set_league_scoring: function (a) {
-      var p = me(); if (!p) return bad('NO_PROFILE');
-      var l = DB.leagues.filter(function (x) { return x.id === a.p_league; })[0];
-      if (!l) return bad('NOT_A_MEMBER');
-      if (l.owner_id !== p.id) {
-        return bad('Only the person who created a league can change how it scores');
-      }
-      if (['hardcore', 'balanced'].indexOf(a.p_mode) < 0) {
-        return bad('A league scores either hardcore or balanced');
-      }
-      l.scoring = a.p_mode; save(); return ok(l);
-    },
     set_league_settings: function (a) {
       var p = me(); if (!p) return bad('NO_PROFILE');
       var l = DB.leagues.filter(function (x) { return x.id === a.p_league; })[0];
@@ -442,6 +403,11 @@
       }
       if (a.p_rest_dow) l.rest_dow = a.p_rest_dow;
       l.season_weeks = a.p_season_weeks || null;
+      if (a.p_catchup_dow != null &&
+          (a.p_rest_dow || []).indexOf(a.p_catchup_dow) >= 0) {
+        return bad('The catch-up day cannot also be a rest day');
+      }
+      l.catchup_dow = a.p_catchup_dow == null ? null : a.p_catchup_dow;
       save(); return ok(l);
     },
     my_stats: function (a) {

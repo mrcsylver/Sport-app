@@ -244,15 +244,18 @@
             <button class="btn ghost sm" type="button" data-goshop="shopShapeHead">CHANGE</button>
           </div>
 
-          <h4>How this league scores</h4>
-          <div class="modepick" id="scoringPick"></div>
-          <p class="muted small" id="scoringNote"></p>
-
           <div id="leagueOwnerBox" hidden>
             <h4>Rules of this league</h4>
             <p class="muted small">Rest days close the league — only a stretch counts,
               once. Pick up to three.</p>
             <div class="dowrow" id="restDows"></div>
+            <h4 style="margin-top:16px">Catch-up day</h4>
+            <p class="muted small">One day a week where being behind is worth
+              something. Everything logged that day is multiplied by how far off
+              the lead you are — up to &times;1.4 at 500 points back, nothing
+              inside 150. The leader still trains and still scores; nobody loses
+              anything. It cannot be a rest day.</p>
+            <div class="dowrow" id="catchDows"></div>
             <label class="lbl" for="seasonWeeks" style="margin-top:12px">SEASON LENGTH</label>
             <div class="copyrow">
               <select id="seasonWeeks" class="input select">

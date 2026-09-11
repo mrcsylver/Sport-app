@@ -36,7 +36,9 @@ struct LiveView: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 14)
                         ForEach(group.rows.ranked) { entry in
-                            row(entry.value, rank: entry.index, division: group.division)
+                            row(entry.value,
+                                rank: group.firstRank + entry.index - 1,
+                                division: group.division)
                         }
                     }
                 }

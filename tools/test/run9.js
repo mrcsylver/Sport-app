@@ -73,22 +73,31 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
 
  /* ---- divisions ---- */
  const heads=await pg.$$eval('.divhead', e=>e.map(x=>x.textContent.replace(/\s+/g,' ').trim()));
- T('three divisions shown', heads.length===3, heads.join(' | '));
- T('ten apex, ten vanguard, four forge',
-   heads.length===3 && heads[0].includes('10') && heads[1].includes('10') && heads[2].includes('4'),
-   heads.join(' | ') || 'no division headers rendered');
+ T('four divisions shown', heads.length===4, heads.join(' | '));
+ const sizes=await pg.$$eval('.divhead-n', e=>e.map(x=>x.textContent.trim()));
+ T('two on the throne, three in the apex, ten in the vanguard',
+   sizes.join(',')==='2,3,10,9', sizes.join(',') || 'no division headers rendered');
  T('divisions are named places, not numbers',
-   /APEX/.test(heads[0]) && /VANGUARD/.test(heads[1]) && /FORGE/.test(heads[2]),
+   /THRONE/.test(heads[0]) && /APEX/.test(heads[1]) && /VANGUARD/.test(heads[2])
+   && /FORGE/.test(heads[3]),
    heads.join(' | '));
  // divisions must follow THIS week's points, highest first
  const pts=await pg.$$eval('#board .row .pts', e=>e.map(x=>parseFloat(x.textContent)));
  T('divisions follow current points, descending',
    pts.every((v,i)=>i===0||pts[i-1]>=v), pts.slice(0,6).join(' > ')+' …');
  const goldTop=await pg.$eval('#board .row', e=>parseFloat(e.querySelector('.pts').textContent));
- T('gold #1 is the current leader', goldTop===Math.max(...pts), goldTop+' vs max '+Math.max(...pts));
+ T('the throne holds the current leader', goldTop===Math.max(...pts), goldTop+' vs max '+Math.max(...pts));
+ /* the rank number is a position in the whole league, not inside a division */
+ const ranks=await pg.$$eval('#board .row .rank', e=>e.map(x=>x.textContent.trim()));
+ T('ranks run straight through the divisions',
+   ranks.slice(0,14).join(',')==='1,2,3,4,5,6,7,8,9,10,11,12,13,14', ranks.slice(0,14).join(','));
+ T('nobody is 1st twice', new Set(ranks.filter(r=>r!=='–')).size
+   === ranks.filter(r=>r!=='–').length, ranks.join(','));
  const order=await pg.$$eval('#board > *', e=>e.map(x=>x.className.split(' ')[0]));
  T('board is grouped, not one flat list', order[0]==='divhead', order.slice(0,3).join(','));
- T('a leader is highlighted per division', (await pg.$$('.row.lead-gold')).length===1, 'yes');
+ T('a leader is highlighted per division',
+   (await pg.$$('.row.lead-diamond')).length===1 && (await pg.$$('.row.lead-gold')).length===1,
+   'throne and apex both marked');
  await pg.screenshot({path:path.join(OUT,'80-tiers.png')});
 
  /* ---- most improved ---- */

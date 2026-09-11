@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.7.0';
+  var APP_VERSION = '2.8.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -221,19 +221,24 @@
   var COMBO_MIN = 10;
   var COMBO_TIERS = [{ n: 5, pts: 12 }, { n: 4, pts: 8 }, { n: 3, pts: 5 }];
 
-  /* Divisions. Your finishing position last week decides this week's tier,
-     so it maintains itself with no bookkeeping. Ten per tier, always. */
-  /* Divisions. Ten per division, always, so the size never depends on how
-     many people showed up. Each one is a place with a name and a crest, not
-     a colour with a number — you are in the VANGUARD, not in "tier 2". */
+  /* Divisions. Where you are is where you finished, so it maintains itself
+     with no bookkeeping. Each one is a place with a name and a crest, not a
+     colour with a number — you are in the VANGUARD, not in "tier 2".
+     The sizes narrow sharply at the top on purpose: two seats on the THRONE
+     and three in the APEX means the top of the table is somewhere you can be
+     pushed out of by one good evening, which is the whole point of it. */
   var TIERS = [
-    { key: 'GOLD',   name: 'APEX',     sub: 'Top ten of the league',
-      icon: 'crown',      size: 10, color: 'var(--gold)' },
-    { key: 'SILVER', name: 'VANGUARD', sub: 'Chasing the Apex',
-      icon: 'crossed-swords', size: 10, color: 'var(--silver)' },
-    { key: 'BRONZE', name: 'FORGE',    sub: 'Where everyone starts',
-      icon: 'anvil-impact',  size: 10, color: 'var(--bronze)' }
+    { key: 'DIAMOND', name: 'THRONE',   sub: 'Two seats. One of them is yours to lose',
+      icon: 'chess-king',     size: 2 },
+    { key: 'GOLD',    name: 'APEX',     sub: 'Three deep, and one push from the throne',
+      icon: 'crown',          size: 3 },
+    { key: 'SILVER',  name: 'VANGUARD', sub: 'Chasing the Apex',
+      icon: 'crossed-swords', size: 10 },
+    { key: 'BRONZE',  name: 'FORGE',    sub: 'Where everyone starts',
+      icon: 'anvil-impact',   size: 15 }
   ];
+  /* Below this many people a division is just the table with headings in it. */
+  var TIER_MINIMUM = 10;
 
   /* The rank ladder, all the way to 50,000 lifetime points. Named grades with
      numerals inside them, so there is always a next step close enough to want.
@@ -1139,7 +1144,7 @@
   /* Divisions are a live cut of the current table: the top ten are Gold,
      the next ten Silver, the rest Bronze. Log something and you climb. */
   function withTiers(rows) {
-    if (rows.length <= TIERS[0].size) return null;   // one division is not a division
+    if (rows.length < TIER_MINIMUM) return null;     // one division is not a division
     var sorted = rows.slice().sort(function (a, b) {
       var d = Number(b.points) - Number(a.points);
       if (d) return d;
@@ -1157,10 +1162,13 @@
     return out;
   }
 
-  function boardRow(p, rank, tierKey) {
+  /* `lead` is the top of whichever division this row is in, not the top of
+     the league — ranks run straight through now, so it can no longer be
+     worked out from the number. Each division stays its own race. */
+  function boardRow(p, rank, tierKey, lead) {
     var me = state.profile ? state.profile.id : null;
     var pts = Number(p.points) || 0;
-    var lead = rank === 1 && pts > 0;
+    lead = (lead === undefined ? rank === 1 : lead) && pts > 0;
     var cls = 'row' + (tierKey
         ? (lead ? ' lead-' + tierKey.toLowerCase() : '')
         : (rank && rank <= 3 && pts > 0 ? ' r' + rank : '')) +
@@ -1187,7 +1195,6 @@
           (bn ? '<b class="rankchip rank-' + bn.tier + '">' + bn.name + '</b> · ' : '') +
           p.entries + (Number(p.entries) === 1 ? ' entry' : ' entries') +
           (Number(p.bonus) > 0 ? ' · <b class="cbadge">+' + num(p.bonus) + ' combo</b>' : '') +
-          taperNote(p) +
         '</span></span>' +
         '<span class="pts">' + num(pts) + '<small>PTS</small></span>' +
         '<span class="chev">' + (open ? '▲' : '▼') + '</span>' +
@@ -1199,17 +1206,6 @@
     '</div>';
   }
 
-  /* In a balanced league, say plainly what the taper took — on your own row
-     only. Everyone else's is none of your business, and a table full of it
-     would read as a complaint rather than a rule. */
-  function taperNote(p) {
-    if (scoringOf(league()) !== 'balanced') return '';
-    if (!state.profile || p.profile_id !== state.profile.id) return '';
-    var logged = Number(p.logged || 0), base = Number(p.base_points || 0);
-    if (logged - base < 1) return '';
-    return ' · <span class="tapered">' + num(logged) + ' logged</span>';
-  }
-
   function renderBoard() {
     var box = $('#board');
     if (!state.board.length) {
@@ -1219,6 +1215,9 @@
     var groups = withTiers(state.board);
     if (groups) {
       var mine = state.profile ? state.profile.id : null;
+      /* One position for the whole league, counted straight through the
+         divisions. Being 11th is being 11th; it is not "1st in vanguard". */
+      var seen = 0;
       box.innerHTML = groups.map(function (g) {
         var here = g.rows.some(function (p) { return p.profile_id === mine; });
         return '<div class="divhead t-' + g.tier.key.toLowerCase() +
@@ -1228,9 +1227,13 @@
                    '<i>' + g.tier.sub + '</i></span>' +
                  '<span class="divhead-n">' + g.rows.length + '</span>' +
                '</div>' +
-               g.rows.map(function (p, i) { return boardRow(p, i + 1, g.tier.key); }).join('');
+               g.rows.map(function (p, i) {
+                 seen += 1;
+                 return boardRow(p, p.points > 0 ? seen : null, g.tier.key, i === 0);
+               }).join('');
       }).join('') +
-      '<p class="hint">Ten fighters per division. Pass the person above you and you take their place.</p>';
+      '<p class="hint">Two on the throne, three in the apex, ten in the vanguard. ' +
+      'Pass the person above you and you take their place.</p>';
       return;
     }
     var me = state.profile ? state.profile.id : null;
@@ -1276,7 +1279,9 @@
           return '<div class="fitem">' +
             '<span class="fx">' + esc(ex ? ex.name : w.exercise_key) +
               '<span class="famt"> · ' + num(w.amount) + ' ' + u.short + ' · ' + hh + '</span></span>' +
-            '<span class="fpts">+' + num(w.points) + '</span>' +
+            '<span class="fpts">+' + num(w.points) +
+              (Number(w.boost) > 1 ? '<span class="boost">&times;' + w.boost + '</span>' : '') +
+            '</span>' +
             (w.profile_id === me && !isRestDay()
               ? '<button class="del" data-edit="' + w.id + '" title="Edit">✎</button>' +
                 '<button class="del" data-del="' + w.id + '" title="Delete">✕</button>'
@@ -2326,27 +2331,10 @@
   /* ---- rules a league creator owns -------------------------------------- */
   var DOW = [[1,'MON'],[2,'TUE'],[3,'WED'],[4,'THU'],[5,'FRI'],[6,'SAT'],[7,'SUN']];
 
-  /* The two ways a league can score. Named and described rather than left as
-     a switch, because "diminishing returns on volume" is not something anybody
-     should have to work out from a toggle. */
-  var SCORING_MODES = [
-    { key: 'hardcore', name: 'HARDCORE',
-      what: 'Every rep counts the same, however many you do. Raw volume, raw ' +
-            'competition. If everyone in your league can train as long as they ' +
-            'like, this is the honest one.' },
-    { key: 'balanced', name: 'BALANCED',
-      what: 'Volume in one exercise tapers after a point, so a fifteen-minute ' +
-            'session stays in the running. A short session loses about 3%; three ' +
-            'hours grinding one movement loses about half. Running, swimming and ' +
-            'sport get twice the allowance, and bounties are untouched.' }
-  ];
-
-  function scoringOf(l) { return (l && l.scoring) || 'hardcore'; }
 
   function paintLeagueRules() {
     var l = league(), mine = l && state.profile && l.owner_id === state.profile.id;
     $('#leagueOwnerBox').hidden = !mine;
-    paintScoring(l, mine);
     $('#deleteLeagueBtn').hidden = !mine;
     if (!l) return;
     var rest = l.rest_dow || [7];
@@ -2354,53 +2342,58 @@
       return '<button type="button" class="dow' + (rest.indexOf(d[0]) >= 0 ? ' on' : '') +
              '" data-dow="' + d[0] + '"' + (mine ? '' : ' disabled') + '>' + d[1] + '</button>';
     }).join('');
+    /* One day, or none. A rest day closes the league, so it cannot also be
+       the day that being behind is worth something. */
+    $('#catchDows').innerHTML = DOW.map(function (d) {
+      var off = rest.indexOf(d[0]) >= 0;
+      return '<button type="button" class="dow catch' +
+             (l.catchup_dow === d[0] ? ' on' : '') + (off ? ' off' : '') +
+             '" data-catch="' + d[0] + '"' + (mine && !off ? '' : ' disabled') + '>' +
+             d[1] + '</button>';
+    }).join('');
     $('#seasonWeeks').value = l.season_weeks == null ? '' : String(l.season_weeks);
     $('#leaveNote').textContent = mine
       ? 'Leaving keeps the league alive for everyone else. Deleting removes it for everybody.'
       : 'Your logs stay in every other league you are in.';
   }
 
-  function paintScoring(l, mine) {
-    var cur = scoringOf(l);
-    $('#scoringPick').innerHTML = SCORING_MODES.map(function (m) {
-      return '<button type="button" class="mode' + (m.key === cur ? ' on' : '') +
-             '" data-mode="' + m.key + '"' + (mine ? '' : ' disabled') + '>' +
-             '<b>' + m.name + (m.key === cur ? ' · IN USE' : '') + '</b>' +
-             '<i>' + esc(m.what) + '</i></button>';
-    }).join('');
-    $('#scoringNote').textContent = mine
-      ? 'Changing this re-reads the same logs a different way. Nothing anybody ' +
-        'has done is lost, and you can switch back.'
-      : 'Only the person who created the league can change this.';
-  }
-
-  $('#scoringPick').addEventListener('click', async function (e) {
-    var b = e.target.closest('[data-mode]'); if (!b || b.disabled) return;
-    var mode = b.getAttribute('data-mode');
-    if (mode === scoringOf(league())) return;
-    try {
-      var r = await sb.rpc('set_league_scoring',
-                           { p_league: state.leagueId, p_mode: mode });
-      if (r.error) throw r.error;
-      await loadLeagues();
-      paintLeagueRules();
-      await refreshAll();
-      toast('This league now scores ' + mode);
-    } catch (err) { toast(niceError(err), true); }
-  });
-
   $('#restDows').addEventListener('click', function (e) {
     var b = e.target.closest('[data-dow]'); if (!b || b.disabled) return;
     b.classList.toggle('on');
+    paintCatchAvailability();
   });
+
+  /* Tapping a catch-up day picks it; tapping the one already on clears it. */
+  $('#catchDows').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-catch]'); if (!b || b.disabled) return;
+    var was = b.classList.contains('on');
+    Array.prototype.forEach.call($('#catchDows').querySelectorAll('.dow'),
+      function (x) { x.classList.remove('on'); });
+    if (!was) b.classList.add('on');
+  });
+
+  /* A day cannot be both, so the rest days grey themselves out of the
+     catch-up row as they are picked. */
+  function paintCatchAvailability() {
+    var rest = Array.prototype.map.call($('#restDows').querySelectorAll('.dow.on'),
+      function (b) { return b.getAttribute('data-dow'); });
+    Array.prototype.forEach.call($('#catchDows').querySelectorAll('.dow'), function (b) {
+      var off = rest.indexOf(b.getAttribute('data-catch')) >= 0;
+      b.classList.toggle('off', off);
+      b.disabled = off;
+      if (off) b.classList.remove('on');
+    });
+  }
 
   $('#saveRules').addEventListener('click', async function () {
     var dows = Array.prototype.map.call($('#restDows').querySelectorAll('.dow.on'),
       function (b) { return Number(b.getAttribute('data-dow')); });
     var wk = $('#seasonWeeks').value;
     try {
+      var picked = $('#catchDows').querySelector('.dow.on');
       var r = await sb.rpc('set_league_settings', {
         p_league: state.leagueId, p_rest_dow: dows,
+        p_catchup_dow: picked ? Number(picked.getAttribute('data-catch')) : null,
         p_season_weeks: wk === '' ? null : Number(wk)
       });
       if (r.error) throw r.error;

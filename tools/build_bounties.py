@@ -164,12 +164,31 @@ def write_migration(pool):
     for kind, name in MIGRATION_OBJECTS:
         parts.append("-- " + ("-" * (72 - len(name))) + " " + name + " ---")
         parts.append(lift(schema, kind, name) + "\n")
+    # after the schedule table exists, or there is nothing to insert into
+    parts.append(KEEP_THIS_WEEK)
     parts.append("-- -------------------------------------------------------------- grants ---")
     parts.append(grants(schema))
     parts.append("\ncommit;")
     body = "\n".join(parts) + "\n"
     open(MIGRATION, "w", encoding="utf-8").write(body)
     return len(body.splitlines())
+
+
+# Changing the rotation mid-week changes which quest the week was for, and
+# because bounty points are worked out on read rather than stored, anybody who
+# had already finished the old one loses the points for it. A week being played
+# keeps the quest it started with; the shuffle takes over from the next Monday.
+KEEP_THIS_WEEK = """-- ------------------------------------------- the week already in progress ---
+-- Only pins a week somebody has actually logged in, so a fresh database is
+-- left alone and the shuffle starts clean.
+insert into public.bounty_schedule (week_start, bounty_idx, note)
+select public.current_week_start(),
+       ((floor((public.current_week_start() - date '2026-01-05') / 7)::int % 52) + 52) % 52,
+       'kept from the old rotation: this week was already being played'
+where exists (select 1 from public.workouts
+              where week_start = public.current_week_start())
+on conflict (week_start) do nothing;
+"""
 
 
 MIGRATION_HEAD = """-- ======================================================================

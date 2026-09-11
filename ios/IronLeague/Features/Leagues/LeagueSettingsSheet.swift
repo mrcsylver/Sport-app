@@ -8,6 +8,7 @@ struct LeagueSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var rest: Set<Int> = [7]
+    @State private var catchup: Int?
     @State private var weeks: Double = 12
     @State private var endless = true
 
@@ -32,9 +33,9 @@ struct LeagueSettingsSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
-                    scoringSection
                     crestSection
                     restSection
+                    catchupSection
                     seasonSection
                     Color.clear.frame(height: 20)
                 }
@@ -54,63 +55,12 @@ struct LeagueSettingsSheet: View {
         }
         .onAppear {
             rest = Set(league?.restDow ?? [7])
+            catchup = league?.catchupDow
             if let w = league?.seasonWeeks {
                 weeks = Double(w)
                 endless = false
             } else {
                 endless = true
-            }
-        }
-    }
-
-    // MARK: how it scores
-
-    /// Named and described rather than left as a switch. "Diminishing returns
-    /// on volume" is not something anybody should have to work out from a
-    /// toggle, and the choice changes what the whole league is about.
-    private var scoringSection: some View {
-        Panel {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("HOW THIS LEAGUE SCORES")
-                    .font(Theme.display(10, .heavy)).kerning(1.6)
-                    .foregroundStyle(Theme.inkFaint)
-
-                ForEach(League.Scoring.allCases) { mode in
-                    let on = league?.mode == mode
-                    Button {
-                        guard !on else { return }
-                        Haptic.solid()
-                        Task { await session.saveScoring(mode) }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Text(mode.title)
-                                    .font(Theme.display(13, .black)).kerning(1)
-                                    .foregroundStyle(on ? Theme.flame : Theme.ink)
-                                if on { Chip(text: "IN USE", color: Theme.flame) }
-                            }
-                            Text(mode.blurb)
-                                .font(.caption)
-                                .foregroundStyle(Theme.inkMuted)
-                                .multilineTextAlignment(.leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background {
-                            RoundedRectangle(cornerRadius: Theme.cornerSmall, style: .continuous)
-                                .fill(on ? Theme.flame.opacity(0.1) : Theme.raised)
-                                .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall,
-                                                          style: .continuous)
-                                    .strokeBorder(on ? Theme.flame.opacity(0.7) : .clear))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .pressable()
-                }
-
-                Text("Changing this re-reads the same logs a different way. Nothing anybody has done is lost, and you can switch back.")
-                    .font(.caption2).foregroundStyle(Theme.inkFaint)
             }
         }
     }
@@ -246,6 +196,55 @@ struct LeagueSettingsSheet: View {
         }
     }
 
+    // MARK: the catch-up day
+
+    /// One day a week where being behind is worth something. It is not a
+    /// handicap — the leader still trains and still scores — it is a reason
+    /// for somebody four days down to turn up rather than write the week off.
+    private var catchupSection: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("CATCH-UP DAY")
+                    .font(Theme.display(10, .heavy)).kerning(1.6)
+                    .foregroundStyle(Theme.inkFaint)
+                Text("Everything logged that day is multiplied by how far off the lead you are — up to ×1.4 at 500 points back, nothing inside 150. Nobody loses anything, and it cannot be a rest day.")
+                    .font(.caption).foregroundStyle(Theme.inkMuted)
+
+                HStack(spacing: 5) {
+                    ForEach(Self.days) { day in
+                        let blocked = rest.contains(day.number)
+                        let on = catchup == day.number
+                        Button {
+                            guard !blocked else { return }
+                            Haptic.tap()
+                            withAnimation(Motion.tap) {
+                                catchup = on ? nil : day.number
+                            }
+                        } label: {
+                            Text(day.title)
+                                .font(Theme.display(9, .heavy))
+                                .foregroundStyle(on ? Theme.void : Theme.inkMuted)
+                                .frame(maxWidth: .infinity).padding(.vertical, 10)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .fill(on ? AnyShapeStyle(Theme.diamond)
+                                                 : AnyShapeStyle(Theme.raised))
+                                }
+                                .opacity(blocked ? 0.3 : 1)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(blocked)
+                    }
+                }
+
+                if catchup == nil {
+                    Text("No catch-up day. Every day scores the same.")
+                        .font(.caption2).foregroundStyle(Theme.inkFaint)
+                }
+            }
+        }
+    }
+
     // MARK: season
 
     private var seasonSection: some View {
@@ -280,7 +279,8 @@ struct LeagueSettingsSheet: View {
                     Task {
                         await session.saveLeagueSettings(
                             restDow: rest.sorted(),
-                            seasonWeeks: endless ? nil : Int(weeks))
+                            seasonWeeks: endless ? nil : Int(weeks),
+                            catchupDow: catchup)
                     }
                 }
             }

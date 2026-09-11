@@ -1,5 +1,5 @@
-/* Balanced scoring: the league setting, what it does to the board, and that
-   nothing anybody logged is touched by switching it. */
+/* The catch-up day: the setting, the rules around it, and that the leader is
+   never punished — only unboosted. */
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const http=require('http'), fs=require('fs'), path=require('path');
 const ROOT='/home/user/Sport-app';
@@ -10,19 +10,10 @@ const srv=http.createServer((q,s)=>{let p=decodeURIComponent(q.url.split('?')[0]
  const f=path.join(ROOT,p); if(!fs.existsSync(f)||fs.statSync(f).isDirectory()){s.writeHead(404);return s.end();}
  s.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'}); s.end(fs.readFileSync(f));});
 
-/* p1 owns the league and trains 15 minutes; p2 grinds 400 push-ups. */
-const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__calc__;
- DB.leagues.push({id:'lg1',name:'IRON CIRCLE',code:'8FE7BB',owner_id:'p1',max_members:30});
- DB.profiles.push({id:'p1',user_id:'u1',display_name:'BUSY',restore_code:'RC1'});
- DB.profiles.push({id:'p2',user_id:'u2',display_name:'GRINDER',restore_code:'RC2'});
+const SEED=`(function(){var DB=window.__DB__;
+ DB.leagues.push({id:'lg1',name:'IRON CIRCLE',code:'8FE7BB',owner_id:'p1',max_members:30,rest_dow:[1]});
+ DB.profiles.push({id:'p1',user_id:'u1',display_name:'MARCO',restore_code:'RC1'});
  DB.members.push({league_id:'lg1',profile_id:'p1',joined_at:'2026-01-01'});
- DB.members.push({league_id:'lg1',profile_id:'p2',joined_at:'2026-01-02'});
- var cur=W(),id=0;
- function log(pid,k,m,a){DB.workouts.push({id:'w'+(++id),league_id:'lg1',profile_id:pid,
-   exercise_key:k,mode:m,amount:a,points:C(k,m,a),week_start:cur,
-   created_at:new Date().toISOString()});}
- log('p1','pushups','reps',50); log('p1','pullups','reps',20);
- for(var i=0;i<10;i++) log('p2','pushups','reps',40);
 })();`;
 
 (async()=>{
@@ -38,85 +29,71 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  await pg.route('**/sw.js', r => r.abort());
  await pg.addInitScript(()=>{window.__UID__='u1';});
  await pg.goto('http://localhost:4413/');
- await pg.waitForSelector('#app:not([hidden])',{timeout:8000}); await pg.waitForTimeout(800);
+ await pg.waitForSelector('#app:not([hidden])',{timeout:8000}); await pg.waitForTimeout(700);
 
- const pts = async () => pg.$$eval('#board .row', rows => rows.map(r => ({
-   n: r.querySelector('.nm').textContent.trim().replace(/\s*\(YOU\)$/,''),
-   p: Number(r.querySelector('.pts').textContent.replace(/PTS/,'')) })));
-
- const hard = await pts();
- T('hardcore board: grinder has 400', hard.find(x=>x.n==='GRINDER').p===400, JSON.stringify(hard));
- T('hardcore board: busy has 90', hard.find(x=>x.n==='BUSY').p===90, JSON.stringify(hard));
- T('no taper note in a hardcore league',
-   !(await pg.textContent('#board')).includes('logged'), 'none');
-
- /* the setting */
  await pg.click('.tab[data-view="me"]'); await pg.waitForTimeout(300);
  await pg.evaluate(()=>document.querySelectorAll('details.sect').forEach(d=>{
    d.open=true; d.dispatchEvent(new Event('toggle'));}));
  await pg.waitForTimeout(300);
 
- const modes = await pg.$$eval('#scoringPick .mode', e=>e.map(x=>x.getAttribute('data-mode')));
- T('both modes offered', modes.join(',')==='hardcore,balanced', modes.join(','));
- T('the one in use is marked',
-   (await pg.textContent('#scoringPick .mode.on')).includes('IN USE'),
-   (await pg.textContent('#scoringPick .mode.on')).slice(0,30));
- T('each one explains itself',
-   (await pg.textContent('#scoringPick')).includes('fifteen-minute'), 'yes');
- await pg.evaluate(()=>document.querySelector('#scoringPick').scrollIntoView());
+ T('seven days offered', (await pg.$$('#catchDows .dow')).length===7, '7');
+ T('none is chosen to begin with',
+   (await pg.$$('#catchDows .dow.on')).length===0, 'none');
+ T('it explains what it does',
+   (await pg.textContent('#leagueOwnerBox')).includes('×1.4')
+   || (await pg.textContent('#leagueOwnerBox')).includes('1.4'), 'yes');
+
+ /* Monday is already the rest day, so it cannot be the catch-up day */
+ T('the rest day is greyed out of the catch-up row',
+   await pg.$eval('#catchDows [data-catch="1"]', e=>e.disabled), 'Monday disabled');
+
+ await pg.click('#catchDows [data-catch="7"]');
  await pg.waitForTimeout(200);
- await pg.screenshot({path:path.join(OUT,'62-scoring-modes.png')});
+ T('Sunday picks', (await pg.$$('#catchDows .dow.on')).length===1, 'one');
+ await pg.click('#saveRules'); await pg.waitForTimeout(600);
+ T('saved to the league',
+   await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow===7),
+   String(await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow)));
 
- await pg.click('.mode[data-mode="balanced"]');
- await pg.waitForTimeout(800);
- T('the league is now balanced',
-   await pg.evaluate(()=>window.__DB__.leagues[0].scoring==='balanced'),
-   await pg.evaluate(()=>window.__DB__.leagues[0].scoring));
+ /* only one day at a time */
+ await pg.click('#catchDows [data-catch="6"]'); await pg.waitForTimeout(200);
+ T('picking another moves it rather than adding one',
+   (await pg.$$('#catchDows .dow.on')).length===1,
+   String((await pg.$$('#catchDows .dow.on')).length));
+ /* and tapping the chosen one clears it */
+ await pg.click('#catchDows [data-catch="6"]'); await pg.waitForTimeout(200);
+ T('tapping it again turns it off',
+   (await pg.$$('#catchDows .dow.on')).length===0, 'none');
+ await pg.click('#saveRules'); await pg.waitForTimeout(600);
+ T('a league can have no catch-up day at all',
+   await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow===null),
+   String(await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow)));
 
- await pg.click('.tab[data-view="live"]'); await pg.waitForTimeout(700);
- const soft = await pts();
- const g = soft.find(x=>x.n==='GRINDER').p, bu = soft.find(x=>x.n==='BUSY').p;
- T('grinder tapered to 197.5', Math.abs(g-197.5)<0.6, String(g));
- T('busy barely touched (87 of 90)', Math.abs(bu-87)<0.6, String(bu));
- T('the gap closed from 310 to about 110', Math.abs((g-bu)-110.5)<1.5, String(Math.round(g-bu)));
- T('your own row says what was logged',
-   (await pg.textContent('#board .row.me')).includes('90 logged'),
-   (await pg.textContent('#board .row.me')).replace(/\s+/g,' ').slice(0,80));
- T("but not on anybody else's row",
-   !(await pg.$$eval('#board .row:not(.me)', r=>r.map(x=>x.textContent).join(''))).includes('logged'),
-   'none');
- await pg.screenshot({path:path.join(OUT,'63-balanced-board.png')});
+ /* making a rest day out of the catch-up day takes it away */
+ await pg.click('#catchDows [data-catch="7"]'); await pg.waitForTimeout(150);
+ await pg.click('#restDows [data-dow="7"]'); await pg.waitForTimeout(250);
+ T('marking it a rest day clears the catch-up day',
+   (await pg.$$('#catchDows .dow.on')).length===0
+   && await pg.$eval('#catchDows [data-catch="7"]', e=>e.disabled),
+   'cleared and disabled');
 
- /* nothing was rewritten */
- T('every logged row keeps its own points',
-   await pg.evaluate(()=>window.__DB__.workouts.every(w=>w.points>0)
-     && window.__DB__.workouts.filter(w=>w.profile_id==='p2')
-          .reduce((s,w)=>s+w.points,0)===400),
-   'all 400 still stored');
+ await pg.evaluate(()=>document.querySelector('#catchDows').scrollIntoView());
+ await pg.waitForTimeout(200);
+ await pg.screenshot({path:path.join(OUT,'62-catchup-day.png')});
 
- /* and switching back restores it exactly */
- await pg.click('.tab[data-view="me"]'); await pg.waitForTimeout(300);
- await pg.evaluate(()=>document.querySelectorAll('details.sect').forEach(d=>{d.open=true;}));
- await pg.click('.mode[data-mode="hardcore"]');
- await pg.waitForTimeout(800);
- await pg.click('.tab[data-view="live"]'); await pg.waitForTimeout(700);
- const back = await pts();
- T('switching back restores the raw board',
-   back.find(x=>x.n==='GRINDER').p===400 && back.find(x=>x.n==='BUSY').p===90,
-   JSON.stringify(back));
-
- /* somebody who did not make the league cannot change it */
- await pg.evaluate(()=>{window.__DB__.leagues[0].owner_id='p2'; window.__save__();});
- await pg.reload(); await pg.waitForSelector('#app:not([hidden])'); await pg.waitForTimeout(700);
- await pg.click('.tab[data-view="me"]'); await pg.waitForTimeout(300);
- await pg.evaluate(()=>document.querySelectorAll('details.sect').forEach(d=>{
-   d.open=true; d.dispatchEvent(new Event('toggle'));}));
- await pg.waitForTimeout(300);
- T('a member sees the mode but cannot change it',
-   await pg.$$eval('#scoringPick .mode', e=>e.every(x=>x.disabled)), 'disabled');
- T('and is told why',
-   (await pg.textContent('#scoringNote')).includes('created the league'),
-   await pg.textContent('#scoringNote'));
+ /* and the boost shows on a logged entry */
+ await pg.evaluate(()=>{
+   var DB=window.__DB__;
+   DB.workouts.push({id:'wb1',league_id:'lg1',profile_id:'p1',exercise_key:'pushups',
+     mode:'reps',amount:100,points:140,boost:1.4,week_start:window.__weekStart__(),
+     created_at:new Date().toISOString()});
+   window.__save__();
+ });
+ await pg.click('.tab[data-view="live"]'); await pg.waitForTimeout(600);
+ await pg.click('#board .row .rowbtn'); await pg.waitForTimeout(600);
+ T('the feed says what it was multiplied by',
+   (await pg.textContent('#board')).includes('×1.4'),
+   (await pg.textContent('.fitem') || '').replace(/\s+/g,' ').slice(0,60));
 
  await ctx.close(); await b.close(); srv.close();
  let bad=0; res.forEach(([n,ok,g])=>{if(!ok)bad++;console.log((ok?'  PASS  ':'> FAIL <')+' '+n+'   ['+g+']');});

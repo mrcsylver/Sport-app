@@ -465,44 +465,37 @@ It brings:
 - **Pinned weeks.** The control room can put a chosen quest on a chosen week,
   and write new ones.
 
-## Choosing how your league scores
+## Your league's week
 
-Also in `supabase/`, run **`scoring-modes.sql`** once. Every league keeps
-scoring exactly as it does today — the setting defaults to the behaviour that
-has always existed — but the person who created a league can now choose.
+### Rest days
 
-**HARDCORE.** Every rep counts the same, however many you do. Raw volume, raw
-competition. This is what every league is now, and what a league of people who
-can all train as long as they like should stay on.
+A rest day closes the league: only a stretch counts, once. Up to three a week.
 
-**BALANCED.** Volume in one exercise tapers, so somebody with fifteen minutes
-stays in the running. The first 40 points from **one exercise on one day**
-count in full, 40–85 at 70%, past 85 at 40%. Running, swimming and sport get
-twice the allowance — you cannot farm a marathon. Recovery is never tapered.
+### The catch-up day
 
-It is points rather than reps on purpose: the rate table already makes a point
-mean the same effort in every exercise, so one threshold is consistent across
-all 118 of them without tuning any. It is per day, so splitting 400 push-ups
-into ten sets changes nothing, and midnight empties the bucket. And it is per
-exercise, so varying the same effort is worth about a third more than putting
-it all into one movement.
+One day a week where being behind is worth something. Everything logged that
+day is multiplied by how far off the lead you were when you logged it:
 
-| a week of… | hardcore | balanced |
-|---|---:|---:|
-| 15 min a day, 5 days | 450 | 435 |
-| 30 min a day, 5 days | 880 | 790 |
-| an hour a day, 6 days | 2,040 | 1,644 |
-| 400 push-ups a day, 5 days | 2,000 | 988 |
-| 12 km a day, 5 days | 300 | 300 |
+| behind the leader by | worth |
+|---:|---:|
+| under 150 | ×1.00 |
+| 200 | ×1.06 |
+| 300 | ×1.17 |
+| 400 | ×1.29 |
+| 500 or more | ×1.40 |
 
-Bounties, the daily combo and raids are flat and untouched, so the rewards a
-busy person can actually reach are worth relatively more in a balanced league.
-Duels stay raw — a duel is an agreed volume contest. Lifetime points and your
-grade stay raw too, because they follow you across every league and cannot
-belong to one league's setting.
+It is not a handicap. **The leader still trains and still scores every point
+they earn** — they simply score at ×1.00, like anybody within touching
+distance. Nobody loses anything, and the most it can ever be worth is 40 per
+cent. It exists so somebody who missed four days has a reason to turn up on
+Sunday instead of writing the week off.
 
-Switching modes re-reads the same logs a different way. Nothing is rewritten,
-and you can switch back.
+The multiplier is worked out and stamped at the moment you log, so it never
+changes afterwards: two people logging the same set an hour apart can score
+differently, and both keep what they earned. The feed shows it — `+140 ×1.4`.
+
+A day cannot be both a rest day and the catch-up day. Set them in the league
+settings; a league starts with no catch-up day at all.
 
 ## The iPhone app
 
@@ -533,6 +526,31 @@ loudly if an anchor rate drifted or a bounty's exercise disappeared.
 Emblem and crest artwork from [game-icons.net](https://game-icons.net),
 used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 Typeface: Barlow Condensed (SIL Open Font License).
+
+## Divisions
+
+Once a league has ten people the board splits into places, not numbered tiers.
+Where you are is where you finished, so it maintains itself with no
+bookkeeping at all.
+
+| division | seats | |
+|---|---:|---|
+| **THRONE** | 2 | Two seats. One of them is yours to lose |
+| **APEX** | 3 | Three deep, and one push from the throne |
+| **VANGUARD** | 10 | Chasing the Apex |
+| **FORGE** | 15 + | Where everyone starts |
+
+The sizes narrow sharply at the top on purpose. Two seats on the throne means
+it is somewhere you can be pushed out of by one good evening, which is the
+only reason to have divisions at all.
+
+The rank number is your position in **the whole league** and runs straight
+through the divisions — being 11th is being 11th, not "1st in Vanguard". Each
+division still highlights whoever is top of it.
+
+The throne is diamond: bronze, silver, gold, and above gold a pale ice blue.
+The board is already red and gold, so the very top of it is the one thing on
+screen that is cold.
 
 ## League rules
 
