@@ -21,12 +21,15 @@ def lift(schema, kind, name):
         # any particular shape made the match run on and swallow whole
         # functions that came after it, so this stops at the first line that
         # ends there, whatever precedes it.
-        m = re.search(r"^create function public\.%s\(.*?\$\$;$"
+        # some are already written as "create or replace" in schema.sql
+        m = re.search(r"^create (?:or replace )?function public\.%s\(.*?\$\$;$"
                       % re.escape(name), schema, re.S | re.M)
         if not m:
             raise SystemExit("cannot find function %s in schema.sql" % name)
-        return one_object(m.group(0), name).replace(
-            "create function", "create or replace function", 1)
+        block = one_object(m.group(0), name)
+        if not block.startswith("create or replace"):
+            block = block.replace("create function", "create or replace function", 1)
+        return block
 
     m = re.search(r"^create table public\.%s \(.*?^\);$" % re.escape(name),
                   schema, re.S | re.M)
@@ -53,7 +56,7 @@ def one_object(block, name):
     function keeps its plain "create function", and applying the file twice
     fails on "already exists". Cheaper to notice here.
     """
-    n = len(re.findall(r"^create (?:table|function) ", block, re.M))
+    n = len(re.findall(r"^create (?:or replace )?(?:table|function) ", block, re.M))
     if n != 1:
         raise SystemExit("lifting %s picked up %d definitions — the match ran on"
                          % (name, n))

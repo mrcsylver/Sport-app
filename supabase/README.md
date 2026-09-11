@@ -4,8 +4,9 @@
 RUN, and you have a working database. It drops everything first, so running it
 twice is a rebuild, not a mess — and running it on a live database wipes it.
 
-`bounty-pool.sql` is a migration for a database that is already running. It
-only adds; nothing logged is touched, and it is safe to run twice.
+`bounty-pool.sql` and `catch-up-day.sql` are migrations for a database that is
+already running. They only add; nothing logged is touched, and both are safe
+to run twice.
 
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read
@@ -47,17 +48,23 @@ Do not hand-edit these:
 | the `exercises` seed in `schema.sql` | `tools/build_exercises.py` |
 | the `bounties` seed in `schema.sql` | `tools/build_bounties.py` |
 | `bounty-pool.sql` | `tools/build_bounties.py` |
+| `catch-up-day.sql` | `tools/build_catchup.py` |
 
 `build_bounties.py` validates before it writes: every exercise a bounty names
 must exist, and must be loggable in the mode the bounty asks for. It has
 already caught six quests that nobody could have completed — a three-minute
 plank asked for seconds, and plank is only logged in minutes.
 
-The migration is not written by hand either. Every function in it is lifted
-out of `schema.sql`, which is the one definition of each, because two
-hand-kept copies of a hundred-line function drift and the drift is always
-found in production. `tools/sqllift.py` does the lifting; the generator only
-says which objects it needs.
+Neither migration is written by hand. Every function in them is lifted out of
+`schema.sql`, which is the one definition of each, because two hand-kept
+copies of a hundred-line function drift and the drift is always found in
+production. `tools/sqllift.py` does the lifting; the generators only say which
+objects they need.
+
+Two things the lift has to know: `create or replace function` cannot change
+what a function returns, and it cannot add a parameter either. `my_leagues`
+gained a column and `set_league_settings` gained an argument, so
+`build_catchup.py` drops those two first and rebuilds them.
 
 One rule the migration follows: **a week already being played keeps the quest
 it started with.** Changing the rotation under people mid-week silently takes

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.8.1';
+  var APP_VERSION = '2.9.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -224,21 +224,25 @@
   /* Divisions. Where you are is where you finished, so it maintains itself
      with no bookkeeping. Each one is a place with a name and a crest, not a
      colour with a number — you are in the VANGUARD, not in "tier 2".
-     The sizes narrow sharply at the top on purpose: two seats in the MARSHAL
+     The sizes narrow sharply at the top on purpose: two in the ROYAL GUARD
      and three in the APEX means the top of the table is somewhere you can be
      pushed out of by one good evening, which is the whole point of it.
 
-     A marshal was the knight who led the army, not a king or a god — the
-     names here are ranks people earn, not thrones people sit on. */
+     Nothing here is a god or a throne. They are posts in an order: you start
+     outside it, you are made in the forge, you fight in the line, and two
+     people stand at the crown. Every one of them is somewhere you can be
+     moved out of by Sunday. */
   var TIERS = [
-    { key: 'DIAMOND', name: 'MARSHAL',  sub: 'The two at the head of the army',
-      icon: 'chess-knight',   size: 2 },
-    { key: 'GOLD',    name: 'APEX',     sub: 'Three deep, and one push off the front',
-      icon: 'crown',          size: 3 },
-    { key: 'SILVER',  name: 'VANGUARD', sub: 'Chasing the Apex',
-      icon: 'crossed-swords', size: 10 },
-    { key: 'BRONZE',  name: 'FORGE',    sub: 'Where everyone starts',
-      icon: 'anvil-impact',   size: 15 }
+    { key: 'DIAMOND', name: 'ROYAL GUARD', sub: 'The two who stand closest to the crown',
+      icon: 'crown',              size: 2 },
+    { key: 'GOLD',    name: 'APEX',        sub: 'Three deep, and one push off the front',
+      icon: 'crossed-swords',     size: 3 },
+    { key: 'SILVER',  name: 'VANGUARD',    sub: 'The line that holds. Chasing the Apex',
+      icon: 'crenulated-shield',  size: 10 },
+    { key: 'BRONZE',  name: 'FORGE',       sub: 'Where a fighter is hammered into shape',
+      icon: 'anvil-impact',       size: 15 },
+    { key: 'STONE',   name: 'COMMONER',    sub: 'Everyone starts here. Nobody stays',
+      icon: 'triple-gate',        size: 5 }
   ];
   /* Below this many people a division is just the table with headings in it. */
   var TIER_MINIMUM = 10;
@@ -1235,7 +1239,7 @@
                  return boardRow(p, p.points > 0 ? seen : null, g.tier.key, i === 0);
                }).join('');
       }).join('') +
-      '<p class="hint">Two marshals, three in the apex, ten in the vanguard. ' +
+      '<p class="hint">Two in the royal guard, three in the apex, ten in the vanguard. ' +
       'Pass the person above you and you take their place.</p>';
       return;
     }

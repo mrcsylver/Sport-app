@@ -443,6 +443,18 @@ ios/                the native iPhone app — see ios/README.md
 No build step, no npm, no framework. Every file is served exactly as it is,
 which is why any free static host can run it.
 
+## Two files to run in Supabase
+
+`supabase/schema.sql` is a rebuild — running it on a live database wipes it.
+To add everything below without losing anything, open the Supabase SQL editor
+and run these two instead. Both only add, and both are safe to run twice.
+
+1. **`bounty-pool.sql`** — the 110 bounties
+2. **`catch-up-day.sql`** — the catch-up day, and five more seats per league
+
+(If you ran `bounty-pool.sql` before 12 September, also run
+`fix-this-week.sql` once — see `supabase/README.md` for why.)
+
 ## Adding the bounty pool to a database you already have
 
 `supabase/schema.sql` is a rebuild — running it on a live database wipes it.
@@ -535,25 +547,28 @@ bookkeeping at all.
 
 | division | seats | |
 |---|---:|---|
-| **MARSHAL** | 2 | The two at the head of the army |
+| **ROYAL GUARD** | 2 | The two who stand closest to the crown |
 | **APEX** | 3 | Three deep, and one push off the front |
-| **VANGUARD** | 10 | Chasing the Apex |
-| **FORGE** | 15 + | Where everyone starts |
+| **VANGUARD** | 10 | The line that holds. Chasing the Apex |
+| **FORGE** | 15 | Where a fighter is hammered into shape |
+| **COMMONER** | 5 | Everyone starts here. Nobody stays |
 
-The sizes narrow sharply at the top on purpose. Two seats in the Marshal means
-it is somewhere you can be pushed out of by one good evening, which is the
-only reason to have divisions at all.
+Thirty-five seats, which is a full league.
 
-A marshal was the knight who led the army — the highest thing a fighting man
-could be without being born to it. These are ranks people earn, not thrones
-people sit on, which is why there is no king, god or immortal anywhere on the
-board.
+The sizes narrow sharply at the top on purpose. Two seats in the Royal Guard
+means it is somewhere you can be pushed out of by one good evening, which is
+the only reason to have divisions at all.
+
+Nothing here is a god or a throne. They are posts in an order — you start
+outside it, you are made in the forge, you fight in the line, and two people
+stand at the crown — and every one of them can be taken off you by Sunday.
 
 The rank number is your position in **the whole league** and runs straight
 through the divisions — being 11th is being 11th, not "1st in Vanguard". Each
 division still highlights whoever is top of it.
 
-The Marshal is diamond: bronze, silver, gold, and above gold a pale ice blue.
+The Royal Guard is diamond: stone, bronze, silver, gold, and above gold a pale
+ice blue.
 The board is already red and gold, so the very top of it is the one thing on
 screen that is cold.
 

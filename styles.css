@@ -22,6 +22,7 @@
   --silver:#c9d3e2;
   --bronze:#d08442;
   --diamond:#8ce9ff;
+  --stone:#7d8492;
   --green:#26d07c;
   --display:"Barlow Condensed",Oswald,"Arial Narrow",system-ui,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
@@ -45,6 +46,7 @@
   --silver:#7b8494;
   --bronze:#9c5f22;
   --diamond:#1f8fb0;
+  --stone:#6b7280;
   --green:#0f8f52;
 }
 @media (prefers-color-scheme: light){
@@ -267,6 +269,7 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .tierhead i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--muted);
   letter-spacing:0;margin-left:auto}
 .tierhead.t-diamond{color:var(--diamond)}
+.tierhead.t-stone{color:var(--stone)}
 .tierhead.t-gold{color:var(--gold)}
 .tierhead.t-silver{color:var(--silver)}
 .tierhead.t-bronze{color:var(--bronze)}
@@ -277,6 +280,8 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .row.lead-gold .rank{color:var(--gold)}
 .row.lead-silver{border-color:rgba(201,211,226,.4)}
 .row.lead-silver .rank{color:var(--silver)}
+.row.lead-stone{border-color:rgba(125,132,146,.4)}
+.row.lead-stone .rank{color:var(--stone)}
 .row.lead-bronze{border-color:rgba(208,132,66,.45)}
 .row.lead-bronze .rank{color:var(--bronze)}
 
@@ -607,6 +612,7 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
    than another warm metal: the board is already red and gold, and the top of
    it should be the one thing on screen that is cold. */
 .t-diamond{--dv:var(--diamond)}
+.t-stone{--dv:var(--stone)}
 .t-gold{--dv:var(--gold)}
 .t-silver{--dv:var(--silver)}
 .t-bronze{--dv:var(--bronze)}

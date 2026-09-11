@@ -55,9 +55,13 @@ psql -q -d ironlive -f "$HERE/rewind.sql" >/dev/null 2>&1
 # for, and bounty points are worked out on read rather than stored
 psql -q -d ironlive -f "$HERE/midweek.sql" >/dev/null 2>&1
 for i in 1 2 3; do
-  psql -q -d ironlive -f "$ROOT/supabase/bounty-pool.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/bounty-pool.sql"  >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/catch-up-day.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
+psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people' from leagues;"
+psql -tAd ironlive -c "select 'and none has a catch-up day until somebody sets one: '
+  ||(select count(*) from leagues where catchup_dow is not null)::text;"
 psql -tAd ironlive -c "select 'the week in progress kept its quest: '
   ||coalesce((select b.name from bounty_schedule s join bounties b on b.idx = s.bounty_idx
               where s.week_start = current_week_start()), 'nothing was being played');"

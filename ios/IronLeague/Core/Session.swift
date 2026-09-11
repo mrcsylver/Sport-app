@@ -47,8 +47,8 @@ final class Session {
             let end = min(i + d.size, sorted.count)
             var slice = Array(sorted[i..<end])
             // whoever spills past the last division joins it rather than
-            // forming a fifth
-            if d == .forge && end < sorted.count { slice += sorted[end...] }
+            // forming a sixth
+            if d == .commoner && end < sorted.count { slice += sorted[end...] }
             // the rank shown is the position in the whole league, counted
             // straight through: being 11th is being 11th, not "1st in vanguard"
             out.append(DivisionGroup(division: d, rows: slice, firstRank: i + 1))

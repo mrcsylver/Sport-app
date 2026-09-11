@@ -26,6 +26,8 @@ enum Theme {
     /// Above gold. A pale ice blue, because the board is already red and gold
     /// and the very top of it should be the one thing on screen that is cold.
     static let diamond   = Color(hex: 0x8CE9FF)
+    /// Below bronze: the people not in the order yet.
+    static let stone     = Color(hex: 0x7D8492)
     static let gold      = Color(hex: 0xFFC93C)
     static let silver    = Color(hex: 0xC9D3E2)
     static let bronze    = Color(hex: 0xD08442)
@@ -41,10 +43,11 @@ enum Theme {
 
     static func metal(_ tier: Division) -> Color {
         switch tier {
-        case .marshal:  return diamond
-        case .apex:     return gold
-        case .vanguard: return silver
-        case .forge:    return bronze
+        case .royalGuard: return diamond
+        case .apex:       return gold
+        case .vanguard:   return silver
+        case .forge:      return bronze
+        case .commoner:   return stone
         }
     }
 
@@ -74,48 +77,53 @@ extension Color {
 
 /// A division is a place with a name, not a colour with a number.
 ///
-/// The sizes narrow sharply at the top on purpose. Two seats in the Marshal
-/// and three in the Apex means the top of the table is somewhere you can be
-/// pushed out of by one good evening — which is the only reason to have
-/// divisions at all.
+/// The sizes narrow sharply at the top on purpose. Two in the Royal Guard and
+/// three in the Apex means the top of the table is somewhere you can be pushed
+/// out of by one good evening — which is the only reason to have divisions.
 ///
-/// A marshal was the knight who led the army, not a king or a god. These are
-/// ranks people earn, not thrones people sit on.
+/// Nothing here is a god or a throne. They are posts in an order: you start
+/// outside it, you are made in the forge, you fight in the line, and two
+/// people stand at the crown. Every one of them can be taken off you by
+/// Sunday.
 enum Division: String, CaseIterable {
-    case marshal, apex, vanguard, forge
+    case royalGuard, apex, vanguard, forge, commoner
 
-    /// How many people it holds. Whoever spills past the last one joins it.
+    /// How many people it holds. Together they come to a full league.
     var size: Int {
         switch self {
-        case .marshal:  return 2
-        case .apex:     return 3
-        case .vanguard: return 10
-        case .forge:    return 15
+        case .royalGuard: return 2
+        case .apex:       return 3
+        case .vanguard:   return 10
+        case .forge:      return 15
+        case .commoner:   return 5
         }
     }
 
     var title: String {
         switch self {
-        case .marshal:  return "MARSHAL"
-        case .apex:     return "APEX"
-        case .vanguard: return "VANGUARD"
-        case .forge:    return "FORGE"
+        case .royalGuard: return "ROYAL GUARD"
+        case .apex:       return "APEX"
+        case .vanguard:   return "VANGUARD"
+        case .forge:      return "FORGE"
+        case .commoner:   return "COMMONER"
         }
     }
     var subtitle: String {
         switch self {
-        case .marshal:  return "The two at the head of the army"
-        case .apex:     return "Three deep, and one push off the front"
-        case .vanguard: return "Chasing the Apex"
-        case .forge:    return "Where everyone starts"
+        case .royalGuard: return "The two who stand closest to the crown"
+        case .apex:       return "Three deep, and one push off the front"
+        case .vanguard:   return "The line that holds. Chasing the Apex"
+        case .forge:      return "Where a fighter is hammered into shape"
+        case .commoner:   return "Everyone starts here. Nobody stays"
         }
     }
     var symbol: String {
         switch self {
-        case .marshal:  return "flag.fill"
-        case .apex:     return "crown.fill"
-        case .vanguard: return "shield.lefthalf.filled"
-        case .forge:    return "hammer.fill"
+        case .royalGuard: return "crown.fill"
+        case .apex:       return "figure.fencing"
+        case .vanguard:   return "shield.lefthalf.filled"
+        case .forge:      return "hammer.fill"
+        case .commoner:   return "figure.walk"
         }
     }
 }

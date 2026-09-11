@@ -73,12 +73,12 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
 
  /* ---- divisions ---- */
  const heads=await pg.$$eval('.divhead', e=>e.map(x=>x.textContent.replace(/\s+/g,' ').trim()));
- T('four divisions shown', heads.length===4, heads.join(' | '));
+ T('the divisions that fit are shown', heads.length===4, heads.join(' | '));
  const sizes=await pg.$$eval('.divhead-n', e=>e.map(x=>x.textContent.trim()));
- T('two marshals, three in the apex, ten in the vanguard',
+ T('two in the royal guard, three in the apex, ten in the vanguard',
    sizes.join(',')==='2,3,10,9', sizes.join(',') || 'no division headers rendered');
  T('divisions are named places, not numbers',
-   /MARSHAL/.test(heads[0]) && /APEX/.test(heads[1]) && /VANGUARD/.test(heads[2])
+   /ROYAL GUARD/.test(heads[0]) && /APEX/.test(heads[1]) && /VANGUARD/.test(heads[2])
    && /FORGE/.test(heads[3]),
    heads.join(' | '));
  // divisions must follow THIS week's points, highest first
@@ -97,7 +97,7 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  T('board is grouped, not one flat list', order[0]==='divhead', order.slice(0,3).join(','));
  T('a leader is highlighted per division',
    (await pg.$$('.row.lead-diamond')).length===1 && (await pg.$$('.row.lead-gold')).length===1,
-   'marshal and apex both marked');
+   'royal guard and apex both marked');
  await pg.screenshot({path:path.join(OUT,'80-tiers.png')});
 
  /* ---- most improved ---- */
