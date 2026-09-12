@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.10.1*
+*Last updated 12 September 2026 · app version 2.11.0*
 
 ---
 
@@ -54,7 +54,7 @@ prime au-dessus. Le **cardio en minutes** ensuite : une heure de course payait
 50, une heure de natation 12, de rameur 10, de corde à sauter 8. Les efforts
 continus sont passés à 30-33 de l'heure — en dessous de la course, parce
 qu'une durée n'est pas une distance, mais dans le même raisonnement. Sports
-collectifs et de raquette : 18 et 12 de l'heure au lieu de 10 et 7.
+collectifs et de raquette : 15 et 10 de l'heure au lieu de 10 et 7.
 
 Rien de ce qui a déjà été gagné ne bouge : les points sont figés au moment où
 la série est enregistrée.
@@ -199,6 +199,14 @@ monte vite quand la zone est vide et lentement quand elle est pleine, et
 termine un muscle. Le point suivant vaut donc toujours plus là où tu n'as rien
 fait.
 
+**Quoi faire.** Sous le mannequin, trois exercices du catalogue qui travaillent
+la zone sélectionnée, chacun chiffré dans l'unité que tu saisirais — de quoi
+faire monter cette zone de dix points depuis où elle est. Tape dessus et la
+fiche de saisie s'ouvre déjà réglée. Jamais de mouvement de salle ni de sport
+collectif : une réponse doit être quelque chose que tu peux aller faire tout
+de suite. Si une zone est déjà pleine, l'appli le dit et t'envoie vers celle
+où la même série vaut plus.
+
 **Équilibre.** Ton équilibre, c'est ta zone la plus faible, et rien d'autre :
 une moyenne laisserait deux bras énormes cacher un dos jamais travaillé. Au-
 dessus de 40 % partout dans la même semaine tu gagnes NO WEAK LINK, au-dessus
@@ -263,7 +271,7 @@ skill holds (L-sit, front lever, handstand) keep their premium above that.
 **Time-based cardio** second: an hour of running paid 50, an hour of swimming
 12, of rowing 10, of skipping 8. The continuous ones are now 30-33 an hour —
 below running, because a duration is not a distance, but inside the same
-argument. Team and racket sports go to 18 and 12 an hour from 10 and 7.
+argument. Team and racket sports go to 15 and 10 an hour from 10 and 7.
 
 Nothing already earned moves: points are stamped the moment a set is logged.
 
@@ -396,6 +404,13 @@ towards full instead: one load of work reads 63%, two 86%, three 95%. It rises
 fast when a region is empty and slowly when it is full, and **it never reaches
 100%**, because no amount of work finishes a muscle. So the next point is
 always worth more somewhere you have neglected.
+
+**What to do about it.** Under the figure, three exercises from the bank that
+train whatever region you are holding, each priced in the units you would type
+in — enough to move that region ten points from where it is now. Tap one and
+the log sheet opens on it. No gym lift and no team sport is ever suggested: an
+answer has to be something you can go and do. If a region is already full, it
+says so and sends you to the one where the same set is worth more.
 
 **Balance.** Your balance is your weakest region and nothing else: an average
 would let a pair of enormous arms hide a back nobody has trained. Past 40%

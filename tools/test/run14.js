@@ -50,10 +50,15 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
 
  /* ---- crowns ---- */
  await pg.click('.tab[data-view="hall"]'); await pg.waitForTimeout(700);
+ T('crowns fold away so the hall is not buried',
+   await pg.$eval('#sectCrowns', e=>!e.open), 'shut by default');
+ T('and say where you stand while shut',
+   /RUN \d+ · YOU \d+\/\d+/.test(await pg.textContent('#winsWeeks')),
+   await pg.textContent('#winsWeeks'));
+ T('iron will folds away too', await pg.$eval('#sectStreaks', e=>!e.open), 'shut');
+ await pg.$eval('#sectCrowns', e=>{e.open=true;}); await pg.waitForTimeout(300);
  const wins=await pg.$$eval('#wins .win', e=>e.map(x=>x.textContent.replace(/\s+/g,' ').trim()));
  T('every member has a crown row', wins.length===2, wins.length+' rows');
- T('the two finished weeks are counted', /2 WEEKS PLAYED/.test(await pg.textContent('#winsWeeks')),
-   await pg.textContent('#winsWeeks'));
  T('one crown each, one week apiece',
    (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent.replace('/',' of ')))).join(',')==='1 of 5,1 of 5',
    (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent))).join(','));
@@ -94,6 +99,12 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
 
  /* ---- the figure ---- */
  await pg.click('.tab[data-view="stats"]'); await pg.waitForTimeout(800);
+ T('the fourteen regions fold away as well',
+   await pg.$eval('#sectMuscles', e=>!e.open), 'shut');
+ T('with the weakest one on the tab',
+   /%\s*WEAKEST/.test(await pg.textContent('#muscleCount')),
+   await pg.textContent('#muscleCount'));
+ await pg.$eval('#sectMuscles', e=>{e.open=true;}); await pg.waitForTimeout(250);
  const plates=await pg.$$eval('#bodyFig .bpart', e=>e.length);
  T('the front of the figure is drawn', plates>=18, plates+' plates');
  T('and it says which range it is showing',
@@ -129,9 +140,79 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  T('touching it again lets go', (await pg.textContent('.br-l'))==='WEAKEST LINK',
    await pg.textContent('.br-l'));
 
+ /* suggestions: what to actually do about the region being shown */
+ const fixes = await pg.$$eval('#bodyFix .fix-b', e=>e.map(x=>x.textContent));
+ T('the weakest region comes with a way out', fixes.length===3, fixes.join(' | '));
+ T('and each suggestion is priced', fixes.every(t=>/\d/.test(t)), fixes[0]);
+ T('nothing needing a gym or a pitch is suggested',
+   await pg.evaluate(()=>Array.from(document.querySelectorAll('#bodyFix [data-fix]'))
+     .every(b=>!/^gym/.test(b.getAttribute('data-fix')))), 'bodyweight only');
+ T('the suggestions follow the region you are holding',
+   await pg.evaluate(async()=>{
+     const hit = q => document.querySelector(q).dispatchEvent(
+       new MouseEvent('click', {bubbles:true}));
+     hit('#bodyFig [data-m="chest"]');
+     await new Promise(r=>setTimeout(r,200));
+     const a = document.querySelector('#bodyFix .fix-l').textContent;
+     hit('#bodyFig [data-m="quads"]');
+     await new Promise(r=>setTimeout(r,200));
+     return a.includes('CHEST') &&
+            document.querySelector('#bodyFix .fix-l').textContent.includes('QUADS');
+   }), 'chest then quads');
+ T('a fuller region costs more of the same exercise than an empty one',
+   await pg.evaluate(()=>{
+     const cheap = window.__fixFor__({key:'chest',name:'Chest',pct:5,target:105});
+     const dear  = window.__fixFor__({key:'chest',name:'Chest',pct:80,target:105});
+     const n = t => parseFloat((t.match(/>([\d.]+) /)||[0,0])[1]);
+     return n(dear) > n(cheap) * 3;
+   }), 'yes');
+ T('a region already full says so instead of inventing a chore',
+   await pg.evaluate(()=>{
+     const html = window.__fixFor__({key:'abs',name:'Abs',pct:98,target:400},
+                                    {key:'lats',name:'Lats',pct:9,target:105});
+     return /ABS IS FULL ENOUGH/.test(html) && /data-jump="lats"/.test(html);
+   }), 'sends you to the weak one');
+ T('tapping that redirect holds the weak region',
+   await pg.evaluate(async()=>{
+     const before = document.querySelector('.br-l').textContent;
+     document.querySelector('#bodyFix').innerHTML =
+       window.__fixFor__({key:'abs',name:'Abs',pct:98,target:400},
+                         {key:'lats',name:'Lats',pct:9,target:105});
+     document.querySelector('#bodyFix [data-jump]')
+       .dispatchEvent(new MouseEvent('click',{bubbles:true}));
+     await new Promise(r=>setTimeout(r,200));
+     return document.querySelector('.br-l').textContent === 'Lats' && before !== 'Lats';
+   }), 'holds Lats');
+ T('and no suggestion asks for more than one session of anything',
+   await pg.evaluate(()=>{
+     const caps = {reps:150, seconds:180, minutes:10, km:8, flat:3};
+     return ['chest','lats','quads','abs','calves','lowerback'].every(function (k) {
+       const html = window.__fixFor__({key:k,name:k,pct:20,target:80}, null);
+       return (html.match(/<i>([\d.]+) (\w+)</g) || []).every(function (bit) {
+         const m = /<i>([\d.]+) (\w+)</.exec(bit);
+         const unit = {reps:'reps',sec:'seconds',min:'minutes',km:'km'}[m[2]] || m[2];
+         return parseFloat(m[1]) <= (caps[unit] || 200);
+       });
+     });
+   }), 'all inside a session');
+
+ /* tapping one opens the log sheet already set to it */
+ await pg.evaluate(()=>{document.querySelector('#bodyFig [data-m="quads"]')
+   .dispatchEvent(new MouseEvent('click',{bubbles:true}));});
+ await pg.waitForTimeout(200);
+ const firstFix = await pg.$eval('#bodyFix [data-fix]', e=>e.getAttribute('data-fix'));
+ await pg.click('#bodyFix [data-fix]'); await pg.waitForTimeout(500);
+ T('tapping one opens the log sheet on that exercise',
+   await pg.evaluate(k=>!document.querySelector('#logModal').hidden &&
+      document.querySelector('#exPickName').textContent ===
+      window.__EXNAME__(k), firstFix), firstFix);
+ await pg.click('#logModal .iconbtn.close'); await pg.waitForTimeout(400);
+
  /* a row picks too, and the colour follows the number */
- await pg.click('.mrow[data-m="quads"]'); await pg.waitForTimeout(250);
- T('a row can pick the region as well', (await pg.textContent('.br-l'))==='Quads',
+ /* chest, not quads: the fix chip above already left quads held, and a second
+    tap on the same region is a release rather than a pick */
+ await pg.click('.mrow[data-m="chest"]'); await pg.waitForTimeout(250);
+ T('a row can pick the region as well', (await pg.textContent('.br-l'))==='Chest',
    await pg.textContent('.br-l'));
  const cols=await pg.$$eval('#bodyFig .bpart', e=>Array.from(new Set(e.map(x=>x.getAttribute('fill')))));
  T('regions are coloured by how worked they are', cols.length>=3, cols.length+' shades in use');

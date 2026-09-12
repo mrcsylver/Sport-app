@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.10.1';
+  var APP_VERSION = '2.11.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -100,20 +100,20 @@
   ['row','Rowing Machine','CARDIO','erg ergometer concept2','Indoor erg',{minutes:0.5},{biceps:0.15,traps:0.15,lats:0.3,lowerback:0.15,quads:0.25}],
   ['jumprope','Jump Rope','CARDIO','skipping rope','Skipping',{minutes:0.55},{shoulders:0.15,quads:0.2,hamstrings:0.1,calves:0.55}],
   ['stairs','Stair Climbing','CARDIO','stairmaster steps','Real stairs or machine',{minutes:0.5},{glutes:0.3,quads:0.4,hamstrings:0.1,calves:0.2}],
-  ['football','Football / Soccer','SPORT','soccer foot futbol match','Actual playing time, not time at the venue',{minutes:0.3},{shoulders:0.1,abs:0.1,glutes:0.15,quads:0.25,hamstrings:0.2,calves:0.2}],
-  ['basketball','Basketball','SPORT','basket hoops ball','Actual playing time, not time at the venue',{minutes:0.3},{shoulders:0.1,abs:0.1,glutes:0.15,quads:0.25,hamstrings:0.15,calves:0.25}],
-  ['rugby','Rugby','SPORT','rugby union league','Actual playing time, not time at the venue',{minutes:0.3},{shoulders:0.15,abs:0.1,glutes:0.15,quads:0.25,hamstrings:0.2,calves:0.15}],
-  ['handball','Handball','SPORT','hand ball','Actual playing time, not time at the venue',{minutes:0.3},{shoulders:0.2,abs:0.15,obliques:0.1,quads:0.25,hamstrings:0.1,calves:0.2}],
-  ['hockey','Hockey','SPORT','ice field puck','Actual playing time, not time at the venue',{minutes:0.3},{forearms:0.1,obliques:0.15,glutes:0.2,quads:0.3,hamstrings:0.15,calves:0.1}],
-  ['squash','Squash','SPORT','squash racket court','Actual playing time, not time at the venue',{minutes:0.3},{shoulders:0.15,forearms:0.1,obliques:0.15,quads:0.3,hamstrings:0.1,calves:0.2}],
-  ['boxing','Boxing / Martial Arts','SPORT','box mma judo bjj karate muay sparring','Actual playing time, not time at the venue',{minutes:0.3},{chest:0.1,shoulders:0.25,triceps:0.15,abs:0.2,obliques:0.15,calves:0.15}],
-  ['climbing','Climbing','SPORT','bouldering rock wall','Actual playing time, not time at the venue',{minutes:0.3},{shoulders:0.1,biceps:0.15,forearms:0.3,lats:0.3,abs:0.15}],
-  ['tennis','Tennis','SPORT','tennis racket court','Actual playing time, not time at the venue',{minutes:0.2},{shoulders:0.2,forearms:0.1,obliques:0.15,quads:0.25,hamstrings:0.1,calves:0.2}],
-  ['padel','Padel','SPORT','padel paddle','Actual playing time, not time at the venue',{minutes:0.2},{shoulders:0.2,forearms:0.1,obliques:0.15,quads:0.25,hamstrings:0.1,calves:0.2}],
-  ['volleyball','Volleyball','SPORT','volley beach net','Actual playing time, not time at the venue',{minutes:0.2},{shoulders:0.25,abs:0.1,quads:0.3,hamstrings:0.1,calves:0.25}],
-  ['badminton','Badminton','SPORT','badminton shuttle','Actual playing time, not time at the venue',{minutes:0.2},{shoulders:0.2,forearms:0.15,obliques:0.15,quads:0.25,calves:0.25}],
-  ['tabletennis','Table Tennis','SPORT','ping pong','Actual playing time, not time at the venue',{minutes:0.2},{shoulders:0.25,forearms:0.2,obliques:0.2,quads:0.2,calves:0.15}],
-  ['othersport','Other Sport','SPORT','other misc game match','Actual playing time, not time at the venue',{minutes:0.2},{chest:0.075,shoulders:0.15,lats:0.075,abs:0.15,glutes:0.1,quads:0.2,hamstrings:0.1,calves:0.15}],
+  ['football','Football / Soccer','SPORT','soccer foot futbol match','Actual playing time, not time at the venue',{minutes:0.25},{shoulders:0.1,abs:0.1,glutes:0.15,quads:0.25,hamstrings:0.2,calves:0.2}],
+  ['basketball','Basketball','SPORT','basket hoops ball','Actual playing time, not time at the venue',{minutes:0.25},{shoulders:0.1,abs:0.1,glutes:0.15,quads:0.25,hamstrings:0.15,calves:0.25}],
+  ['rugby','Rugby','SPORT','rugby union league','Actual playing time, not time at the venue',{minutes:0.25},{shoulders:0.15,abs:0.1,glutes:0.15,quads:0.25,hamstrings:0.2,calves:0.15}],
+  ['handball','Handball','SPORT','hand ball','Actual playing time, not time at the venue',{minutes:0.25},{shoulders:0.2,abs:0.15,obliques:0.1,quads:0.25,hamstrings:0.1,calves:0.2}],
+  ['hockey','Hockey','SPORT','ice field puck','Actual playing time, not time at the venue',{minutes:0.25},{forearms:0.1,obliques:0.15,glutes:0.2,quads:0.3,hamstrings:0.15,calves:0.1}],
+  ['squash','Squash','SPORT','squash racket court','Actual playing time, not time at the venue',{minutes:0.25},{shoulders:0.15,forearms:0.1,obliques:0.15,quads:0.3,hamstrings:0.1,calves:0.2}],
+  ['boxing','Boxing / Martial Arts','SPORT','box mma judo bjj karate muay sparring','Actual playing time, not time at the venue',{minutes:0.25},{chest:0.1,shoulders:0.25,triceps:0.15,abs:0.2,obliques:0.15,calves:0.15}],
+  ['climbing','Climbing','SPORT','bouldering rock wall','Actual playing time, not time at the venue',{minutes:0.25},{shoulders:0.1,biceps:0.15,forearms:0.3,lats:0.3,abs:0.15}],
+  ['tennis','Tennis','SPORT','tennis racket court','Actual playing time, not time at the venue',{minutes:0.166667},{shoulders:0.2,forearms:0.1,obliques:0.15,quads:0.25,hamstrings:0.1,calves:0.2}],
+  ['padel','Padel','SPORT','padel paddle','Actual playing time, not time at the venue',{minutes:0.166667},{shoulders:0.2,forearms:0.1,obliques:0.15,quads:0.25,hamstrings:0.1,calves:0.2}],
+  ['volleyball','Volleyball','SPORT','volley beach net','Actual playing time, not time at the venue',{minutes:0.166667},{shoulders:0.25,abs:0.1,quads:0.3,hamstrings:0.1,calves:0.25}],
+  ['badminton','Badminton','SPORT','badminton shuttle','Actual playing time, not time at the venue',{minutes:0.166667},{shoulders:0.2,forearms:0.15,obliques:0.15,quads:0.25,calves:0.25}],
+  ['tabletennis','Table Tennis','SPORT','ping pong','Actual playing time, not time at the venue',{minutes:0.166667},{shoulders:0.25,forearms:0.2,obliques:0.2,quads:0.2,calves:0.15}],
+  ['othersport','Other Sport','SPORT','other misc game match','Actual playing time, not time at the venue',{minutes:0.166667},{chest:0.075,shoulders:0.15,lats:0.075,abs:0.15,glutes:0.1,quads:0.2,hamstrings:0.1,calves:0.15}],
   ['gymbench','Bench Press','GYM','bench barbell chest press flat','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{chest:0.5,shoulders:0.2,triceps:0.3}],
   ['gymdbbench','Dumbbell Bench Press','GYM','dumbbell db incline chest','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{chest:0.5,shoulders:0.25,triceps:0.25}],
   ['gymohp','Overhead Press','GYM','ohp military shoulder press standing','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{shoulders:0.55,triceps:0.3,traps:0.15}],
@@ -187,7 +187,7 @@
 
   /* Expand the generated bank into the shape the rest of the app uses. */
   var EXERCISES = EX_BANK.map(function (r) {
-    var key = r[0], cat = r[2], raw = r[5];
+    var key = r[0], cat = r[2], raw = r[5], muscles = r[6] || {};
     var modes = Object.keys(raw).map(function (mode) {
       var v = raw[mode];
       var ui = (EX_UI[key] && EX_UI[key][mode]) ||
@@ -207,7 +207,8 @@
       });
       return m;
     });
-    return { key: key, name: r[1], cat: cat, aliases: r[3], variants: r[4], modes: modes };
+    return { key: key, name: r[1], cat: cat, aliases: r[3], variants: r[4],
+             modes: modes, muscles: muscles };
   });
 
   /* Order the categories appear in menus and on the scoring card. */
@@ -597,11 +598,18 @@
     var r = await sb.rpc('league_streaks', { p_league: state.leagueId });
     if (r.error || !r.data) { box.innerHTML = ''; return; }
     var rows = r.data.filter(function (x) { return x.best_streak > 0; });
+    var me = state.profile ? state.profile.id : null;
+    /* The summary is what you see with the section shut, so it carries your
+       own run rather than the league's — the leader's streak is not news
+       every time you open the tab. */
+    var mine = rows.filter(function (x) { return x.profile_id === me; })[0];
+    $('#streakCount').textContent = !mine ? 'NO STREAK YET'
+      : mine.current_streak > 0 ? 'YOU ' + mine.current_streak + ' DAYS'
+      : 'YOUR BEST ' + mine.best_streak;
     if (!rows.length) {
       box.innerHTML = '<div class="empty">No streak going yet. Score 20 points two days running to start one.</div>';
       return;
     }
-    var me = state.profile ? state.profile.id : null;
     box.innerHTML = rows.slice(0, 10).map(function (x, i) {
       var live = x.current_streak > 0;
       return '<div class="stk' + (x.profile_id === me ? ' me' : '') +
@@ -1431,9 +1439,8 @@
     var box = $('#wins');
     var rows = state.wins || [];
     var weeks = rows.length ? Number(rows[0].weeks) : 0;
-    $('#winsWeeks').textContent = weeks
-      ? weeks + (weeks === 1 ? ' WEEK PLAYED' : ' WEEKS PLAYED') : '';
     if (!weeks) {
+      $('#winsWeeks').textContent = 'NOT STARTED';
       box.innerHTML = '<div class="empty">No week has finished yet.<br>' +
         'The first crown is handed out on Sunday at 23:59.</div>';
       return;
@@ -1442,6 +1449,12 @@
     var run = cutRuns(state.champions, target);
     var lead = Math.max.apply(null, [0].concat(rows.map(function (r) {
       return run.tally[r.profile_id] || 0; })));
+
+    /* A shut section still has to be worth reading, so the summary carries
+       the only two numbers that matter: which run, and where you are in it. */
+    var me = rows.filter(function (r) { return r.mine; })[0];
+    $('#winsWeeks').textContent = 'RUN ' + run.n + ' · YOU ' +
+      ((me && run.tally[me.profile_id]) || 0) + '/' + target;
 
     /* Runs already taken, most recent first. This is the answer to "what
        happens when somebody gets there": their name goes up here for good,
@@ -1500,6 +1513,8 @@
   }
 
   window.__cutRuns__ = cutRuns;   // the run maths, reachable from a test
+  window.__fixFor__ = fixFor;
+  window.__EXNAME__ = function (k) { var e = exercise(k); return e ? e.name : k; };
 
   $('#winsRace').addEventListener('click', function (e) {
     var b = e.target.closest('[data-race]'); if (!b) return;
@@ -2091,6 +2106,9 @@
     if (!rows.length) {
       fig.innerHTML = '';
       $('#bodyRead').innerHTML = '';
+      $('#bodyFix').innerHTML = '';
+      $('#bodyBalance').innerHTML = '';
+      $('#muscleCount').textContent = '';
       $('#bodyList').innerHTML = '<div class="empty">Log something and the figure ' +
         'starts filling in.</div>';
       return;
@@ -2123,10 +2141,16 @@
       '<span class="br-s">' + esc(pick ? st.name : shown.name + ' · ' + st.name) +
         ' · ' + num(shown.points) + ' pts</span>';
 
+    /* What to actually do about it. Suggesting the region is half an answer;
+       the other half is which exercise and how much of it, so each chip is
+       priced: enough to move that region ten points from where it is now.
+       Tapping one opens the log sheet already set to it. */
+    $('#bodyFix').innerHTML = fixFor(shown, weakest);
+
     /* Balance is the weakest region and nothing else. Averaging would let a
        pair of enormous arms hide a back nobody has trained. */
     var bal = Number(weakest.pct);
-    $('#bodyList').innerHTML =
+    $('#bodyBalance').innerHTML =
       '<div class="balance"><span class="bal-l">BALANCE</span>' +
         '<span class="bal-bar"><span style="width:' + bal.toFixed(1) + '%;background:' +
           bodyStep(bal).col + '"></span></span>' +
@@ -2134,7 +2158,9 @@
           num(bal) + '%</span></div>' +
       '<p class="hint">Your balance is your worst region, so the way up is the ' +
         'one you have been avoiding. Past 40% everywhere earns NO WEAK LINK; ' +
-        'past 60% everywhere, FULLY FORGED.</p>' +
+        'past 60% everywhere, FULLY FORGED.</p>';
+    $('#muscleCount').textContent = num(bal) + '% WEAKEST';
+    $('#bodyList').innerHTML =
       rows.slice().sort(function (a, b) { return Number(b.pct) - Number(a.pct); })
         .map(function (m) {
           var st2 = bodyStep(Number(m.pct));
@@ -2147,6 +2173,133 @@
           '</button>';
         }).join('');
   }
+
+  /* ---- what to do about a lagging region --------------------------------
+     A percentage tells you where you are behind and nothing about the way
+     out, so each region carries the exercises that actually train it, priced
+     in the units you would type in.
+
+     The amount is what it takes to move that region ten points from where it
+     is now, which is the whole reason the curve is worth having: the same
+     +10 costs a handful of reps on something untouched and hundreds on
+     something already full, and the chips say so out loud.
+
+     Gym lifts and team sports are left out. Both are real training and both
+     score, but a suggestion has to be something the person reading it can go
+     and do, and neither a rack nor a pitch is a given. */
+  var FIX_STEP = 10;
+
+  /* The most of a thing anybody is going to do in one go. Past this the
+     suggestion is arithmetic rather than advice: abs at 82% really does cost
+     229 seconds of L-sit for the next ten points, and printing that helps
+     nobody. When nothing fits, that IS the answer — the region is full and
+     the effort belongs somewhere else. */
+  var FIX_CAP = { reps: 150, seconds: 180, minutes: 10, km: 8, flat: 3 };
+
+  function fixFor(m, weakest) {
+    if (!m) return '';
+    var target = Number(m.target) || 1;
+    var pct = Math.min(Number(m.pct), 98);
+    /* points needed to climb FIX_STEP on the curve from here */
+    var need = target * Math.log((100 - pct) / Math.max(100 - pct - FIX_STEP, 1));
+
+    var picks = EXERCISES.filter(function (e) {
+      return e.cat !== 'GYM' && e.cat !== 'SPORT' &&
+             (e.muscles[m.key] || 0) >= 0.2 && e.modes.length &&
+             e.modes[0].rate > 0;
+    }).map(function (e) {
+      var mo = e.modes[0];
+      var per = mo.rate * e.muscles[m.key];          // region points per unit
+      return { ex: e, mode: mo, amount: need / per, share: e.muscles[m.key] };
+    }).filter(function (x) {
+      return x.amount > 0 && isFinite(x.amount) &&
+             x.amount <= (FIX_CAP[x.mode.mode] || 150);
+    });
+
+    /* Prefer the ones that get there in a sane amount rather than the ones
+       with the biggest share: four hundred crunches is technically the answer
+       and nobody is doing it. */
+    picks.sort(function (a, b) { return effort(a) - effort(b); });
+    picks = picks.slice(0, 3);
+
+    /* Nothing sane left means the region is close to full. Say that, and hand
+       over the one where the same effort is worth most. */
+    if (!picks.length) {
+      var send = weakest && weakest.key !== m.key ? weakest : null;
+      return '<div class="fix"><span class="fix-l">' +
+        esc((m.name || '').toUpperCase()) + ' IS FULL ENOUGH</span>' +
+        (send
+          ? '<button type="button" class="fix-b wide" data-jump="' + send.key + '">' +
+              '<b>' + esc(send.name) + ' is at ' + num(send.pct) + '%</b>' +
+              '<i>the same set is worth more there</i></button>'
+          : '<span class="fix-none">Nothing here is worth as much as it was.</span>') +
+      '</div>';
+    }
+
+    return '<div class="fix"><span class="fix-l">TO ADD ' + FIX_STEP + '% ON ' +
+        esc((m.name || '').toUpperCase()) + '</span>' +
+      picks.map(function (x) {
+        return '<button type="button" class="fix-b" data-fix="' + x.ex.key + '">' +
+          '<b>' + esc(x.ex.name) + '</b>' +
+          '<i>' + fixAmount(x) + '</i></button>';
+      }).join('') + '</div>';
+  }
+
+  /* How much of a chore a suggestion is.
+
+     Quantity alone gets this wrong, and wrong in a way that would have
+     shipped: the first version answered a neglected lower back with "10 dragon
+     flags", which is the fewest reps and also a move most people cannot do
+     once. So the amount is weighed twice — by unit, because a rep and a
+     minute of holding are not the same errand, and by difficulty, because a
+     rep of something priced at six times its neighbours is six times the ask.
+     An exercise's own rate is the difficulty: that is what the rate is for. */
+  var FIX_UNIT = { reps: 1, seconds: 0.5, minutes: 25, km: 200, flat: 40 };
+  var FIX_NORM = null;
+
+  /* The middle rate for each menu group and unit, worked out once. Comparing
+     across groups would say a pull-up is harder than a plank, which is true
+     and useless: the question is whether this is a hard one OF ITS KIND. */
+  function fixNorm(cat, mode) {
+    if (!FIX_NORM) {
+      var bag = {};
+      EXERCISES.forEach(function (e) {
+        e.modes.forEach(function (mo) {
+          if (!mo.rate) return;
+          (bag[e.cat + '|' + mo.mode] = bag[e.cat + '|' + mo.mode] || []).push(mo.rate);
+        });
+      });
+      FIX_NORM = {};
+      Object.keys(bag).forEach(function (k) {
+        var v = bag[k].sort(function (a, b) { return a - b; });
+        FIX_NORM[k] = v[Math.floor(v.length / 2)];
+      });
+    }
+    return FIX_NORM[cat + '|' + mode] || 1;
+  }
+
+  function effort(x) {
+    var norm = fixNorm(x.ex.cat, x.mode.mode);
+    var hard = Math.max(1, x.mode.rate / norm);
+    return x.amount * (FIX_UNIT[x.mode.mode] || 1) * hard;
+  }
+
+  function fixAmount(x) {
+    var a = x.amount, u = x.mode;
+    var step = u.mode === 'km' ? 0.5 : u.mode === 'minutes' ? 0.5 : 5;
+    var n = Math.max(step, Math.round(a / step) * step);
+    var unit = u.short || (u.mode === 'reps' ? 'reps' : u.mode);
+    return num(n) + ' ' + unit;
+  }
+
+  /* Straight into the log sheet with that exercise already chosen. */
+  $('#bodyFix').addEventListener('click', function (e) {
+    var j = e.target.closest('[data-jump]');
+    if (j) { pickMuscle(j.getAttribute('data-jump')); return; }
+    var b = e.target.closest('[data-fix]'); if (!b) return;
+    modal.key = b.getAttribute('data-fix');
+    openModal();
+  });
 
   /* Tap a plate or a row to hold a region; tap it again to let go. Both
      lists drive the same selection, so pointing at the figure highlights the

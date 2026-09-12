@@ -178,8 +178,8 @@ loads when you have no signal (you just can't post until you're back online).
 | | Walking | 2.5 pts / km |
 | | Rowing machine | 30 pts / hour |
 | | Jump rope | 33 pts / hour |
-| **Sport** | Football · Basketball · Rugby · Boxing · Squash · Climbing | 18 pts / hour |
-| | Tennis · Padel · Volleyball · Badminton · Table tennis | 12 pts / hour |
+| **Sport** | Football · Basketball · Rugby · Boxing · Squash · Climbing | 15 pts / hour |
+| | Tennis · Padel · Volleyball · Badminton · Table tennis | 10 pts / hour |
 | **Gym** | Any lift — scored from your bodyweight and the bar | see below |
 | **Recovery** | Stretching Session *(10 min minimum)* | 5 pts flat |
 
@@ -191,7 +191,7 @@ rather than guessed — see *How the bank is priced* below.
 An hour of sport is the least checkable entry in the app and includes a lot of
 standing around. Distance entries (run, walk, bike) are priced at effort because
 your phone measured the distance; time entries take an honesty discount. That is
-why running is 50 an hour, swimming 30, and football 18.
+why running is 50 an hour, swimming 30, and football 15.
 
 The discount used to be a cliff rather than a slope: swimming paid 12 an hour,
 rowing 10 and skipping 8, against running's 50. Nothing about a length of front
@@ -228,6 +228,14 @@ rises fastest when a region is empty, which is what makes the neglected one
 worth more than another set of curls. Over a range longer than a week the
 target grows with the weeks actually trained, so the all-time figure still
 means something in month three.
+
+Under the figure sit three exercises from the bank that train whichever region
+you are holding, priced in the units you would type in: enough to move it ten
+points from where it is now. Tapping one opens the log sheet on it. Gym lifts
+and team sports are never suggested, and quantity alone does not decide the
+order — the first version answered a neglected lower back with "10 dragon
+flags", the fewest reps and a move most people cannot do once, so an
+exercise's own rate now counts against it as the difficulty it is.
 
 **Balance is your weakest region and nothing else.** An average would let a
 pair of enormous arms hide a back nobody has trained.

@@ -123,27 +123,31 @@
 
     <!-- HALL OF FAME -->
     <section id="view-hall" class="view" hidden>
-      <div class="section-head"><h2>CROWNS</h2>
-        <span class="muted small mono" id="winsWeeks"></span></div>
-      <p class="hint" style="margin-top:0">One crown for every week won. Set a target and
-        the first to reach it takes the run — the app keeps the count, you decide the prize.</p>
-      <div class="segmented tiny" id="winsRace">
-        <button type="button" data-race="3">FIRST TO 3</button>
-        <button type="button" data-race="5" class="on">FIRST TO 5</button>
-        <button type="button" data-race="10">FIRST TO 10</button>
-      </div>
-      <div id="wins" class="stack tight"></div>
+      <details class="sect" id="sectCrowns">
+        <summary><span>CROWNS</span><span class="tag-count" id="winsWeeks"></span></summary>
+        <div class="sect-b">
+          <p class="muted small">One crown for every week won. Set a target and the first
+            to reach it takes the run — the app keeps the count, you decide the prize.</p>
+          <div class="segmented tiny" id="winsRace">
+            <button type="button" data-race="3">FIRST TO 3</button>
+            <button type="button" data-race="5" class="on">FIRST TO 5</button>
+            <button type="button" data-race="10">FIRST TO 10</button>
+          </div>
+          <div id="wins" class="stack tight" style="margin-top:10px"></div>
+        </div>
+      </details>
 
-      <div class="section-head" style="margin-top:26px"><h2>HALL OF FAME</h2></div>
+      <div class="section-head"><h2>HALL OF FAME</h2></div>
       <div id="hall"></div>
 
-      <div class="section-head" style="margin-top:26px"><h2>IRON WILL</h2>
-        <span class="muted small mono">CONSECUTIVE DAYS</span></div>
-      <p class="hint" style="margin-top:0">A day counts once you have scored 20 points.
-        Showing up beats showing off.</p>
-      <div id="streaks" class="stack tight"></div>
-
-
+      <details class="sect" id="sectStreaks" style="margin-top:20px">
+        <summary><span>IRON WILL</span><span class="tag-count" id="streakCount">CONSECUTIVE DAYS</span></summary>
+        <div class="sect-b">
+          <p class="muted small">A day counts once you have scored 20 points.
+            Showing up beats showing off.</p>
+          <div id="streaks" class="stack tight"></div>
+        </div>
+      </details>
     </section>
 
     <!-- DUELS -->
@@ -224,8 +228,13 @@
         </div>
         <div id="bodyFig" class="bodyfig"></div>
         <div id="bodyRead" class="bodyread"></div>
+        <div id="bodyFix" class="bodyfix"></div>
       </div>
-      <div id="bodyList" class="musclelist"></div>
+      <div id="bodyBalance"></div>
+      <details class="sect" id="sectMuscles" style="margin-top:10px">
+        <summary><span>ALL FOURTEEN</span><span class="tag-count" id="muscleCount"></span></summary>
+        <div class="sect-b"><div id="bodyList" class="musclelist"></div></div>
+      </details>
       <div id="duelRecord" class="drec" hidden></div>
       <div id="statList" class="stack tight"></div>
     </section>

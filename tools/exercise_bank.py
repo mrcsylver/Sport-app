@@ -152,8 +152,8 @@ CARDIO = [   # (key, name, mode, rate, aliases, variants)
 # so the honest ceiling is the constraint, not the effort.
 # Still the cheapest hour in the app, and deliberately so, but ten points for
 # ninety minutes of football read as an insult rather than a discount.
-SPORT_HIGH = 18/60   # 18 pts / hour
-SPORT_MOD  = 12/60   # 12 pts / hour
+SPORT_HIGH = 15/60   # 15 pts / hour
+SPORT_MOD  = 10/60   # 10 pts / hour
 SPORTS = [
     ('football',   'Football / Soccer', SPORT_HIGH, 'soccer foot futbol match'),
     ('basketball', 'Basketball',        SPORT_HIGH, 'basket hoops ball'),
