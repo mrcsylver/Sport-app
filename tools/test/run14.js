@@ -55,16 +55,36 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  T('the two finished weeks are counted', /2 WEEKS PLAYED/.test(await pg.textContent('#winsWeeks')),
    await pg.textContent('#winsWeeks'));
  T('one crown each, one week apiece',
-   (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent))).join(',')==='1,1',
+   (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent.replace('/',' of ')))).join(',')==='1 of 5,1 of 5',
    (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent))).join(','));
  T('a crown is drawn, not just counted', (await pg.$$('#wins .cr')).length===2, 'yes');
+ T('the current run is named', (await pg.textContent('.runhead')).includes('RUN 1'),
+   (await pg.textContent('.runhead')).replace(/\s+/g,' '));
+ T('nobody has taken a run yet', (await pg.$$('#wins .run')).length===0, 'none');
  await pg.click('#winsRace [data-race="3"]'); await pg.waitForTimeout(250);
- T('the race target changes the bars', (await pg.textContent('#wins')).includes('First to 3'),
+ T('the race target changes the bars', (await pg.textContent('#wins')).includes('FIRST TO 3'),
    'first to 3');
  const w3=await pg.$eval('#wins .win-bar span', e=>e.style.width);
  await pg.click('#winsRace [data-race="10"]'); await pg.waitForTimeout(250);
  const w10=await pg.$eval('#wins .win-bar span', e=>e.style.width);
  T('and a harder target is a shorter bar', parseFloat(w10)<parseFloat(w3), w3+' -> '+w10);
+ /* a target somebody has already passed closes a run and opens the next */
+ await pg.evaluate(()=>{ document.querySelector('#winsRace [data-race="3"]').click(); });
+ await pg.waitForTimeout(200);
+ T('a reachable target would close a run',
+   await pg.evaluate(()=>{
+     const champs=[{week_start:'w1',profile_id:'p1',display_name:'MARCO'},
+                   {week_start:'w2',profile_id:'p1',display_name:'MARCO'},
+                   {week_start:'w3',profile_id:'p2',display_name:'SARAH'},
+                   {week_start:'w4',profile_id:'p1',display_name:'MARCO'},
+                   {week_start:'w5',profile_id:'p2',display_name:'SARAH'},
+                   {week_start:'w6',profile_id:'p2',display_name:'SARAH'},
+                   {week_start:'w7',profile_id:'p2',display_name:'SARAH'}];
+     const r = window.__cutRuns__(champs, 3);
+     return r.done.length===2 && r.done[0].winner.profile_id==='p1'
+         && r.done[1].winner.profile_id==='p2' && r.n===3 && r.weeks===0;
+   }), 'run 1 MARCO, run 2 SARAH, run 3 open');
+ await pg.click('#winsRace [data-race="10"]'); await pg.waitForTimeout(200);
  T('the choice survives a reload', await pg.evaluate(()=>
    localStorage.getItem('ironleague.raceto')==='10'), 'stored');
  T('the hall of fame is still below it',

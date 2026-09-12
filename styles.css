@@ -1048,11 +1048,12 @@ p.ms-next b{color:var(--txt);font-weight:800}
 /* ---- crowns: one per week won, and a race to a target ------------------- */
 .segmented.tiny{margin-top:6px}
 .segmented.tiny button{padding:7px 4px;font-size:11px;letter-spacing:.12em}
-.win{display:grid;grid-template-columns:1fr auto auto;grid-template-rows:auto auto;
+.win{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;
   gap:2px 10px;align-items:center;background:var(--panel);border:1px solid var(--line);
   border-radius:4px;padding:10px 12px}
 .win.me{border-color:rgba(255,46,46,.4)}
 .win.done{border-color:var(--gold)}
+.win-w i .cr{font-size:10px;font-style:normal}
 .win-w{display:flex;align-items:center;gap:7px;min-width:0}
 .win-w b{font:700 14px/1.1 var(--display);letter-spacing:.06em;text-transform:uppercase;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1066,11 +1067,12 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .win.done .win-bar span{background:var(--red)}
 
 /* ---- the body ----------------------------------------------------------- */
-.bodywrap{display:grid;grid-template-columns:1fr;justify-items:center;gap:8px;
+.bodywrap{display:grid;grid-template-columns:1fr;justify-items:center;gap:6px;
   background:var(--panel);border:1px solid var(--line);border-radius:4px;
-  padding:12px;margin-top:10px}
+  padding:10px;margin-top:10px}
 .bodywrap .segmented{width:100%;max-width:220px}
-.bodyfig{width:100%;max-width:230px}
+.bodyfig{width:100%;max-width:210px}
+.bsvg{max-height:52vh}
 .bsvg{width:100%;height:auto;display:block;overflow:visible}
 .bout{fill:var(--panel-2);stroke:var(--line-2);stroke-width:1.5}
 .bpart{stroke:rgba(0,0,0,.35);stroke-width:.8;cursor:pointer;
@@ -1104,3 +1106,20 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .mr-bar{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
 .mr-bar span{display:block;height:100%;transition:width .35s ease}
 .mr-p{font:700 12px/1 var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---- crowns: runs already taken, and the one being run now -------------- */
+.runs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:4px}
+.run{display:flex;align-items:center;gap:6px;flex:0 0 auto;background:var(--panel);
+  border:1px solid rgba(255,201,60,.35);border-radius:4px;padding:7px 10px}
+.run i{font:700 9px/1 var(--display);letter-spacing:.16em;color:var(--gold);font-style:normal}
+.run b{font:700 13px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.run em{font:400 10px/1 var(--mono);color:var(--muted);font-style:normal}
+.runhead{display:flex;justify-content:space-between;align-items:baseline;
+  padding:2px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.runhead span{font:800 12px/1 var(--display);letter-spacing:.16em;color:var(--txt)}
+.runhead i{font:400 10px/1 var(--mono);color:var(--muted);font-style:normal}
+.win.lead{border-color:rgba(255,201,60,.5)}
+.win-n em{font:700 11px/1 var(--mono);color:var(--muted);font-style:normal}
+
+.restline{font:400 11px/1.4 var(--mono);color:var(--muted);text-align:center;
+  padding:8px 4px 0;margin:0}

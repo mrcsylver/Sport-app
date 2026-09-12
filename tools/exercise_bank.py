@@ -254,14 +254,25 @@ MUSCLE_VIEW = {
     'hamstrings': 'back', 'calves': 'both',
 }
 
-# A week's worth of work on each region, in points, scaled by how much of you
-# it is. These are the K in the charge curve below, and they are what makes a
-# hundred points of calf raises read differently from a hundred points of
-# squats. Calibrated so a balanced 700-point week lands every region near 65%.
+# A week's worth of work on each region, in points. These are the K in the
+# charge curve, and they are what makes a hundred points of calf raises read
+# differently from a hundred points of squats.
+#
+# The ratios between them are anatomical — a quadriceps takes more weekly work
+# than a calf — and are deliberately NOT fitted to what any league happens to
+# do. Fitting them to real usage was tried and it is a trap: this league does
+# almost no pulling, so a fit dropped the lats target by two thirds and the
+# figure started congratulating people for the exact gap it exists to show.
+#
+# The SCALE was fitted, once, against a real league of 28 over a real week —
+# weeks from 270 to 1091 points. At the old scale the three heaviest members
+# pegged five regions each at 98% and the top of the figure stopped saying
+# anything. One and a half times that puts the best region of the best week at
+# about 95%, a median week around 40%, and leaves headroom above everybody.
 MUSCLE_TARGET = {
-    'chest': 70, 'shoulders': 55, 'biceps': 30, 'triceps': 40, 'forearms': 25,
-    'traps': 30, 'lats': 70, 'lowerback': 30, 'abs': 45, 'obliques': 30,
-    'glutes': 55, 'quads': 85, 'hamstrings': 55, 'calves': 25,
+    'chest': 105, 'shoulders': 80, 'biceps': 45, 'triceps': 60, 'forearms': 40,
+    'traps': 45, 'lats': 105, 'lowerback': 45, 'abs': 70, 'obliques': 45,
+    'glutes': 80, 'quads': 130, 'hamstrings': 80, 'calves': 40,
 }
 
 MUSCLES = {

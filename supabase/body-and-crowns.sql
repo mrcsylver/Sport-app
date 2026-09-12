@@ -111,7 +111,7 @@ on conflict (key) do update set
 
 insert into public.muscles (key,name,view,target)
 select m->>0, m->>1, m->>2, (m->>3)::int
-from jsonb_array_elements($j$[["chest","Chest","front",70],["shoulders","Shoulders","both",55],["biceps","Biceps","front",30],["triceps","Triceps","back",40],["forearms","Forearms","both",25],["traps","Traps","both",30],["lats","Lats","back",70],["lowerback","Lower back","back",30],["abs","Abs","front",45],["obliques","Obliques","front",30],["glutes","Glutes","back",55],["quads","Quads","front",85],["hamstrings","Hamstrings","back",55],["calves","Calves","both",25]]$j$::jsonb) as m
+from jsonb_array_elements($j$[["chest","Chest","front",105],["shoulders","Shoulders","both",80],["biceps","Biceps","front",45],["triceps","Triceps","back",60],["forearms","Forearms","both",40],["traps","Traps","both",45],["lats","Lats","back",105],["lowerback","Lower back","back",45],["abs","Abs","front",70],["obliques","Obliques","front",45],["glutes","Glutes","back",80],["quads","Quads","front",130],["hamstrings","Hamstrings","back",80],["calves","Calves","both",40]]$j$::jsonb) as m
 on conflict (key) do update set
   name = excluded.name, view = excluded.view, target = excluded.target;
 
@@ -222,6 +222,22 @@ language sql stable security definer set search_path = public as $$
   left join won w on w.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
   order by coalesce(w.n, 0) desc, w.last desc nulls last, m.joined_at
+$$;
+
+-- ------------------------------------------------------ league_champions ---
+create or replace function public.league_champions(p_league uuid)
+returns table (week_start date, profile_id uuid, display_name text, avatar text)
+language sql stable security definer set search_path = public as $$
+  select x.week_start, x.profile_id, x.display_name, x.avatar
+  from (
+    select h.week_start, h.profile_id, h.display_name, h.avatar,
+           row_number() over (partition by h.week_start
+                              order by h.points desc, h.joined_at asc) as rk
+    from public.weekly_history(p_league) h
+    where h.week_start < public.current_week_start()
+  ) x
+  where x.rk = 1 and public.is_member(p_league)
+  order by x.week_start
 $$;
 
 -- --------------------------------------------------------- set_body_form ---
@@ -369,6 +385,7 @@ revoke all on function public.set_body_form(text)           from public, anon;
 revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
 revoke all on function public.my_muscles(uuid,boolean)      from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
+revoke all on function public.league_champions(uuid)        from public, anon;
 grant execute on function public.weekly_history(uuid)          to authenticated;
 grant execute on function public.set_body_form(text)           to authenticated;
 grant execute on function public.muscle_charge(numeric,numeric) to authenticated;

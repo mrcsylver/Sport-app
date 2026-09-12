@@ -38,10 +38,10 @@ RESHAPED = [
 # resolves a SQL body at create time, so a strict run stops at the first
 # forward reference whatever order they are in.
 OBJECTS = ["weekly_history", "muscle_charge", "my_muscles", "league_wins",
-           "set_body_form", "my_badges", "workouts_update_guard"]
+           "league_champions", "set_body_form", "my_badges", "workouts_update_guard"]
 
-WANTED = ("muscle_charge", "my_muscles", "league_wins", "set_body_form",
-          "weekly_history", "my_badges", "public.muscles")
+WANTED = ("muscle_charge", "my_muscles", "league_wins", "league_champions",
+          "set_body_form", "weekly_history", "my_badges", "public.muscles")
 
 HEAD = """-- ======================================================================
 --  IRON LEAGUE — the muscle figure, the crowns, and a fairer points table

@@ -232,6 +232,15 @@ means something in month three.
 **Balance is your weakest region and nothing else.** An average would let a
 pair of enormous arms hide a back nobody has trained.
 
+The ratios between the fourteen targets are anatomical — a quadriceps takes
+more weekly work than a calf — and are deliberately not fitted to what any
+league happens to do. Fitting them to real usage was tried and it is a trap:
+a league that does no pulling produces a low lats target, and the figure
+starts congratulating people for the exact gap it exists to show. The overall
+*scale* was fitted once, against a real league of 28 over a real week (weeks
+from 270 to 1091 points): at the first scale the three heaviest members pegged
+five regions each at 98%, so it was raised by half.
+
 ### How the bank is priced
 
 Over 100 exercises, and not one of the rates was chosen by feel. Each movement
@@ -299,6 +308,12 @@ Nothing is stored: the count is read back from the same finished weeks, so a
 week that is corrected corrects the count and a new league starts honestly
 empty. Pick a target — first to 3, 5 or 10 — and the bars measure against it.
 The app keeps the count; what the run is worth is between you.
+
+When somebody reaches the target the run closes on that week: their name stays
+above the board, everyone resets to zero, and the next run starts the Monday
+after. Lifetime crowns are never lost. Because the segmentation is worked out
+from the sequence of weekly champions rather than stored, changing the target
+re-cuts every past run instantly.
 
 ### Duel record
 

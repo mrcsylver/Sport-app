@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.10.0*
+*Last updated 12 September 2026 · app version 2.10.1*
 
 ---
 
@@ -178,6 +178,12 @@ semaines terminées que le Hall of Fame, donc il ne peut pas raconter autre
 chose. Choisis une cible — premier à 3, à 5 ou à 10 — et les barres se
 mesurent dessus. C'est là pour les défis entre nous : l'appli tient le compte,
 vous décidez de l'enjeu.
+
+**Et quand quelqu'un y arrive ?** La manche se ferme sur sa victoire : son nom
+reste affiché en haut du tableau, tout le monde repart de zéro, et la manche
+suivante démarre le lundi d'après. Les couronnes, elles, ne se perdent
+jamais — le total à vie reste à côté de ton nom. Change la cible et toutes les
+manches passées sont recoupées à l'instant : rien n'est stocké.
 
 **Le corps.** Dans MON RANG, un mannequin de face et de dos, quatorze zones.
 Chaque série que tu enregistres se répartit sur les muscles qu'elle travaille
@@ -372,6 +378,12 @@ tab. Nothing is stored: the count is read back from the same finished weeks
 the Hall of Fame is built from, so the two cannot tell different stories. Pick
 a target — first to 3, 5 or 10 — and the bars measure against it. It is there
 for challenges between you: the app keeps the count, you decide the prize.
+
+**And when somebody gets there?** The run closes on their win: their name stays
+at the top of the board, everybody resets to zero, and the next run starts the
+Monday after. Crowns themselves are never lost — the lifetime total stays
+beside your name. Change the target and every past run is re-cut on the spot,
+because none of it is stored.
 
 **The body.** In MY RANK, a mannequin front and back, fourteen regions. Every
 set you log spreads over the muscles it actually trains: a hundred points of
