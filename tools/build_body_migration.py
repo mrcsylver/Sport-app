@@ -59,16 +59,16 @@ HEAD = """-- ===================================================================
 --
 --  A region's reading is not its share of your work — that would make
 --  training your legs harder make your chest look worse, and it would say
---  nothing about whether you did enough. Each one charges towards full
---  instead:
+--  nothing about whether you did enough. Each one is measured against a full
+--  week's dose of itself instead:
 --
---      pct = 100 x (1 - exp(-points / target))
+--      pct = 100 x points / target
 --
---  One target reads 63, two 86, three 95, and no amount of work reads 100.
---  It rises fastest when a region is empty, which is exactly what makes the
---  neglected one worth more than another set of curls. Over a range longer
---  than a week the target grows with the weeks actually trained, so the
---  all-time figure keeps meaning something in month three.
+--  100% is a week of that muscle done. There are fourteen of them and your
+--  score is the one you have filled least, so the way up is always the thing
+--  you have been avoiding. Over a range longer than a week the target grows
+--  with the weeks actually trained, so the all-time figure keeps meaning
+--  something in month three.
 --
 --  THE CROWNS
 --  One per week won, counted from the finished weeks the Hall of Fame is

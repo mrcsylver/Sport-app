@@ -254,25 +254,28 @@ MUSCLE_VIEW = {
     'hamstrings': 'back', 'calves': 'both',
 }
 
-# A week's worth of work on each region, in points. These are the K in the
-# charge curve, and they are what makes a hundred points of calf raises read
-# differently from a hundred points of squats.
+# A full week's work on each region, in points. This is the whole meaning of
+# the number the app shows: your points on a region divided by this, as a
+# percentage. 100% is a week's dose of that muscle done. There are fourteen of
+# them, so filling all fourteen is the thing to chase and almost nobody will.
 #
-# The ratios between them are anatomical — a quadriceps takes more weekly work
-# than a calf — and are deliberately NOT fitted to what any league happens to
-# do. Fitting them to real usage was tried and it is a trap: this league does
-# almost no pulling, so a fit dropped the lats target by two thirds and the
-# figure started congratulating people for the exact gap it exists to show.
+# It used to be the K in an exponential that approached 100 without reaching
+# it. That was mathematically tidy and nobody could tell you what 63% meant.
+# A percentage of a week is a sentence anyone can finish.
 #
-# The SCALE was fitted, once, against a real league of 28 over a real week —
-# weeks from 270 to 1091 points. At the old scale the three heaviest members
-# pegged five regions each at 98% and the top of the figure stopped saying
-# anything. One and a half times that puts the best region of the best week at
-# about 95%, a median week around 40%, and leaves headroom above everybody.
+# The ratios are anatomical — a quadriceps takes more weekly work than a calf —
+# and are deliberately NOT fitted to what any league happens to do. Fitting
+# them to real usage was tried and it is a trap: this league does almost no
+# pulling, so a fit dropped the lats target by two thirds and the figure
+# started congratulating people for the exact gap it exists to show.
+#
+# Checked against a real league of 28 over a real week, individual weeks from
+# 270 to 1091 points: the heaviest fills ten of fourteen, the lightest two, and
+# everybody has a weakest region they can name.
 MUSCLE_TARGET = {
-    'chest': 105, 'shoulders': 80, 'biceps': 45, 'triceps': 60, 'forearms': 40,
-    'traps': 45, 'lats': 105, 'lowerback': 45, 'abs': 70, 'obliques': 45,
-    'glutes': 80, 'quads': 130, 'hamstrings': 80, 'calves': 40,
+    'chest': 70, 'shoulders': 55, 'biceps': 30, 'triceps': 40, 'forearms': 25,
+    'traps': 30, 'lats': 70, 'lowerback': 30, 'abs': 45, 'obliques': 30,
+    'glutes': 55, 'quads': 85, 'hamstrings': 55, 'calves': 25,
 }
 
 MUSCLES = {

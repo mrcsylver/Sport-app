@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.11.0*
+*Last updated 12 September 2026 · app version 2.12.0*
 
 ---
 
@@ -191,13 +191,11 @@ vraiment : cent points de développé couché mettent cinquante dans les
 pectoraux et trente dans les triceps. Touche une zone pour lire son
 pourcentage, ou lis la liste dessous.
 
-Le pourcentage n'est pas ta part de travail sur cette zone — sinon
-t'entraîner plus les jambes ferait baisser tes pecs. Chaque zone se **charge**
-vers le plein : une charge de travail lue 63 %, deux 86 %, trois 95 %. Elle
-monte vite quand la zone est vide et lentement quand elle est pleine, et
-**elle n'atteint jamais 100 %** — parce qu'aucune quantité de travail ne
-termine un muscle. Le point suivant vaut donc toujours plus là où tu n'as rien
-fait.
+**100 % = une semaine complète de ce muscle.** C'est tout. 30 points de
+lombaires, 105 de pectoraux, 130 de quadriceps — chaque zone a sa dose parce
+qu'un mollet et une cuisse ne demandent pas la même chose. Tu peux dépasser,
+ça continue de compter : 250 % veut dire deux semaines et demie de pecs en
+une. Il y en a quatorze, et l'objectif est de toutes les remplir.
 
 **Quoi faire.** Sous le mannequin, trois exercices du catalogue qui travaillent
 la zone sélectionnée, chacun chiffré dans l'unité que tu saisirais — de quoi
@@ -208,9 +206,9 @@ de suite. Si une zone est déjà pleine, l'appli le dit et t'envoie vers celle
 où la même série vaut plus.
 
 **Équilibre.** Ton équilibre, c'est ta zone la plus faible, et rien d'autre :
-une moyenne laisserait deux bras énormes cacher un dos jamais travaillé. Au-
-dessus de 40 % partout dans la même semaine tu gagnes NO WEAK LINK, au-dessus
-de 60 % FULLY FORGED.
+une moyenne laisserait deux bras énormes cacher un dos jamais travaillé. Au-dessus
+de 40 % partout dans la même semaine tu gagnes NO WEAK LINK ; les quatorze
+pleines, c'est FULLY FORGED.
 
 Le mannequin se dessine en homme, en femme ou en neutre — au choix dans les
 réglages. Ça ne change que le dessin : mêmes zones, mêmes objectifs, même
@@ -398,12 +396,11 @@ set you log spreads over the muscles it actually trains: a hundred points of
 bench press put fifty into the chest and thirty into the triceps. Touch a
 region to read its percentage, or read the list underneath.
 
-The percentage is not that region's share of your work — that would make
-training your legs harder make your chest look worse. Each region **charges**
-towards full instead: one load of work reads 63%, two 86%, three 95%. It rises
-fast when a region is empty and slowly when it is full, and **it never reaches
-100%**, because no amount of work finishes a muscle. So the next point is
-always worth more somewhere you have neglected.
+**100% is one full week of that muscle.** That is the whole thing. 30 points
+for the lower back, 105 for the chest, 130 for the quads — each region has its
+own dose, because a calf and a thigh do not ask for the same. Going over is
+fine and keeps counting: 250% means two and a half weeks of chest in one week.
+There are fourteen of them, and the point is to fill all fourteen.
 
 **What to do about it.** Under the figure, three exercises from the bank that
 train whatever region you are holding, each priced in the units you would type
@@ -414,7 +411,7 @@ says so and sends you to the one where the same set is worth more.
 
 **Balance.** Your balance is your weakest region and nothing else: an average
 would let a pair of enormous arms hide a back nobody has trained. Past 40%
-everywhere in one week earns NO WEAK LINK, past 60% FULLY FORGED.
+everywhere in one week earns NO WEAK LINK; all fourteen full is FULLY FORGED.
 
 The mannequin is drawn as male, female or neutral — your pick, in settings. It
 changes the drawing and nothing else: same regions, same targets, same score.

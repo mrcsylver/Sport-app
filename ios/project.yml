@@ -26,7 +26,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ironleague.app
         MARKETING_VERSION: "1.4"
-        CURRENT_PROJECT_VERSION: "11"
+        CURRENT_PROJECT_VERSION: "12"
         SWIFT_VERSION: "5.9"
         DEVELOPMENT_TEAM: ""          # Xcode fills this from your account
         CODE_SIGN_STYLE: Automatic

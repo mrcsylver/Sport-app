@@ -217,17 +217,22 @@ triceps. Fourteen regions, drawn on a front and a back.
 
 A region's reading is not its share of your work — that would make training
 your legs harder make your chest look worse, and it would say nothing about
-whether you did enough. Each region charges towards full instead:
+whether you did enough. Each region is measured against a full week's dose of
+itself instead:
 
 ```
-pct = 100 x (1 - exp(-points / target))
+pct = 100 x points / target
 ```
 
-One target reads 63%, two 86%, three 95%, and no amount of work reads 100%. It
-rises fastest when a region is empty, which is what makes the neglected one
-worth more than another set of curls. Over a range longer than a week the
-target grows with the weeks actually trained, so the all-time figure still
-means something in month three.
+**100% is one full week of that muscle.** 30 points for the lower back, 105
+for the chest, 130 for the quads. Over 100 keeps counting — 250% is two and a
+half weeks of chest in one — and the bar stops filling. Over a range longer
+than a week the target grows with the weeks actually trained, so the all-time
+figure still means something in month three.
+
+This replaced an exponential that approached 100 without ever reaching it. It
+was tidy, unfakeable, and impossible to explain: nobody could say what 63%
+meant. A percentage of a week is a sentence anyone can finish.
 
 Under the figure sit three exercises from the bank that train whichever region
 you are holding, priced in the units you would type in: enough to move it ten
@@ -239,6 +244,10 @@ exercise's own rate now counts against it as the difficulty it is.
 
 **Balance is your weakest region and nothing else.** An average would let a
 pair of enormous arms hide a back nobody has trained.
+
+The scale above 100 is stepped three ways, because plenty of people do two or
+three weeks' worth of pushing in a week and a single "full" colour turned the
+whole figure one flat red.
 
 The ratios between the fourteen targets are anatomical — a quadriceps takes
 more weekly work than a calf — and are deliberately not fitted to what any

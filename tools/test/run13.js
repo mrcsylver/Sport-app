@@ -50,8 +50,9 @@ const SEED=`(function(){var DB=window.__DB__;
  await pg.click('#catchDows [data-catch="7"]');
  await pg.waitForTimeout(200);
  T('Sunday picks', (await pg.$$('#catchDows .dow.on')).length===1, 'one');
- await pg.click('#saveRules'); await pg.waitForTimeout(600);
- T('saved to the league',
+ /* no SAVE button any more: the toggles save themselves, debounced */
+ await pg.waitForTimeout(900);
+ T('saved to the league on its own',
    await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow===7),
    String(await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow)));
 
@@ -64,10 +65,26 @@ const SEED=`(function(){var DB=window.__DB__;
  await pg.click('#catchDows [data-catch="6"]'); await pg.waitForTimeout(200);
  T('tapping it again turns it off',
    (await pg.$$('#catchDows .dow.on')).length===0, 'none');
- await pg.click('#saveRules'); await pg.waitForTimeout(600);
+ await pg.waitForTimeout(900);
  T('a league can have no catch-up day at all',
    await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow===null),
    String(await pg.evaluate(()=>window.__DB__.leagues[0].catchup_dow)));
+
+ /* The bug this replaced: the SAVE button sat three blocks lower, next to
+    the season-length dropdown, so people tapped days and closed the app with
+    nothing sent. Every control here has to save itself, and say that it did. */
+ await pg.click('#restDows [data-dow="3"]'); await pg.waitForTimeout(900);
+ T('a rest day saves itself with no button pressed',
+   await pg.evaluate(()=>(window.__DB__.leagues[0].rest_dow||[]).indexOf(3)>=0),
+   JSON.stringify(await pg.evaluate(()=>window.__DB__.leagues[0].rest_dow)));
+ T('and the screen says what is actually in force',
+   /^Saved · rest /.test(await pg.textContent('#rulesState')),
+   await pg.textContent('#rulesState'));
+ await pg.click('#restDows [data-dow="3"]'); await pg.waitForTimeout(900);
+ T('turning it back off saves too',
+   await pg.evaluate(()=>(window.__DB__.leagues[0].rest_dow||[]).indexOf(3)<0), 'gone');
+ T('there is no save button left to miss',
+   (await pg.$$('#saveRules')).length===0, 'none');
 
  /* making a rest day out of the catch-up day takes it away */
  await pg.click('#catchDows [data-catch="7"]'); await pg.waitForTimeout(150);

@@ -293,16 +293,14 @@
               anything. It cannot be a rest day.</p>
             <div class="dowrow" id="catchDows"></div>
             <label class="lbl" for="seasonWeeks" style="margin-top:12px">SEASON LENGTH</label>
-            <div class="copyrow">
-              <select id="seasonWeeks" class="input select">
-                <option value="">No end — runs forever</option>
-                <option value="4">4 weeks</option>
-                <option value="8">8 weeks</option>
-                <option value="12">12 weeks (3 months)</option>
-                <option value="26">26 weeks (6 months, max)</option>
-              </select>
-              <button id="saveRules" class="btn ghost sm" type="button">SAVE</button>
-            </div>
+            <select id="seasonWeeks" class="input select">
+              <option value="">No end — runs forever</option>
+              <option value="4">4 weeks</option>
+              <option value="8">8 weeks</option>
+              <option value="12">12 weeks (3 months)</option>
+              <option value="26">26 weeks (6 months, max)</option>
+            </select>
+            <p class="rulestate" id="rulesState">Every change here saves itself.</p>
           </div>
 
           <div id="leagueTextBox" hidden>

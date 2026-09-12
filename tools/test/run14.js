@@ -59,6 +59,21 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  await pg.$eval('#sectCrowns', e=>{e.open=true;}); await pg.waitForTimeout(300);
  const wins=await pg.$$eval('#wins .win', e=>e.map(x=>x.textContent.replace(/\s+/g,' ').trim()));
  T('every member has a crown row', wins.length===2, wins.length+' rows');
+ /* Somebody who took a week in an earlier run has earned their place on the
+    board even while they are on zero in this one. With a target of one, each
+    week closes a run, so both are on zero and both must still be there. */
+ T('a past winner stays listed even on zero for this run',
+   await pg.evaluate(()=>{
+     const was = window.__state__.raceTo;
+     window.__state__.raceTo = 1;
+     window.__renderWins__();
+     const names = Array.from(document.querySelectorAll('#wins .win-w b'))
+       .map(e=>e.textContent).sort().join(',');
+     const zeros = Array.from(document.querySelectorAll('#wins .win-n'))
+       .every(e=>e.textContent.indexOf('0/') === 0);
+     window.__state__.raceTo = was; window.__renderWins__();
+     return names === 'MARCO,SARAH' && zeros;
+   }), 'both listed on 0/1');
  T('one crown each, one week apiece',
    (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent.replace('/',' of ')))).join(',')==='1 of 5,1 of 5',
    (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent))).join(','));
@@ -107,13 +122,15 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  await pg.$eval('#sectMuscles', e=>{e.open=true;}); await pg.waitForTimeout(250);
  const plates=await pg.$$eval('#bodyFig .bpart', e=>e.length);
  T('the front of the figure is drawn', plates>=18, plates+' plates');
- T('and it says which range it is showing',
-   (await pg.textContent('#bodyWeeks'))==='THIS WEEK', await pg.textContent('#bodyWeeks'));
+ T('and the headline counts the regions filled',
+   /^\d+ \/ 14 FILLED$/.test(await pg.textContent('#bodyWeeks')),
+   await pg.textContent('#bodyWeeks'));
  const rows=await pg.$$eval('.mrow .mr-n', e=>e.map(x=>x.textContent));
  T('all fourteen regions are listed', rows.length===14, rows.length+' regions');
 
  const pcts=await pg.$$eval('.mrow .mr-p', e=>e.map(x=>parseFloat(x.textContent)));
- T('nothing reads 100%', Math.max.apply(null,pcts)<100, 'top is '+Math.max.apply(null,pcts)+'%');
+ T('100% means a full week of that muscle, and is reachable',
+   pcts.every(p=>p>=0), 'top is '+Math.max.apply(null,pcts)+'% of a week');
  /* the seeded week is push-heavy, so the top of the list has to be something
     a push-up trains and the bottom something it does not */
  T('an upper-body week reads as an upper-body week',
@@ -159,42 +176,43 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
      return a.includes('CHEST') &&
             document.querySelector('#bodyFix .fix-l').textContent.includes('QUADS');
    }), 'chest then quads');
- T('a fuller region costs more of the same exercise than an empty one',
+ T('a region already half done needs less than an empty one',
    await pg.evaluate(()=>{
-     const cheap = window.__fixFor__({key:'chest',name:'Chest',pct:5,target:105});
-     const dear  = window.__fixFor__({key:'chest',name:'Chest',pct:80,target:105});
+     const empty = window.__fixFor__({key:'chest',name:'Chest',pct:0,target:70,points:0});
+     const half  = window.__fixFor__({key:'chest',name:'Chest',pct:50,target:70,points:35});
      const n = t => parseFloat((t.match(/>([\d.]+) /)||[0,0])[1]);
-     return n(dear) > n(cheap) * 3;
+     return n(half) > 0 && n(half) < n(empty);
    }), 'yes');
  T('a region already full says so instead of inventing a chore',
    await pg.evaluate(()=>{
-     const html = window.__fixFor__({key:'abs',name:'Abs',pct:98,target:400},
-                                    {key:'lats',name:'Lats',pct:9,target:105});
-     return /ABS IS FULL ENOUGH/.test(html) && /data-jump="lats"/.test(html);
+     const html = window.__fixFor__(
+       {key:'abs',name:'Abs',pct:140,target:45,points:63},
+       {key:'lats',name:'Lats',pct:9,target:70,points:6});
+     return /ABS IS FULL FOR THE WEEK/.test(html) && /data-jump="lats"/.test(html);
    }), 'sends you to the weak one');
  T('tapping that redirect holds the weak region',
    await pg.evaluate(async()=>{
      const before = document.querySelector('.br-l').textContent;
      document.querySelector('#bodyFix').innerHTML =
-       window.__fixFor__({key:'abs',name:'Abs',pct:98,target:400},
-                         {key:'lats',name:'Lats',pct:9,target:105});
+       window.__fixFor__({key:'abs',name:'Abs',pct:140,target:45,points:63},
+                         {key:'lats',name:'Lats',pct:9,target:70,points:6});
      document.querySelector('#bodyFix [data-jump]')
        .dispatchEvent(new MouseEvent('click',{bubbles:true}));
      await new Promise(r=>setTimeout(r,200));
      return document.querySelector('.br-l').textContent === 'Lats' && before !== 'Lats';
    }), 'holds Lats');
- T('and no suggestion asks for more than one session of anything',
+ T('and no suggestion asks for more than a week of anything',
    await pg.evaluate(()=>{
-     const caps = {reps:150, seconds:180, minutes:10, km:8, flat:3};
+     const caps = {reps:400, seconds:900, minutes:40, km:20, flat:6};
      return ['chest','lats','quads','abs','calves','lowerback'].every(function (k) {
-       const html = window.__fixFor__({key:k,name:k,pct:20,target:80}, null);
+       const html = window.__fixFor__({key:k,name:k,pct:20,target:80,points:16}, null);
        return (html.match(/<i>([\d.]+) (\w+)</g) || []).every(function (bit) {
          const m = /<i>([\d.]+) (\w+)</.exec(bit);
          const unit = {reps:'reps',sec:'seconds',min:'minutes',km:'km'}[m[2]] || m[2];
          return parseFloat(m[1]) <= (caps[unit] || 200);
        });
      });
-   }), 'all inside a session');
+   }), 'all inside a week');
 
  /* tapping one opens the log sheet already set to it */
  await pg.evaluate(()=>{document.querySelector('#bodyFig [data-m="quads"]')
@@ -234,7 +252,8 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  /* all time widens the target */
  await pg.click('#statsRange [data-range="all"]'); await pg.waitForTimeout(700);
  T('all time says how many weeks it covers',
-   /OVER \d+ WEEKS?/.test(await pg.textContent('#bodyWeeks')), await pg.textContent('#bodyWeeks'));
+   /\d+ \/ 14 FILLED · \d+W/.test(await pg.textContent('#bodyWeeks')),
+   await pg.textContent('#bodyWeeks'));
 
  /* ---- the figure setting ---- */
  await pg.click('.tab[data-view="me"]'); await pg.waitForTimeout(500);

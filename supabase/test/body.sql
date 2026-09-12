@@ -16,15 +16,17 @@ insert into public.league_members (league_id, profile_id) values
   ('ffff0000-0000-0000-0000-000000000001','eeee0000-0000-0000-0000-000000000001'),
   ('ffff0000-0000-0000-0000-000000000001','eeee0000-0000-0000-0000-000000000002');
 
-\echo '--- 1. the charge curve, and the fact that it never arrives'
+\echo '--- 1. a percentage of a full week, and what it reads at'
 select 'at ' || lpad(x::text, 4) || ' of a 100 target -> ' ||
        lpad(public.muscle_charge(x, 100)::text, 5) || '%'
 from (values (0), (25), (50), (100), (200), (300), (500), (1000), (100000)) v(x);
-select case when public.muscle_charge(1e9, 100) < 100
-       then 'a billion points still is not 100'
-       else 'THE CURVE REACHED 100' end;
+select case when public.muscle_charge(100, 100) = 100
+       then 'a full dose reads exactly 100' else 'A FULL DOSE IS NOT 100' end;
 select case when public.muscle_charge(0, 100) = 0
        then 'and nothing logged is 0' else 'EMPTY IS NOT ZERO' end;
+select case when public.muscle_charge(1e9, 100) = 999
+       then 'and it stops counting at 999 rather than printing a novel'
+       else 'THE CAP IS WRONG' end;
 
 \echo '--- 2. one exercise spreads its points over the regions it trains'
 set request.jwt.claim.sub = 'b1111111-1111-1111-1111-111111111111';
@@ -41,7 +43,7 @@ select case when (select round(sum(points), 1) from
        else 'THE SPREAD LOST OR INVENTED POINTS' end;
 
 \echo '--- 3. an arms-only week is visibly an arms-only week'
-select 'strongest: ' || key || ' ' || pct || '%'
+select 'strongest: ' || key || ' ' || pct || '% of a week'
 from public.my_muscles('ffff0000-0000-0000-0000-000000000001')
 order by pct desc limit 1;
 select 'weakest (this is the balance score): ' || min(pct) || '%'

@@ -903,8 +903,8 @@ language sql stable security definer set search_path = public as $$
     ('win10','TEN CROWNS','Win ten weeks', (select n from wins), 10),
     ('balance40','NO WEAK LINK','Every muscle past 40% in one week',
       (select best from balbest), 40),
-    ('balance60','FULLY FORGED','Every muscle past 60% in one week',
-      (select best from balbest), 60),
+    ('balance100','FULLY FORGED','A full week on all fourteen at once',
+      (select best from balbest), 100),
     ('streak7','SEVEN STRAIGHT','Seven days running above 20 points',
       (select coalesce(max(best_streak),0)::numeric from strk), 7),
     ('streak14','FORTNIGHT','Fourteen days running',
@@ -1141,8 +1141,8 @@ end $$;
 -- ---------------------------------------------------------------------
 -- 9c. The muscle figure
 -- ---------------------------------------------------------------------
--- How much of each region a person has actually worked, as a number between
--- 0 and 100 that never reaches 100.
+-- How much of each region a person has actually worked, as a percentage of a
+-- full week's dose of it.
 --
 -- Points on a region are the points of every set that trains it, times that
 -- set's share of it: a hundred points of bench press put fifty into the chest
@@ -1152,25 +1152,21 @@ end $$;
 -- training your legs harder makes your chest look worse; and it says nothing
 -- about whether you did enough, only about proportion.
 --
--- So each region charges towards full instead:
+-- So each region is measured against a week's dose of itself instead:
 --
---     pct = 100 x (1 - exp(-points / target))
+--     pct = 100 x points / target
 --
--- At one target it reads 63, at two 86, at three 95. It rises fastest when a
--- region is empty and slowest when it is nearly full, which is exactly the
--- shape that makes the neglected one worth more than another set of curls.
--- And it never arrives: there is no amount of work that reads 100, because
--- there is no amount of work that finishes a muscle.
+-- 100% is a full week of that muscle. There are fourteen of them and the
+-- score is the one you have filled least, so the way up is always the thing
+-- you have been avoiding. Past 100 it keeps counting — 240% is three weeks of
+-- chest in one — but the bar is full and the effort is worth more elsewhere.
 --
--- The cap is not decoration. Without it the rounding does what the maths
--- refuses to: five targets in, the true value is 99.33 and rounds to 99.3,
--- but ten targets in it is 99.995 and rounds to a flat 100. So the last
--- tenth is held back explicitly.
+-- This replaced an exponential that approached 100 without ever reaching it.
+-- That version was tidy, unfakeable, and impossible to explain: nobody could
+-- say what 63% meant. A percentage of a week is a sentence anyone can finish.
 create function public.muscle_charge(p_points numeric, p_target numeric)
 returns numeric language sql immutable set search_path = public as $$
-  select least(
-    round((100 * (1 - exp(- greatest(p_points, 0) / greatest(p_target, 1))))::numeric, 1),
-    99.9)
+  select round(least(100 * greatest(p_points, 0) / greatest(p_target, 1), 999)::numeric, 0)
 $$;
 
 -- One row per region, for this week or for everything.
@@ -2258,7 +2254,7 @@ on conflict (key) do update set
 
 insert into public.muscles (key,name,view,target)
 select m->>0, m->>1, m->>2, (m->>3)::int
-from jsonb_array_elements($j$[["chest","Chest","front",105],["shoulders","Shoulders","both",80],["biceps","Biceps","front",45],["triceps","Triceps","back",60],["forearms","Forearms","both",40],["traps","Traps","both",45],["lats","Lats","back",105],["lowerback","Lower back","back",45],["abs","Abs","front",70],["obliques","Obliques","front",45],["glutes","Glutes","back",80],["quads","Quads","front",130],["hamstrings","Hamstrings","back",80],["calves","Calves","both",40]]$j$::jsonb) as m
+from jsonb_array_elements($j$[["chest","Chest","front",70],["shoulders","Shoulders","both",55],["biceps","Biceps","front",30],["triceps","Triceps","back",40],["forearms","Forearms","both",25],["traps","Traps","both",30],["lats","Lats","back",70],["lowerback","Lower back","back",30],["abs","Abs","front",45],["obliques","Obliques","front",30],["glutes","Glutes","back",55],["quads","Quads","front",85],["hamstrings","Hamstrings","back",55],["calves","Calves","both",25]]$j$::jsonb) as m
 on conflict (key) do update set
   name = excluded.name, view = excluded.view, target = excluded.target;
 -- BANK END

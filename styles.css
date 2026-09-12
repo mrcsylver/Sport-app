@@ -1141,3 +1141,8 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .fix-b.wide{flex:1 0 100%}
 .fix-b.wide i{color:var(--muted)}
 .fix-none{font:400 10px/1.4 var(--mono);color:var(--muted);text-align:center;flex:1 0 100%}
+
+/* ---- league rules save themselves; this is the receipt ------------------ */
+.rulestate{margin:10px 0 0;font:400 10px/1.4 var(--mono);color:var(--green)}
+.rulestate.bad{color:var(--red)}
+.bshade{pointer-events:none}
