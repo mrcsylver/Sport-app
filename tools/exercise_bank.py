@@ -248,7 +248,7 @@ MUSCLE_NAME = {
 
 # Which view a region is drawn on. Four of them show on both.
 MUSCLE_VIEW = {
-    'chest': 'front', 'shoulders': 'both', 'biceps': 'front', 'triceps': 'back',
+    'chest': 'front', 'shoulders': 'both', 'biceps': 'front', 'triceps': 'both',
     'forearms': 'both', 'traps': 'both', 'lats': 'back', 'lowerback': 'back',
     'abs': 'front', 'obliques': 'front', 'glutes': 'back', 'quads': 'front',
     'hamstrings': 'back', 'calves': 'both',

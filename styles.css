@@ -1074,11 +1074,11 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .bodyfig{width:100%;max-width:210px}
 .bsvg{max-height:52vh}
 .bsvg{width:100%;height:auto;display:block;overflow:visible}
-.bout{fill:var(--panel-2);stroke:var(--line-2);stroke-width:1.5}
-.bpart{stroke:rgba(0,0,0,.35);stroke-width:.8;cursor:pointer;
+.bskin{fill:#252a35;stroke:#12151c;stroke-width:2;pointer-events:none}
+.bpart{stroke:#12151c;stroke-width:2;cursor:pointer;
   transition:fill .35s ease,opacity .2s ease}
-.bpart:hover{opacity:.82}
-.bpart.on{stroke:var(--txt);stroke-width:2.4}
+.bpart:hover{opacity:.85}
+.bpart.on{stroke:var(--txt);stroke-width:5}
 .bodyread{display:grid;grid-template-columns:auto auto;grid-auto-rows:auto;gap:0 10px;
   align-items:baseline;justify-items:start;width:100%;max-width:230px;
   border-top:1px solid var(--line);padding-top:8px}

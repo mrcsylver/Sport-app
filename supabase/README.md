@@ -70,7 +70,7 @@ Do not hand-edit these:
 | `dashboard-points.sql` | `tools/build_dashboard.py` |
 | `body-and-crowns.sql` | `tools/build_body_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
-| `BODY` in `app.js` (the figure itself) | `tools/build_body.py` |
+| `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |
 | the open-exercise list in `bounty_open_to_all()` | `tools/build_bounties.py` |
 | the `OPEN_TO_ALL` block in `tools/test/mock-supabase.js` | `tools/build_bounties.py` |

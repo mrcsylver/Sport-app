@@ -2254,7 +2254,7 @@ on conflict (key) do update set
 
 insert into public.muscles (key,name,view,target)
 select m->>0, m->>1, m->>2, (m->>3)::int
-from jsonb_array_elements($j$[["chest","Chest","front",70],["shoulders","Shoulders","both",55],["biceps","Biceps","front",30],["triceps","Triceps","back",40],["forearms","Forearms","both",25],["traps","Traps","both",30],["lats","Lats","back",70],["lowerback","Lower back","back",30],["abs","Abs","front",45],["obliques","Obliques","front",30],["glutes","Glutes","back",55],["quads","Quads","front",85],["hamstrings","Hamstrings","back",55],["calves","Calves","both",25]]$j$::jsonb) as m
+from jsonb_array_elements($j$[["chest","Chest","front",70],["shoulders","Shoulders","both",55],["biceps","Biceps","front",30],["triceps","Triceps","both",40],["forearms","Forearms","both",25],["traps","Traps","both",30],["lats","Lats","back",70],["lowerback","Lower back","back",30],["abs","Abs","front",45],["obliques","Obliques","front",30],["glutes","Glutes","back",55],["quads","Quads","front",85],["hamstrings","Hamstrings","back",55],["calves","Calves","both",25]]$j$::jsonb) as m
 on conflict (key) do update set
   name = excluded.name, view = excluded.view, target = excluded.target;
 -- BANK END

@@ -14,7 +14,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Emblems, league crests and rank banners** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
 - **Crowns** — one per week won, with a first-to-3/5/10 race for side bets.
-- **The body** — a mannequin, front and back, showing which muscles you actually
+- **The body** — an anatomical figure, front and back, showing which muscles you
   trained. Fourteen regions, tap one to read it, and no region ever hits 100%.
 - **100+ exercises** — search the bank, including team sports and gym lifts.
 - **Rivalries** — every Monday you are paired 1v1 with your nearest rank.
@@ -241,6 +241,16 @@ and team sports are never suggested, and quantity alone does not decide the
 order — the first version answered a neglected lower back with "10 dragon
 flags", the fewest reps and a move most people cannot do once, so an
 exercise's own rate now counts against it as the difficulty it is.
+
+The figure itself is not drawn here. It is the SVG anatomy from
+[react-native-body-highlighter](https://www.npmjs.com/package/react-native-body-highlighter),
+MIT licensed, © 2022 ELABBASSI Hicham — male and female, front and back. Two
+hand-built figures came before it, a segmented mannequin and then an
+anatomical one drawn from smoothed point lists; both read as drawn, because
+twenty curves by hand do not reach what an illustrator does. `vendor/body/`
+holds the licence and `tools/build_body.py` owns the mapping from that art to
+the fourteen regions, so the source can be swapped without touching a muscle
+share.
 
 **Balance is your weakest region and nothing else.** An average would let a
 pair of enormous arms hide a back nobody has trained.

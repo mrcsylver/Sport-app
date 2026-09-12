@@ -259,14 +259,25 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  await pg.click('.tab[data-view="me"]'); await pg.waitForTimeout(500);
  await pg.evaluate(()=>document.querySelectorAll('#view-me details').forEach(d=>d.open=true));
  await pg.waitForTimeout(200);
- T('neutral is the figure to start with',
-   await pg.$eval('#formRow [data-form="neutral"]', e=>e.classList.contains('on')), 'yes');
+ T('two bodies to choose between, male lit to start with',
+   (await pg.$$('#formRow [data-form]')).length===2 &&
+   await pg.$eval('#formRow [data-form="masc"]', e=>e.classList.contains('on')),
+   'male');
+ const maleFront = await pg.evaluate(()=>window.__BODY__.masc.front.length);
  await pg.click('#formRow [data-form="fem"]'); await pg.waitForTimeout(400);
- T('picking another one saves it',
+ T('picking the other one saves it',
    await pg.evaluate(()=>window.__DB__.profiles.find(p=>p.id==='p1').body_form==='fem'), 'fem');
  await pg.click('.tab[data-view="stats"]'); await pg.waitForTimeout(700);
- T('and the figure is redrawn as it',
+ T('and the figure is redrawn as the other body',
    (await pg.$$('#bodyFig .bpart')).length>=17, 'redrawn');
+ T('the two bodies are actually different art',
+   await pg.evaluate(m=>window.__BODY__.fem.front.map(p=>p.d).join('') !==
+                        window.__BODY__.masc.front.map(p=>p.d).join('') , maleFront),
+   'different paths');
+ T('and the rest of the body is drawn but not tappable',
+   (await pg.$$('#bodyFig .bskin')).length > 10 &&
+   await pg.evaluate(()=>getComputedStyle(document.querySelector('.bskin'))
+     .pointerEvents === 'none'), 'head, hands, feet');
  await pg.$eval('.bodywrap', e=>e.scrollIntoView({block:'center'}));
  await pg.waitForTimeout(200);
  await pg.screenshot({path:path.join(OUT,'73-body-fem.png'),fullPage:false});

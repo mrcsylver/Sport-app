@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.12.0*
+*Last updated 12 September 2026 · app version 2.13.0*
 
 ---
 
@@ -185,7 +185,8 @@ suivante démarre le lundi d'après. Les couronnes, elles, ne se perdent
 jamais — le total à vie reste à côté de ton nom. Change la cible et toutes les
 manches passées sont recoupées à l'instant : rien n'est stocké.
 
-**Le corps.** Dans MON RANG, un mannequin de face et de dos, quatorze zones.
+**Le corps.** Dans MON RANG, une planche anatomique de face et de dos,
+quatorze zones.
 Chaque série que tu enregistres se répartit sur les muscles qu'elle travaille
 vraiment : cent points de développé couché mettent cinquante dans les
 pectoraux et trente dans les triceps. Touche une zone pour lire son
@@ -197,7 +198,7 @@ qu'un mollet et une cuisse ne demandent pas la même chose. Tu peux dépasser,
 ça continue de compter : 250 % veut dire deux semaines et demie de pecs en
 une. Il y en a quatorze, et l'objectif est de toutes les remplir.
 
-**Quoi faire.** Sous le mannequin, trois exercices du catalogue qui travaillent
+**Quoi faire.** Sous le corps, trois exercices du catalogue qui travaillent
 la zone sélectionnée, chacun chiffré dans l'unité que tu saisirais — de quoi
 faire monter cette zone de dix points depuis où elle est. Tape dessus et la
 fiche de saisie s'ouvre déjà réglée. Jamais de mouvement de salle ni de sport
@@ -210,9 +211,8 @@ une moyenne laisserait deux bras énormes cacher un dos jamais travaillé. Au-de
 de 40 % partout dans la même semaine tu gagnes NO WEAK LINK ; les quatorze
 pleines, c'est FULLY FORGED.
 
-Le mannequin se dessine en homme, en femme ou en neutre — au choix dans les
-réglages. Ça ne change que le dessin : mêmes zones, mêmes objectifs, même
-score.
+Le corps se dessine en homme ou en femme — au choix dans les réglages. Ça ne
+change que le dessin : mêmes zones, mêmes objectifs, même score.
 
 **Badges.** Seize, gagnés à l'intérieur d'une ligue et calculés sur ce que tu
 as déjà fait — rien à réclamer. Tu peux en porter trois à côté de ton nom.
@@ -391,7 +391,8 @@ Monday after. Crowns themselves are never lost — the lifetime total stays
 beside your name. Change the target and every past run is re-cut on the spot,
 because none of it is stored.
 
-**The body.** In MY RANK, a mannequin front and back, fourteen regions. Every
+**The body.** In MY RANK, an anatomical figure front and back, fourteen
+regions. Every
 set you log spreads over the muscles it actually trains: a hundred points of
 bench press put fifty into the chest and thirty into the triceps. Touch a
 region to read its percentage, or read the list underneath.
@@ -413,8 +414,8 @@ says so and sends you to the one where the same set is worth more.
 would let a pair of enormous arms hide a back nobody has trained. Past 40%
 everywhere in one week earns NO WEAK LINK; all fourteen full is FULLY FORGED.
 
-The mannequin is drawn as male, female or neutral — your pick, in settings. It
-changes the drawing and nothing else: same regions, same targets, same score.
+The figure comes in male and female — your pick, in settings. It changes the
+drawing and nothing else: same regions, same targets, same score.
 
 **Badges.** Sixteen, earned inside a league and computed from what you already
 did — nothing to claim. Wear three of them beside your name.
