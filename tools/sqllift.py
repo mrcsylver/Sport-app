@@ -64,6 +64,7 @@ def one_object(block, name):
 
 
 BOUNTY_GRANTS = ("bounty_pick", "bounty_cat_points", "builtin_bounty_count",
+                 "bounty_open_to_all", "bounty_exercises",
                  "admin_schedule", "admin_bounties", "admin_pin_bounty",
                  "admin_unpin_bounty", "admin_add_bounty", "admin_delete_bounty",
                  "bounty_schedule")

@@ -32,7 +32,7 @@ fresh() {
   psql -q -d "$1" -f "$HERE/bootstrap.sql"
   psql -q -d "$1" -f "$ROOT/supabase/schema.sql" >/dev/null 2>&1
 }
-clean() { grep -viE '^(SET|INSERT|DO|ALTER|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
+clean() { grep -viE '^(SET|INSERT|UPDATE|DO|ALTER|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
 
 echo "· a fresh database from schema.sql"
 fresh iron
@@ -43,6 +43,10 @@ psql -tAd iron -c "select (select count(*) from bounties)||' bounties, '
 echo "· the catch-up day"
 fresh ironsc
 psql -d ironsc -f "$HERE/catchup.sql" 2>&1 | clean
+
+echo "· the control room's two totals"
+fresh irondash
+psql -d irondash -f "$HERE/dashboard.sql" 2>&1 | clean
 
 echo "· the bounty system"
 psql -d iron -f "$HERE/bounties.sql" 2>&1 | clean
@@ -57,6 +61,7 @@ psql -q -d ironlive -f "$HERE/midweek.sql" >/dev/null 2>&1
 for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/bounty-pool.sql"  >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/catch-up-day.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/dashboard-points.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'

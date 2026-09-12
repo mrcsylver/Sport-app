@@ -96,6 +96,10 @@
     <div class="scroll"><table id="leagues"></table></div>
 
     <h2>Players</h2>
+    <p class="dim"><b>Lifetime</b> is everything a player has ever logged, counted once
+      even when the same set went to several leagues, with no bonus in it. <b>This week</b>
+      is the number on their league board right now — this week only, plus the combo and
+      bounty bonuses the board adds. The two are meant to differ.</p>
     <input id="search" placeholder="Search a name…" style="margin-bottom:10px">
     <div class="scroll"><table id="players"></table></div>
     <h2>Bounties</h2>
@@ -114,7 +118,9 @@
       <summary style="cursor:pointer">Write a new one</summary>
       <p class="dim">One exercise, one amount, and an optional time window. That is
         deliberately narrower than the built-in quests can be: it is the shape that
-        cannot produce something nobody is able to finish.</p>
+        cannot produce something nobody is able to finish. The exercise list is
+        narrower too — a bounty reaches every league at once, so it can only ask for
+        things anybody can do with a floor, a wall, a chair, a bar and a street.</p>
       <div class="grid2">
         <label>Name<input id="nbName" maxlength="24" placeholder="DAWN PRESS"></label>
         <label>Points<input id="nbPoints" type="number" min="5" max="100" value="30"></label>
@@ -211,7 +217,10 @@
       }).join('');
     paintPlayers();
 
-    var ex = await sb.from('exercises').select('key,name,cat,modes').order('sort');
+    // only what a bounty is allowed to be built out of. A quest goes to every
+    // league at once, so the picker never offers a gym lift or a team sport:
+    // the same list the generated pool is checked against.
+    var ex = await sb.rpc('bounty_exercises');
     exercises = ex.data || [];
     paintExercisePicker();
     await loadBounties();
@@ -327,13 +336,14 @@
     var rows = players.filter(function (p) {
       return !q || p.display_name.toLowerCase().indexOf(q) >= 0; });
     $('#players').innerHTML =
-      '<tr><th>Player</th><th>Leagues</th><th>Logs</th><th>Points</th>' +
-      '<th>Last activity</th><th>Restore code</th><th></th></tr>' +
+      '<tr><th>Player</th><th>Leagues</th><th>Logs</th><th>Lifetime</th>' +
+      '<th>This week</th><th>Last activity</th><th>Restore code</th><th></th></tr>' +
       rows.map(function (p) {
         return '<tr><td class="name">' + esc(p.display_name) +
           (p.is_admin ? '<span class="tag">ADMIN</span>' : '') + '</td>' +
           '<td>' + p.leagues + '</td><td>' + p.workouts + '</td>' +
-          '<td>' + num(p.points) + '</td><td class="dim">' + when(p.last_log) + '</td>' +
+          '<td>' + num(p.lifetime) + '</td><td>' + num(p.week_points) + '</td>' +
+          '<td class="dim">' + when(p.last_log) + '</td>' +
           '<td class="dim" style="font-family:ui-monospace,monospace">' +
             esc(p.restore_code) + '</td>' +
           '<td>' + (p.is_admin ? '' : '<button class="danger" data-dp="' + p.id +

@@ -45,6 +45,14 @@ const SEED=`(function(){var DB=window.__DB__;
  T('leagues listed', (await pg.textContent('#leagues')).includes('IRON CIRCLE'), 'yes');
  T('players listed', (await pg.textContent('#players')).includes('SARAH'), 'yes');
 
+ /* the two totals. One column called "Points" was lifetime, read next to a
+    league board showing this week, and looked like the app was losing points. */
+ const heads = await pg.$$eval('#players th', e=>e.map(x=>x.textContent.trim()));
+ T('lifetime and this week are separate columns',
+   heads.includes('Lifetime') && heads.includes('This week'), heads.join(' | '));
+ T('and the page says what the difference is',
+   (await pg.textContent('#panel')).includes('The two are meant to differ'), 'yes');
+
  /* the bounty schedule */
  const weeks = await pg.$$eval('#schedule tr', e=>e.length-1);
  T('six months of weeks shown', weeks===26, weeks+' weeks');
@@ -97,6 +105,19 @@ const SEED=`(function(){var DB=window.__DB__;
  T('bad points refused with a reason',
    (await pg.textContent('#err')).toLowerCase().includes('between 5 and 100'),
    await pg.textContent('#err'));
+
+ /* a bounty reaches every league at once, so the picker cannot offer a gym
+    lift and the server would refuse one even if it did */
+ const offered = await pg.$$eval('#nbEx option', e=>e.map(x=>x.value));
+ T('the picker offers nothing that needs a gym',
+   offered.indexOf('gymbench')<0 && offered.indexOf('pushups')>=0, offered.join(','));
+ T('and it refuses one written anyway',
+   await pg.evaluate(async()=>{
+     const sb = window.supabase.createClient('u','k',{});
+     const r = await sb.rpc('admin_add_bounty', { p_name:'GYM DAY',
+       p_descr:'bench 100', p_points:30, p_ex:'gymbench', p_mode:'reps', p_min:100 });
+     return !!(r.error && /everybody can do/.test(r.error.message)); }),
+   'refused');
 
  /* deleting a custom one, but not a built-in */
  const customIdx = await pg.evaluate(()=>window.__DB__.bounties.find(b=>b.name==='LUNCH HOLD').idx);

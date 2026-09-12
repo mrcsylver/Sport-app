@@ -212,3 +212,57 @@ select 'micro bounties (flat 20): ' || count(*) from public.bounties where point
 select 'muscle-group-only bounties: ' || count(*) from public.bounties
 where spec->>'kind' in ('cat_points','cats');
 select 'points spread: ' || min(points) || ' to ' || max(points) from public.bounties;
+
+\echo '--- 15. every quest is something everybody can do'
+-- No gym, no pool, no bike, no pitch, no rope, and no move that takes a year
+-- to learn. An "any" quest only needs one open option; everything else has to
+-- be open on every exercise it names.
+with named as (
+  select b.idx, b.name, b.spec->>'kind' as kind,
+         coalesce(r->>'ex', b.spec->>'ex') as ex
+  from public.bounties b
+  left join lateral jsonb_array_elements(
+    coalesce(b.spec->'reqs', b.spec->'any', '[]'::jsonb)) r on true
+)
+select 'quests naming an exercise not everybody has: ' || count(*) from (
+  select idx from named
+  where kind is distinct from 'any' and ex is not null
+    and not public.bounty_open_to_all(ex)
+  union
+  select idx from named where kind = 'any' group by idx
+   having bool_and(ex is null or not public.bounty_open_to_all(ex))) bad;
+
+select 'quests asking for a muscle group that needs a gym or a pitch: '
+       || count(*) from public.bounties b
+ where exists (
+   select 1 from jsonb_array_elements(
+     case when b.spec->>'kind' = 'cats' then b.spec->'cats'
+          when b.spec->>'kind' = 'cat_points'
+          then jsonb_build_array(jsonb_build_object('cat', b.spec->>'cat'))
+          else '[]'::jsonb end) c
+   where c->>'cat' in ('GYM', 'SPORT'));
+
+\echo '--- 16. and the control room cannot write one that is not'
+set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+do $$ begin
+  perform public.admin_add_bounty('GYM DAY', 'bench 100 reps', 30,
+                                  'gymbench', 'reps', 100, null, null);
+  raise exception 'A GYM BOUNTY WAS ACCEPTED';
+exception when others then
+  if sqlerrm like '%A GYM BOUNTY WAS%' then raise; end if;
+  raise notice 'gym bounty refused: %', sqlerrm;
+end $$;
+do $$ begin
+  perform public.admin_add_bounty('MATCH DAY', 'play 60 minutes', 30,
+                                  'football', 'minutes', 60, null, null);
+  raise exception 'A SPORT BOUNTY WAS ACCEPTED';
+exception when others then
+  if sqlerrm like '%A SPORT BOUNTY WAS%' then raise; end if;
+  raise notice 'sport bounty refused: %', sqlerrm;
+end $$;
+select 'the control room may choose from ' || count(*) || ' exercises'
+from public.bounty_exercises();
+select case when not exists (select 1 from public.bounty_exercises()
+                             where cat in ('GYM','SPORT'))
+       then 'and none of them needs a gym or somewhere to play'
+       else 'THE PICKER STILL OFFERS A GYM LIFT' end;

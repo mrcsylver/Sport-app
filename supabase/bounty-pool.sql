@@ -28,8 +28,8 @@ insert into public.bounties (idx, name, descr, points, spec) values
 (1,'CENTURY PUSH','100 push-ups across the day',40,'{"reqs":[{"ex":"pushups","mode":"reps","min":100}]}'),
 (2,'DIP MASTER','30 dips',40,'{"reqs":[{"ex":"dips","mode":"reps","min":30}]}'),
 (3,'DIP CENTURY','50 dips',50,'{"reqs":[{"ex":"dips","mode":"reps","min":50}]}'),
-(4,'INVERTED WORLD','60 seconds of handstand hold',40,'{"reqs":[{"ex":"handstand","mode":"seconds","min":60}]}'),
-(5,'CEILING PRESS','5 handstand push-ups',35,'{"reqs":[{"ex":"handstand","mode":"reps","min":5}]}'),
+(4,'SHOULDER BURN','30 pike push-ups',40,'{"reqs":[{"ex":"pikepush","mode":"reps","min":30}]}'),
+(5,'CLOSE QUARTERS','35 diamond push-ups',35,'{"reqs":[{"ex":"diamondpush","mode":"reps","min":35}]}'),
 (6,'LUNCH PRESS','30 push-ups between 12:00 and 14:00',25,'{"reqs":[{"ex":"pushups","mode":"reps","min":30,"from_h":12,"to_h":14}]}'),
 (7,'NIGHTCAP PUSH','40 push-ups after 20:00',30,'{"reqs":[{"ex":"pushups","mode":"reps","min":40,"from_h":20}]}'),
 (8,'CLOCK PUNCHER','10 push-ups in each of 5 different hours',40,'{"kind":"hourly","ex":"pushups","each":10,"hours":5}'),
@@ -40,31 +40,31 @@ insert into public.bounties (idx, name, descr, points, spec) values
 (13,'BAR SURGE','20 pull-ups',35,'{"reqs":[{"ex":"pullups","mode":"reps","min":20}]}'),
 (14,'PULL AND ROW','15 pull-ups and 30 rows',45,'{"reqs":[{"ex":"pullups","mode":"reps","min":15},{"ex":"rows","mode":"reps","min":30}]}'),
 (15,'MIDDAY PULL','15 pull-ups between 12:00 and 15:00',30,'{"reqs":[{"ex":"pullups","mode":"reps","min":15,"from_h":12,"to_h":15}]}'),
-(16,'SKILL WORK','3 muscle-ups, or a 10 second flag hold',50,'{"kind":"any","any":[{"ex":"muscleup","mode":"reps","min":3},{"ex":"muscleup","mode":"seconds","min":10}]}'),
+(16,'ANY BAR WILL DO','20 pull-ups, 20 chin-ups, or 40 inverted rows',50,'{"kind":"any","any":[{"ex":"pullups","mode":"reps","min":20},{"ex":"chinups","mode":"reps","min":20},{"ex":"rows","mode":"reps","min":40}]}'),
 (17,'EVENING LATS','20 pull-ups after 18:00',35,'{"reqs":[{"ex":"pullups","mode":"reps","min":20,"from_h":18}]}'),
 (18,'GREASE THE GROOVE','1 pull-up in each of 8 different hours',40,'{"kind":"hourly","ex":"pullups","each":1,"hours":8}'),
 (19,'PULL DOUBLE','15 pull-ups before noon and 15 after',45,'{"kind":"split","ex":"pullups","min":15}'),
 (20,'MORNING LEGS','100 air squats before 10:00',35,'{"reqs":[{"ex":"airsquats","mode":"reps","min":100,"to_h":10}]}'),
-(21,'PISTOL PURSUIT','10 pistol squats',40,'{"reqs":[{"ex":"pistols","mode":"reps","min":10}]}'),
-(22,'PISTOL BURNER','16 pistol squats',45,'{"reqs":[{"ex":"pistols","mode":"reps","min":16}]}'),
+(21,'SPLIT DUTY','50 split squats',40,'{"reqs":[{"ex":"splitsquat","mode":"reps","min":50}]}'),
+(22,'STEP MACHINE','100 step-ups',45,'{"reqs":[{"ex":"stepups","mode":"reps","min":100}]}'),
 (23,'CORE LOCK','2 minutes of plank',30,'{"reqs":[{"ex":"plank","mode":"minutes","min":2}]}'),
 (24,'KNEE RAISE SURGE','60 knee raises',35,'{"reqs":[{"ex":"kneeraises","mode":"reps","min":60}]}'),
-(25,'THE L','30 seconds of L-sit',35,'{"reqs":[{"ex":"lsit","mode":"seconds","min":30}]}'),
+(25,'THE HOLLOW','Four minutes of hollow hold',40,'{"reqs":[{"ex":"hollowhold","mode":"seconds","min":240}]}'),
 (26,'SQUAT CENTURY','100 air squats',30,'{"reqs":[{"ex":"airsquats","mode":"reps","min":100}]}'),
 (27,'AFTERNOON LEGS','80 air squats between 13:00 and 17:00',30,'{"reqs":[{"ex":"airsquats","mode":"reps","min":80,"from_h":13,"to_h":17}]}'),
 (28,'CORE AND SQUAT','50 air squats and 30 knee raises',35,'{"reqs":[{"ex":"airsquats","mode":"reps","min":50},{"ex":"kneeraises","mode":"reps","min":30}]}'),
-(29,'TWIST AND PISTOL','60 Russian twists and 6 pistol squats',40,'{"reqs":[{"ex":"twists","mode":"reps","min":60},{"ex":"pistols","mode":"reps","min":6}]}'),
+(29,'TWIST AND SQUAT','60 Russian twists and 60 air squats',45,'{"reqs":[{"ex":"twists","mode":"reps","min":60},{"ex":"airsquats","mode":"reps","min":60}]}'),
 (30,'EARLY RUN','3 km before 09:00',35,'{"reqs":[{"ex":"run","mode":"km","min":3,"to_h":9}]}'),
-(31,'BIKE TOUR','10 km on the bike',35,'{"reqs":[{"ex":"bike","mode":"km","min":10}]}'),
+(31,'WALK IT OFF','6 km on foot',35,'{"reqs":[{"ex":"walk","mode":"km","min":6}]}'),
 (32,'SPRINT FINISHER','10 sprints',35,'{"reqs":[{"ex":"sprints","mode":"reps","min":10}]}'),
 (33,'LUNCH WALK','3 km walk between 11:00 and 14:00',25,'{"reqs":[{"ex":"walk","mode":"km","min":3,"from_h":11,"to_h":14}]}'),
-(34,'POOL SESSION','30 minutes of swimming',40,'{"reqs":[{"ex":"swim","mode":"minutes","min":30}]}'),
+(34,'THE LONG WALK','10 km of walking',45,'{"reqs":[{"ex":"walk","mode":"km","min":10}]}'),
 (35,'FIVE K','Run 5 km',40,'{"reqs":[{"ex":"run","mode":"km","min":5}]}'),
 (36,'DOUBLE MOBILITY','Two separate stretching sessions',25,'{"reqs":[{"ex":"stretch","mode":"flat","min":2}]}'),
 (37,'NIGHT WALK','4 km walk after 19:00',30,'{"reqs":[{"ex":"walk","mode":"km","min":4,"from_h":19}]}'),
-(38,'SWIM AND STRETCH','20 minutes swimming and a stretching session',35,'{"reqs":[{"ex":"swim","mode":"minutes","min":20},{"ex":"stretch","mode":"flat","min":1}]}'),
-(39,'CYCLE CENTURY','15 km on the bike',40,'{"reqs":[{"ex":"bike","mode":"km","min":15}]}'),
-(40,'MORNING DISTANCE','4 km run or 12 km bike before 11:00',40,'{"kind":"any","any":[{"ex":"run","mode":"km","min":4,"to_h":11},{"ex":"bike","mode":"km","min":12,"to_h":11}]}'),
+(38,'MOVE AND STRETCH','3 km on foot and a stretching session',35,'{"reqs":[{"ex":"walk","mode":"km","min":3},{"ex":"stretch","mode":"flat","min":1}]}'),
+(39,'ROAD WORK','6 km run',45,'{"reqs":[{"ex":"run","mode":"km","min":6}]}'),
+(40,'MORNING DISTANCE','4 km run or 6 km walk before 11:00',40,'{"kind":"any","any":[{"ex":"run","mode":"km","min":4,"to_h":11},{"ex":"walk","mode":"km","min":6,"to_h":11}]}'),
 (41,'FULL BODY TRIAD','30 push-ups, 15 pull-ups and 30 air squats',45,'{"reqs":[{"ex":"pushups","mode":"reps","min":30},{"ex":"pullups","mode":"reps","min":15},{"ex":"airsquats","mode":"reps","min":30}]}'),
 (42,'DUO SYNC','Train within an hour of somebody else in the league',30,'{"kind":"duo"}'),
 (43,'IRON TRIFECTA','20 dips, 10 pull-ups and 50 air squats',45,'{"reqs":[{"ex":"dips","mode":"reps","min":20},{"ex":"pullups","mode":"reps","min":10},{"ex":"airsquats","mode":"reps","min":50}]}'),
@@ -82,8 +82,8 @@ insert into public.bounties (idx, name, descr, points, spec) values
 (55,'DEAD HANG','Ninety seconds hanging from a bar',20,'{"reqs":[{"ex":"deadhang","mode":"seconds","min":90}]}'),
 (56,'TEN PULL','Ten pull-ups. That is the whole bounty',20,'{"reqs":[{"ex":"pullups","mode":"reps","min":10}]}'),
 (57,'WALL SIT','Two minutes in a wall sit',20,'{"reqs":[{"ex":"wallsit","mode":"seconds","min":120}]}'),
-(58,'ROPE MINUTE','Five minutes of skipping',20,'{"reqs":[{"ex":"jumprope","mode":"minutes","min":5}]}'),
-(59,'STAIR SPRINT','Five minutes of stairs',20,'{"reqs":[{"ex":"stairs","mode":"minutes","min":5}]}'),
+(58,'MOUNTAIN MINUTE','150 mountain climbers',20,'{"reqs":[{"ex":"mountainclimb","mode":"reps","min":150}]}'),
+(59,'TEN SPRINTS','Ten sprints',20,'{"reqs":[{"ex":"sprints","mode":"reps","min":10}]}'),
 (60,'HOLLOW HOLD','Ninety seconds of hollow hold',20,'{"reqs":[{"ex":"hollowhold","mode":"seconds","min":90}]}'),
 (61,'BURST OF DIPS','Twenty dips, any bar or bench',20,'{"kind":"any","any":[{"ex":"dips","mode":"reps","min":20},{"ex":"benchdips","mode":"reps","min":30}]}'),
 (62,'FORTY CRUNCH','Forty crunches',20,'{"reqs":[{"ex":"crunches","mode":"reps","min":40}]}'),
@@ -93,37 +93,37 @@ insert into public.bounties (idx, name, descr, points, spec) values
 (66,'LEG DAY','60 points of legs and nothing else counts',45,'{"kind":"cat_points","cat":"LEGS","min":60}'),
 (67,'CORE DAY','45 points of core and nothing else counts',40,'{"kind":"cat_points","cat":"CORE","min":45}'),
 (68,'ENDURANCE ONLY','50 points of cardio and nothing else counts',45,'{"kind":"cat_points","cat":"CARDIO","min":50}'),
-(69,'IRON ONLY','60 points under a bar — gym lifts only',50,'{"kind":"cat_points","cat":"GYM","min":60}'),
-(70,'PLAY DAY','40 points from a sport',40,'{"kind":"cat_points","cat":"SPORT","min":40}'),
+(69,'LEGS AND CORE','50 points of legs and 40 of core, nothing else counts',50,'{"kind":"cats","cats":[{"cat":"LEGS","min":50},{"cat":"CORE","min":40}]}'),
+(70,'FULL BODY LOCK','30 points each of push, pull and legs',55,'{"kind":"cats","cats":[{"cat":"PUSH","min":30},{"cat":"PULL","min":30},{"cat":"LEGS","min":30}]}'),
 (71,'UPPER LOCK','40 points of push and 40 of pull, same day',55,'{"kind":"cats","cats":[{"cat":"PUSH","min":40},{"cat":"PULL","min":40}]}'),
 (72,'TWO HUNDRED','200 push-ups across the day',60,'{"reqs":[{"ex":"pushups","mode":"reps","min":200}]}'),
-(73,'ARCHER''S DAY','30 archer push-ups',45,'{"reqs":[{"ex":"archerpush","mode":"reps","min":30}]}'),
+(73,'WIDE LOAD','60 wide push-ups',45,'{"reqs":[{"ex":"widepush","mode":"reps","min":60}]}'),
 (74,'PIKE POWER','40 pike push-ups',40,'{"reqs":[{"ex":"pikepush","mode":"reps","min":40}]}'),
-(75,'CLAP IT OUT','25 clapping push-ups',45,'{"reqs":[{"ex":"clappush","mode":"reps","min":25}]}'),
-(76,'RING WORK','25 ring dips',50,'{"reqs":[{"ex":"ringdips","mode":"reps","min":25}]}'),
+(75,'DECLINE DAY','50 decline push-ups',45,'{"reqs":[{"ex":"declinepush","mode":"reps","min":50}]}'),
+(76,'CHAIR DIPS','70 bench dips',50,'{"reqs":[{"ex":"benchdips","mode":"reps","min":70}]}'),
 (77,'CHIN COLLECTOR','40 chin-ups',50,'{"reqs":[{"ex":"chinups","mode":"reps","min":40}]}'),
-(78,'TOES TO BAR','30 toes to bar',45,'{"reqs":[{"ex":"toestobar","mode":"reps","min":30}]}'),
-(79,'FRONT LEVER HOLD','20 seconds of front lever, any tuck',50,'{"reqs":[{"ex":"frontlever","mode":"seconds","min":20}]}'),
-(80,'DRAGON','15 dragon flags',50,'{"reqs":[{"ex":"dragonflag","mode":"reps","min":15}]}'),
-(81,'PISTOL DUEL','20 pistol squats',45,'{"reqs":[{"ex":"pistols","mode":"reps","min":20}]}'),
-(82,'NORDIC NIGHT','12 nordic curls',50,'{"reqs":[{"ex":"nordic","mode":"reps","min":12}]}'),
+(78,'HANGING RAISES','30 hanging leg raises',45,'{"reqs":[{"ex":"hangingleg","mode":"reps","min":30}]}'),
+(79,'THREE MINUTE HANG','Three minutes hanging from a bar',50,'{"reqs":[{"ex":"deadhang","mode":"seconds","min":180}]}'),
+(80,'V FOR VOLUME','80 V-ups',50,'{"reqs":[{"ex":"vups","mode":"reps","min":80}]}'),
+(81,'JUMP AND HOLD','60 jump squats and two minutes of wall sit',45,'{"reqs":[{"ex":"jumpsquats","mode":"reps","min":60},{"ex":"wallsit","mode":"seconds","min":120}]}'),
+(82,'BRIDGE AND BIRD','120 glute bridges and 60 bird dogs',50,'{"reqs":[{"ex":"gluteBridge","mode":"reps","min":120},{"ex":"birddog","mode":"reps","min":60}]}'),
 (83,'JUMP DAY','80 jump squats',45,'{"reqs":[{"ex":"jumpsquats","mode":"reps","min":80}]}'),
 (84,'LUNGE MILE','120 lunges',45,'{"reqs":[{"ex":"lunges","mode":"reps","min":120}]}'),
 (85,'BRIDGE BUILDER','100 glute bridges',35,'{"reqs":[{"ex":"gluteBridge","mode":"reps","min":100}]}'),
-(86,'ROLLOUT','30 ab rollouts',40,'{"reqs":[{"ex":"rollout","mode":"reps","min":30}]}'),
+(86,'SIT UP STRAIGHT','120 sit-ups',40,'{"reqs":[{"ex":"situps","mode":"reps","min":120}]}'),
 (87,'SIDE ON','Three minutes of side plank, both sides',35,'{"reqs":[{"ex":"sideplank","mode":"minutes","min":3}]}'),
 (88,'SUPERMAN','80 supermans',30,'{"reqs":[{"ex":"supermans","mode":"reps","min":80}]}'),
 (89,'BICYCLE RACE','150 bicycle crunches',35,'{"reqs":[{"ex":"bicycle","mode":"reps","min":150}]}'),
 (90,'CLIMBER','200 mountain climbers',35,'{"reqs":[{"ex":"mountainclimb","mode":"reps","min":200}]}'),
 (91,'TEN K','Ten kilometres on foot, running or walking',55,'{"kind":"any","any":[{"ex":"run","mode":"km","min":10},{"ex":"walk","mode":"km","min":12}]}'),
-(92,'LONG RIDE','25 km on a bike',45,'{"reqs":[{"ex":"bike","mode":"km","min":25}]}'),
-(93,'POOL LENGTHS','45 minutes in the water',45,'{"reqs":[{"ex":"swim","mode":"minutes","min":45}]}'),
-(94,'ROW HARD','20 minutes on the rower',40,'{"reqs":[{"ex":"row","mode":"minutes","min":20}]}'),
-(95,'ON THE WALL','40 minutes of climbing',45,'{"reqs":[{"ex":"climbing","mode":"minutes","min":40}]}'),
-(96,'GLOVES ON','30 minutes of boxing',40,'{"reqs":[{"ex":"boxing","mode":"minutes","min":30}]}'),
-(97,'BENCH DAY','30 reps of barbell bench press',45,'{"reqs":[{"ex":"gymbench","mode":"reps","min":30}]}'),
-(98,'SQUAT RACK','40 barbell squats',45,'{"reqs":[{"ex":"gymsquat","mode":"reps","min":40}]}'),
-(99,'PULL THE FLOOR','20 deadlifts',50,'{"reqs":[{"ex":"gymdeadlift","mode":"reps","min":20}]}'),
+(92,'THE LONG ONE','12 km running, or 15 km walking',45,'{"kind":"any","any":[{"ex":"run","mode":"km","min":12},{"ex":"walk","mode":"km","min":15}]}'),
+(93,'FLUTTER','200 flutter kicks',45,'{"reqs":[{"ex":"flutterkick","mode":"reps","min":200}]}'),
+(94,'ROW YOUR OWN','80 inverted rows',40,'{"reqs":[{"ex":"rows","mode":"reps","min":80}]}'),
+(95,'AGAINST THE WALL','Five minutes of wall sit',45,'{"reqs":[{"ex":"wallsit","mode":"seconds","min":300}]}'),
+(96,'SHADOW WORK','300 mountain climbers',40,'{"reqs":[{"ex":"mountainclimb","mode":"reps","min":300}]}'),
+(97,'PUSH ONE FIFTY','150 push-ups across the day',45,'{"reqs":[{"ex":"pushups","mode":"reps","min":150}]}'),
+(98,'TWO HUNDRED SQUATS','200 air squats',45,'{"reqs":[{"ex":"airsquats","mode":"reps","min":200}]}'),
+(99,'FIFTY PULLS','50 pull-ups across the day',55,'{"reqs":[{"ex":"pullups","mode":"reps","min":50}]}'),
 (100,'SEVEN HOURS','One set in each of 7 different hours',50,'{"kind":"hourly","ex":"pushups","each":5,"hours":7}'),
 (101,'SUNRISE AND SUNSET','30 pull-ups before noon and 30 after',50,'{"kind":"split","ex":"pullups","min":30}'),
 (102,'FIVE WAYS','Train five different muscle groups',50,'{"kind":"distinct","what":"cat","min":5}'),
@@ -149,6 +149,70 @@ alter table public.bounty_schedule enable row level security;
 drop policy if exists bounty_schedule_read on public.bounty_schedule;
 create policy bounty_schedule_read on public.bounty_schedule
   for select to authenticated using (true);
+
+-- ------------------------------------------------------ bounty_open_to_all ---
+create or replace function public.bounty_open_to_all(p_key text) returns boolean
+language sql immutable set search_path = public as $$
+  select p_key = any (array[
+    'airsquats',
+    'benchdips',
+    'bicycle',
+    'birddog',
+    'calves',
+    'chinups',
+    'commandopull',
+    'crunches',
+    'deadbug',
+    'deadhang',
+    'declinepush',
+    'diamondpush',
+    'dips',
+    'flutterkick',
+    'gluteBridge',
+    'hangingleg',
+    'hollowhold',
+    'inclinepush',
+    'jumpsquats',
+    'kneepush',
+    'kneeraises',
+    'legraises',
+    'lunges',
+    'mountainclimb',
+    'pikepush',
+    'plank',
+    'pullups',
+    'pushups',
+    'rows',
+    'run',
+    'scapulapull',
+    'sidecrunch',
+    'sideplank',
+    'situps',
+    'sphinxpush',
+    'splitsquat',
+    'sprints',
+    'stepups',
+    'stretch',
+    'supermans',
+    'twists',
+    'vups',
+    'walk',
+    'wallpush',
+    'wallsit',
+    'widepullup',
+    'widepush'
+  ])
+$$;
+
+-- -------------------------------------------------------- bounty_exercises ---
+create or replace function public.bounty_exercises()
+returns table (key text, name text, cat text, modes jsonb)
+language sql stable set search_path = public as $$
+  select e.key, e.name, e.cat, e.modes
+  from public.exercises e
+  where public.bounty_open_to_all(e.key)
+  order by e.sort, e.name
+$$;
 
 -- ------------------------------------------------------- bounty_cat_points ---
 create or replace function public.bounty_cat_points(
@@ -432,6 +496,10 @@ begin
                  where e.key = p_ex and e.modes ? p_mode) then
     raise exception 'That exercise cannot be logged that way';
   end if;
+  if not public.bounty_open_to_all(p_ex) then
+    raise exception 'A bounty goes to everybody, so it has to be something '
+                    'everybody can do — no gym, no sport, no equipment';
+  end if;
   if p_min is null or p_min <= 0 then raise exception 'Set an amount'; end if;
   if p_from_h is not null and (p_from_h < 0 or p_from_h > 23) then
     raise exception 'An hour is 0 to 23';
@@ -475,6 +543,8 @@ on conflict (week_start) do nothing;
 -- -------------------------------------------------------------- grants ---
 revoke all on function public.bounty_pick(date)             from public, anon;
 revoke all on function public.bounty_cat_points(uuid,uuid,text,date) from public, anon;
+revoke all on function public.bounty_open_to_all(text)      from public, anon;
+revoke all on function public.bounty_exercises()            from public, anon;
 revoke all on function public.admin_schedule()              from public, anon;
 revoke all on function public.admin_bounties()              from public, anon;
 revoke all on function public.admin_pin_bounty(date,int,text) from public, anon;
@@ -492,6 +562,8 @@ grant execute on function public.admin_delete_bounty(int)      to authenticated;
 grant execute on function public.builtin_bounty_count()        to authenticated;
 grant execute on function public.bounty_pick(date)             to authenticated;
 grant execute on function public.bounty_cat_points(uuid,uuid,text,date) to authenticated;
+grant execute on function public.bounty_open_to_all(text)      to authenticated;
+grant execute on function public.bounty_exercises()            to authenticated;
 grant select on public.bounty_schedule to authenticated;
 
 commit;

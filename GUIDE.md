@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.9.2*
+*Last updated 12 September 2026 · app version 2.9.3*
 
 ---
 
@@ -131,7 +131,10 @@ toutes les ligues. Tirée d'un réservoir de **110 quêtes**, mélangé
 différemment chaque année : aucune ne se répète dans l'année, et l'année
 suivante n'est pas la même. Douze d'entre elles sont courtes — 20 points fixes
 pour trois minutes de gainage, soixante squats, une suspension de 90 secondes
-— pour que quinze minutes de pause suffisent à marquer.
+— pour que quinze minutes de pause suffisent à marquer. Aucune quête ne demande
+de salle, de piscine, de vélo, de terrain, de corde, ni de mouvement qui met un
+an à s'apprendre : un sol, un mur, une chaise, une barre et une rue suffisent
+pour les 110. Personne ne peut se voir refuser la quête de la semaine.
 
 **League Raid.** Un objectif collectif par semaine, dimensionné sur le nombre
 de membres. Si la ligue l'atteint, tout le monde marque.
@@ -281,7 +284,10 @@ of it.
 league. Drawn from a pool of **110**, shuffled differently every year: none
 repeats within a year, and next year is not the same run. Twelve of them are
 short — a flat 20 points for three minutes of plank, sixty squats, a
-ninety-second dead hang — so a fifteen-minute break is enough to score.
+ninety-second dead hang — so a fifteen-minute break is enough to score. No
+quest asks for a gym, a pool, a bike, a pitch, a rope, or a move that takes a
+year to learn: a floor, a wall, a chair, a bar and a street cover all 110.
+Nobody is ever handed a quest they cannot attempt.
 
 **League raid.** One shared target a week, scaled to how many of you there
 are. Hit it together and everybody scores.

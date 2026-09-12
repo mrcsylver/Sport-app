@@ -27,6 +27,33 @@ MIGRATION = os.path.join(ROOT, "supabase", "bounty-pool.sql")
 BANK = os.path.join(HERE, "exercises.json")
 
 CATS = {"PUSH", "PULL", "LEGS", "CORE", "CARDIO", "SPORT", "GYM", "RECOVERY"}
+
+# A bounty is the one thing in the app that is handed to everybody at once, so
+# it has to be something everybody can actually do. No gym, no pool, no bike,
+# no pitch, no rope — and no move that takes a year to learn. Somebody with a
+# floor, a wall, a chair, a bar and a street should be able to finish every
+# quest in the pool.
+EVERYWHERE = {
+    # push
+    "wallpush", "kneepush", "inclinepush", "pushups", "widepush", "diamondpush",
+    "declinepush", "pikepush", "benchdips", "dips", "sphinxpush",
+    # pull
+    "rows", "scapulapull", "chinups", "pullups", "widepullup", "commandopull",
+    "deadhang",
+    # legs
+    "calves", "airsquats", "jumpsquats", "lunges", "splitsquat", "stepups",
+    "gluteBridge", "wallsit",
+    # core
+    "crunches", "situps", "twists", "legraises", "kneeraises", "hangingleg",
+    "vups", "supermans", "sidecrunch", "bicycle", "deadbug", "birddog",
+    "flutterkick", "mountainclimb", "plank", "sideplank", "hollowhold",
+    # cardio, and the one recovery entry
+    "run", "sprints", "walk", "stretch",
+}
+
+# Categories a quest may ask for points from. GYM needs a gym and SPORT needs
+# somewhere to play, so neither can be the whole requirement.
+EVERYWHERE_CATS = {"PUSH", "PULL", "LEGS", "CORE", "CARDIO", "RECOVERY"}
 KINDS = {"reqs", "any", "distinct", "cat_points", "cats", "reps_across",
          "split", "hourly", "pr", "team", "duo", "underdog"}
 
@@ -83,7 +110,49 @@ def check(pool, ex):
             if mode and mode not in ex[key]["modes"]:
                 problems.append("%s: %s cannot be logged in %s (only %s)"
                                 % (where, key, mode, "/".join(sorted(ex[key]["modes"]))))
+    problems += reachable(pool)
     return problems
+
+
+def reachable(pool):
+    """Every quest must be finishable by everybody in the league.
+
+    An "any" quest only needs one of its options to be open to everyone —
+    that is the whole point of offering a choice. Everything else has to be
+    open on every requirement it names.
+    """
+    out = []
+    for i, (name, _descr, _points, spec) in enumerate(pool):
+        kind = spec.get("kind", "reqs")
+        where = "#%d %s" % (i, name)
+
+        if kind == "any":
+            options = [r.get("ex") for r in spec.get("any", [])]
+            if options and not any(k in EVERYWHERE for k in options if k):
+                out.append("%s: none of its options is open to everyone (%s)"
+                           % (where, ", ".join(str(o) for o in options)))
+            continue
+
+        if kind == "cat_points":
+            if spec.get("cat") not in EVERYWHERE_CATS:
+                out.append("%s: %s needs a gym or somewhere to play"
+                           % (where, spec.get("cat")))
+            continue
+
+        if kind == "cats":
+            for c in spec.get("cats", []):
+                if c.get("cat") not in EVERYWHERE_CATS:
+                    out.append("%s: %s needs a gym or somewhere to play"
+                               % (where, c.get("cat")))
+            continue
+
+        named = [r.get("ex") for r in spec.get("reqs", [])]
+        if spec.get("ex"):
+            named.append(spec["ex"])
+        for key in named:
+            if key and key not in EVERYWHERE:
+                out.append("%s: %s is not something everybody can do" % (where, key))
+    return out
 
 
 def sql_rows(pool):
@@ -119,6 +188,49 @@ def stamp_count(n):
         open(SCHEMA, "w", encoding="utf-8").write(fixed)
 
 
+def stamp_everywhere():
+    """Write the open list into bounty_open_to_all().
+
+    The control room can write a bounty too, and it must be held to the same
+    rule as the generated pool. Keeping the list in one place is the only way
+    the two do not drift: this rewrites the array in schema.sql from the same
+    set `reachable` validates against.
+    """
+    s = open(SCHEMA, encoding="utf-8").read()
+    keys = ",\n    ".join("'%s'" % k for k in sorted(EVERYWHERE))
+    fixed = re.sub(r"(create function public\.bounty_open_to_all\(p_key text\) "
+                   r"returns boolean\nlanguage sql immutable set search_path = public "
+                   r"as \$\$\n  select p_key = any \(array\[\n    ).*?(\n  \]\))",
+                   lambda m: m.group(1) + keys + m.group(2), s, flags=re.S)
+    if fixed == s and "'wallpush'" not in s:
+        raise SystemExit("cannot find bounty_open_to_all() in schema.sql")
+    if fixed != s:
+        open(SCHEMA, "w", encoding="utf-8").write(fixed)
+    return len(EVERYWHERE)
+
+
+MOCK = os.path.join(HERE, "test", "mock-supabase.js")
+
+
+def stamp_mock():
+    """The browser mock has to refuse what the server refuses.
+
+    It answered a control room that can no longer offer a gym lift, so the
+    list lives here too — written from the same set, never typed twice.
+    """
+    s = open(MOCK, encoding="utf-8").read()
+    keys = "".join("    %s: 1,\n" % k if k.isidentifier() else "    '%s': 1,\n" % k
+                   for k in sorted(EVERYWHERE))
+    block = ("/* OPEN-TO-ALL BEGIN */\n  var OPEN_TO_ALL = {\n"
+             + keys.rstrip(",\n") + "\n  };\n  /* OPEN-TO-ALL END */")
+    fixed = re.sub(r"/\* OPEN-TO-ALL BEGIN \*/.*?/\* OPEN-TO-ALL END \*/",
+                   lambda m: block, s, flags=re.S)
+    if fixed == s and "OPEN-TO-ALL BEGIN" not in s:
+        raise SystemExit("cannot find the OPEN-TO-ALL block in mock-supabase.js")
+    if fixed != s:
+        open(MOCK, "w", encoding="utf-8").write(fixed)
+
+
 SEED_MARK = "-- The bounty pool:"
 
 
@@ -146,6 +258,8 @@ from sqllift import lift, grants                                 # noqa: E402
 
 MIGRATION_OBJECTS = [
     ("table", "bounty_schedule"),
+    ("function", "bounty_open_to_all"),
+    ("function", "bounty_exercises"),
     ("function", "bounty_cat_points"),
     ("function", "bounty_done"),
     ("function", "bounty_index"),
@@ -236,9 +350,12 @@ def main():
         sys.exit(1)
 
     stamp_count(len(POOL))
+    n0 = stamp_everywhere()
+    stamp_mock()
     n1 = write_schema(POOL)
     n2 = write_migration(POOL)
-    print("%d bounties validated" % len(POOL))
+    print("%d bounties validated, all of them out of the %d exercises "
+          "everybody has" % (len(POOL), n0))
     print("  schema.sql seed    : %d lines" % n1)
     print("  bounty-pool.sql    : %d lines" % n2)
 
