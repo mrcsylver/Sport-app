@@ -83,7 +83,7 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  await pg.click('#logBtn'); await pg.waitForSelector('#logModal:not([hidden])'); await pg.waitForTimeout(300);
  await pickEx(pg, 'swim'); await pg.waitForTimeout(250);
  await pg.fill('#amountInput','60'); await pg.waitForTimeout(150);
- T('swim 60 min = 12 pts', (await pg.textContent('#ptsPreview'))==='12', await pg.textContent('#ptsPreview'));
+ T('swim 60 min = 30 pts', (await pg.textContent('#ptsPreview'))==='30', await pg.textContent('#ptsPreview'));
  await pickEx(pg, 'sprints'); await pg.waitForTimeout(250);
  T('sprints counted per sprint', (await pg.textContent('#amountLbl'))==='SPRINTS', await pg.textContent('#amountLbl'));
  T('sprint description explains 15s/100m', (await pg.textContent('#exVariants')).includes('100 m'), await pg.textContent('#exVariants'));

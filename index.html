@@ -123,7 +123,18 @@
 
     <!-- HALL OF FAME -->
     <section id="view-hall" class="view" hidden>
-      <div class="section-head"><h2>HALL OF FAME</h2></div>
+      <div class="section-head"><h2>CROWNS</h2>
+        <span class="muted small mono" id="winsWeeks"></span></div>
+      <p class="hint" style="margin-top:0">One crown for every week won. Set a target and
+        the first to reach it takes the run — the app keeps the count, you decide the prize.</p>
+      <div class="segmented tiny" id="winsRace">
+        <button type="button" data-race="3">FIRST TO 3</button>
+        <button type="button" data-race="5" class="on">FIRST TO 5</button>
+        <button type="button" data-race="10">FIRST TO 10</button>
+      </div>
+      <div id="wins" class="stack tight"></div>
+
+      <div class="section-head" style="margin-top:26px"><h2>HALL OF FAME</h2></div>
       <div id="hall"></div>
 
       <div class="section-head" style="margin-top:26px"><h2>IRON WILL</h2>
@@ -199,6 +210,22 @@
       </div>
       <div id="statBar" class="statbar"></div>
       <div id="statLegend" class="statlegend"></div>
+
+      <div class="section-head" style="margin-top:26px"><h2>THE BODY</h2>
+        <span class="muted small mono" id="bodyWeeks"></span></div>
+      <p class="hint" style="margin-top:0">Every set you log lands on the muscles it
+        actually trains. A region fills fast when it is empty and slowly when it is
+        full, so the next point is always worth more somewhere you have neglected —
+        and no amount of work ever reads 100%.</p>
+      <div class="bodywrap">
+        <div class="segmented tiny" id="bodyViewPick">
+          <button type="button" data-bview="front" class="on">FRONT</button>
+          <button type="button" data-bview="back">BACK</button>
+        </div>
+        <div id="bodyFig" class="bodyfig"></div>
+        <div id="bodyRead" class="bodyread"></div>
+      </div>
+      <div id="bodyList" class="musclelist"></div>
       <div id="duelRecord" class="drec" hidden></div>
       <div id="statList" class="stack tight"></div>
     </section>
@@ -326,6 +353,16 @@
           <div class="segmented" id="unitRow">
             <button type="button" data-units="kg">KILOS</button>
             <button type="button" data-units="lb">POUNDS</button>
+          </div>
+
+          <h4>Muscle figure</h4>
+          <p class="muted small">Which silhouette the body in MY RANK is drawn as. It
+            changes the drawing and nothing else — same regions, same targets, same
+            score.</p>
+          <div class="segmented" id="formRow">
+            <button type="button" data-form="masc">MALE</button>
+            <button type="button" data-form="fem">FEMALE</button>
+            <button type="button" data-form="neutral">NEUTRAL</button>
           </div>
 
           <h4>Restore code</h4>

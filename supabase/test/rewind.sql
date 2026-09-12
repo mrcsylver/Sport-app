@@ -60,3 +60,12 @@ language sql stable security definer set search_path = public as $$
   where m.profile_id = public.my_profile_id()
   order by m.joined_at
 $$;
+
+-- and back before the muscle figure and the crowns
+alter table public.exercises drop column if exists muscles cascade;
+alter table public.profiles  drop column if exists body_form cascade;
+drop table if exists public.muscles cascade;
+drop function if exists public.muscle_charge(numeric,numeric) cascade;
+drop function if exists public.my_muscles(uuid,boolean) cascade;
+drop function if exists public.league_wins(uuid) cascade;
+drop function if exists public.set_body_form(text) cascade;

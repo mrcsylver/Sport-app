@@ -48,6 +48,10 @@ echo "· the control room's two totals"
 fresh irondash
 psql -d irondash -f "$HERE/dashboard.sql" 2>&1 | clean
 
+echo "· the figure and the wins"
+fresh ironbody
+psql -d ironbody -f "$HERE/body.sql" 2>&1 | clean
+
 echo "· the bounty system"
 psql -d iron -f "$HERE/bounties.sql" 2>&1 | clean
 
@@ -62,6 +66,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/bounty-pool.sql"  >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/catch-up-day.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/dashboard-points.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/body-and-crowns.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -73,4 +78,9 @@ psql -tAd ironlive -c "select 'the week in progress kept its quest: '
   ||coalesce((select b.name from bounty_schedule s join bounties b on b.idx = s.bounty_idx
               where s.week_start = current_week_start()), 'nothing was being played');"
 psql -tAd ironlive -c "select count(*)||' bounties after three runs' from bounties;"
+psql -tAd ironlive -c "select 'the figure has '||count(*)||' regions and '
+  ||(select count(*) from exercises where muscles <> '{}'::jsonb)||' exercises feeding it'
+  from muscles;"
+psql -tAd ironlive -c "select 'a plank minute is now worth '
+  ||(modes->'minutes'->>'rate')||' points' from exercises where key = 'plank';"
 echo "· all clear"

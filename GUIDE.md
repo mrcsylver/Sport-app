@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.9.3*
+*Last updated 12 September 2026 · app version 2.10.0*
 
 ---
 
@@ -43,6 +43,21 @@ bibliothèque incluent les versions faciles.
 sur la difficulté réelle. Une pompe genoux vaut moins qu'une pompe stricte,
 qui vaut moins qu'une pompe archer — mais aucune n'est bradée. L'appli
 récompense le travail et la régularité, pas le niveau initial.
+
+*Révisé en 2.10.* Deux familles étaient mal payées face au reste. Les **gainages**
+d'abord : la planche rapportait 2 points la minute et la suspension 1 point
+les 30 secondes, alors qu'une série de répétitions en paie 20 à 30 la minute.
+Trente secondes de planche valaient un point — de quoi arrêter de les noter.
+Une planche vaut maintenant 10 points la minute, une suspension 12, un hollow
+hold 15, une chaise 9 ; les figures (L-sit, front lever, ATR) gardent leur
+prime au-dessus. Le **cardio en minutes** ensuite : une heure de course payait
+50, une heure de natation 12, de rameur 10, de corde à sauter 8. Les efforts
+continus sont passés à 30-33 de l'heure — en dessous de la course, parce
+qu'une durée n'est pas une distance, mais dans le même raisonnement. Sports
+collectifs et de raquette : 18 et 12 de l'heure au lieu de 10 et 7.
+
+Rien de ce qui a déjà été gagné ne bouge : les points sont figés au moment où
+la série est enregistrée.
 
 ## 3. Enregistrer un entraînement
 
@@ -157,7 +172,37 @@ personne, pas la ligue.
 
 **Hall of Fame.** Toutes les semaines terminées, et qui les a gagnées.
 
-**Badges.** Onze, gagnés à l'intérieur d'une ligue et calculés sur ce que tu
+**Couronnes.** Une par semaine gagnée, comptée pour tout le monde, en haut de
+l'onglet HALL. Rien n'est stocké : le compte est relu depuis les mêmes
+semaines terminées que le Hall of Fame, donc il ne peut pas raconter autre
+chose. Choisis une cible — premier à 3, à 5 ou à 10 — et les barres se
+mesurent dessus. C'est là pour les défis entre nous : l'appli tient le compte,
+vous décidez de l'enjeu.
+
+**Le corps.** Dans MON RANG, un mannequin de face et de dos, quatorze zones.
+Chaque série que tu enregistres se répartit sur les muscles qu'elle travaille
+vraiment : cent points de développé couché mettent cinquante dans les
+pectoraux et trente dans les triceps. Touche une zone pour lire son
+pourcentage, ou lis la liste dessous.
+
+Le pourcentage n'est pas ta part de travail sur cette zone — sinon
+t'entraîner plus les jambes ferait baisser tes pecs. Chaque zone se **charge**
+vers le plein : une charge de travail lue 63 %, deux 86 %, trois 95 %. Elle
+monte vite quand la zone est vide et lentement quand elle est pleine, et
+**elle n'atteint jamais 100 %** — parce qu'aucune quantité de travail ne
+termine un muscle. Le point suivant vaut donc toujours plus là où tu n'as rien
+fait.
+
+**Équilibre.** Ton équilibre, c'est ta zone la plus faible, et rien d'autre :
+une moyenne laisserait deux bras énormes cacher un dos jamais travaillé. Au-
+dessus de 40 % partout dans la même semaine tu gagnes NO WEAK LINK, au-dessus
+de 60 % FULLY FORGED.
+
+Le mannequin se dessine en homme, en femme ou en neutre — au choix dans les
+réglages. Ça ne change que le dessin : mêmes zones, mêmes objectifs, même
+score.
+
+**Badges.** Seize, gagnés à l'intérieur d'une ligue et calculés sur ce que tu
 as déjà fait — rien à réclamer. Tu peux en porter trois à côté de ton nom.
 
 **Apparence.** 72 emblèmes (ou un animal, au choix — l'un ou l'autre, jamais
@@ -202,6 +247,19 @@ one. The 118-exercise library includes the easier versions.
 difficulty. A knee push-up is worth less than a strict one, which is worth
 less than an archer — but none of them is short-changed. The app rewards work
 and consistency, not where you started.
+
+*Revised in 2.10.* Two families were paid wrong against everything else.
+**Holds** first: a plank paid 2 points a minute and a dead hang 1 point per 30
+seconds, while a set of reps pays 20-30 a minute. Thirty seconds of plank was
+worth one point, which is how you teach people to stop logging them. A plank
+is now 10 points a minute, a dead hang 12, a hollow hold 15, a wall sit 9; the
+skill holds (L-sit, front lever, handstand) keep their premium above that.
+**Time-based cardio** second: an hour of running paid 50, an hour of swimming
+12, of rowing 10, of skipping 8. The continuous ones are now 30-33 an hour —
+below running, because a duration is not a distance, but inside the same
+argument. Team and racket sports go to 18 and 12 an hour from 10 and 7.
+
+Nothing already earned moves: points are stamped the moment a set is logged.
 
 ## 3. Logging
 
@@ -309,7 +367,32 @@ rewards turning up, not volume.
 
 **Hall of Fame.** Every finished week, and who won it.
 
-**Badges.** Eleven, earned inside a league and computed from what you already
+**Crowns.** One per week won, counted for everybody, at the top of the HALL
+tab. Nothing is stored: the count is read back from the same finished weeks
+the Hall of Fame is built from, so the two cannot tell different stories. Pick
+a target — first to 3, 5 or 10 — and the bars measure against it. It is there
+for challenges between you: the app keeps the count, you decide the prize.
+
+**The body.** In MY RANK, a mannequin front and back, fourteen regions. Every
+set you log spreads over the muscles it actually trains: a hundred points of
+bench press put fifty into the chest and thirty into the triceps. Touch a
+region to read its percentage, or read the list underneath.
+
+The percentage is not that region's share of your work — that would make
+training your legs harder make your chest look worse. Each region **charges**
+towards full instead: one load of work reads 63%, two 86%, three 95%. It rises
+fast when a region is empty and slowly when it is full, and **it never reaches
+100%**, because no amount of work finishes a muscle. So the next point is
+always worth more somewhere you have neglected.
+
+**Balance.** Your balance is your weakest region and nothing else: an average
+would let a pair of enormous arms hide a back nobody has trained. Past 40%
+everywhere in one week earns NO WEAK LINK, past 60% FULLY FORGED.
+
+The mannequin is drawn as male, female or neutral — your pick, in settings. It
+changes the drawing and nothing else: same regions, same targets, same score.
+
+**Badges.** Sixteen, earned inside a league and computed from what you already
 did — nothing to claim. Wear three of them beside your name.
 
 **Looks.** 72 emblems (or an animal — one or the other, never both), 14 tints,

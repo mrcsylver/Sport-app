@@ -16,6 +16,15 @@ player showed 720 in one and 706 in the other and neither was wrong. The
 function now returns `lifetime` and `week_points` under names that say which
 question each answers. Nothing is recalculated, because nothing was broken.
 
+`body-and-crowns.sql` adds the muscle figure and the crowns tracker, and
+reprices the two families of exercise that were wrong against everything else
+— the endurance holds (a plank paid 2 points a minute where a set of reps pays
+20-30) and the continuous cardio (an hour of running paid 50, an hour of
+swimming 12). Twenty-six rates change; nothing already earned does, because
+points are stamped when a row is written. The file rescores the week in
+progress, and only that week, so a live week is not half priced at the old
+rates and half at the new ones.
+
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read
 rather than stored, anybody who had already finished the old one lost the
@@ -59,6 +68,10 @@ Do not hand-edit these:
 | `bounty-pool.sql` | `tools/build_bounties.py` |
 | `catch-up-day.sql` | `tools/build_catchup.py` |
 | `dashboard-points.sql` | `tools/build_dashboard.py` |
+| `body-and-crowns.sql` | `tools/build_body_migration.py` |
+| the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
+| `BODY` in `app.js` (the figure itself) | `tools/build_body.py` |
+| `RATES`/`CATS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |
 | the open-exercise list in `bounty_open_to_all()` | `tools/build_bounties.py` |
 | the `OPEN_TO_ALL` block in `tools/test/mock-supabase.js` | `tools/build_bounties.py` |
 
@@ -82,6 +95,11 @@ out of `schema.sql`, which is the one definition of each, because two hand-kept
 copies of a hundred-line function drift and the drift is always found in
 production. `tools/sqllift.py` does the lifting; the generators only say which
 objects they need.
+
+`build_exercises.py` used to write two files for somebody to paste in by
+hand. It splices them now — into `app.js`, `schema.sql` and the browser mock —
+because a paste step gets skipped, and when it does the client previews one
+number while the server awards another.
 
 Two things the lift has to know: `create or replace function` cannot change
 what a function returns, and it cannot add a parameter either. `my_leagues`

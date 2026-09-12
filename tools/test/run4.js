@@ -68,8 +68,8 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  /* ---- stats tab ---- */
  await pg.click('.tab[data-view="stats"]'); await pg.waitForTimeout(700);
  const pts=await pg.textContent('#statPoints');
- // 120 push + 40 pull + 30 legs + 30 run + 30 lsit + 4 swim(30min@8/h) + 18 bike + 5 stretch
- T('stats total points', pts==='277', pts);
+ // 120 push + 40 pull + 30 legs + 30 run + 36 lsit + 15 swim(30min@30/h) + 18 bike + 5 stretch
+ T('stats total points', pts==='294', pts);
  const legend=await pg.textContent('#statLegend');
  T('every trained group in legend', ['PUSH','PULL','LEGS','CORE','CARDIO','RECOVERY'].every(c=>legend.includes(c)), legend.replace(/\s+/g,' ').slice(0,80));
  const rows=await pg.$$eval('#statList .srow .sname', e=>e.map(x=>x.textContent.trim()));
@@ -79,7 +79,7 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  T('category bar rendered', barw===6, barw+' segments');
  await pg.screenshot({path:path.join(OUT,'30-stats.png')});
  await pg.click('#statsRange [data-range="all"]'); await pg.waitForTimeout(500);
- T('ALL TIME range works', (await pg.textContent('#statPoints'))==='277', await pg.textContent('#statPoints'));
+ T('ALL TIME range works', (await pg.textContent('#statPoints'))==='294', await pg.textContent('#statPoints'));
 
  /* ---- scoring card: one item per line ---- */
  await pg.click('.tab[data-view="me"]'); await openSects(pg); await pg.waitForTimeout(400);
@@ -115,7 +115,7 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  const quick=await pg.$$eval('#quickRow button', e=>e.map(x=>x.textContent.trim()));
  T('swim uses its own presets', quick[0]==='20 min', quick.join(' '));
  await pg.fill('#amountInput','60'); await pg.waitForTimeout(200);
- T('swim 1 hour = 12 pts', (await pg.textContent('#ptsPreview'))==='12', await pg.textContent('#ptsPreview'));
+ T('swim 1 hour = 30 pts', (await pg.textContent('#ptsPreview'))==='30', await pg.textContent('#ptsPreview'));
  await pg.screenshot({path:path.join(OUT,'33-modal-swim.png')});
  const groups=await pg.$$eval('.exl-h', e=>e.map(x=>x.textContent.trim()));
  T('picker grouped by muscle group', groups.length===8, groups.join(','));

@@ -209,7 +209,7 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
 
  /* ---- new exercises ---- */
  await pg.click('#logBtn'); await pg.waitForTimeout(500);
- for (const [key,amt,expect] of [['plank','3','6'],['twists','40','10'],['calves','50','10']]) {
+ for (const [key,amt,expect] of [['plank','3','30'],['twists','40','10'],['calves','50','10']]) {
    await pickEx(pg, key); await pg.waitForTimeout(250);
    await pg.fill('#amountInput', amt); await pg.waitForTimeout(200);
    T(key+' '+amt+' = '+expect+' pts', (await pg.textContent('#ptsPreview'))===expect, await pg.textContent('#ptsPreview'));

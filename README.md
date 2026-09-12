@@ -13,6 +13,9 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Your mark** — an emblem in the colour you pick, or an animal. One or the other.
 - **Emblems, league crests and rank banners** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
+- **Crowns** — one per week won, with a first-to-3/5/10 race for side bets.
+- **The body** — a mannequin, front and back, showing which muscles you actually
+  trained. Fourteen regions, tap one to read it, and no region ever hits 100%.
 - **100+ exercises** — search the bank, including team sports and gym lifts.
 - **Rivalries** — every Monday you are paired 1v1 with your nearest rank.
 - **Badges** — earned inside a league; wear three of them next to your name.
@@ -20,7 +23,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **League raids** — one target the whole league carries together each week.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
-- **Personal leagues** — create your own league, share a link, 30 people max.
+- **Personal leagues** — create your own league, share a link, 36 people max.
 - **Log once** — an entry counts in every league you are in.
   Anyone can join at any time; they simply start the current week on 0 points.
 - Free forever on Supabase's + GitHub's free tiers.
@@ -164,30 +167,70 @@ loads when you have no signal (you just can't post until you're back online).
 | | Pistol Squats *(per leg)* | 2 pts / rep |
 | | Calf Raises | 0.2 pt / rep |
 | **Core** | Knee / Leg Raises *(floor · hanging)* | 1 pt / rep |
-| | L-Sit Hold *(tuck → full)* | 1 pt / 3 sec |
-| | Plank *(forearm · high · side)* | 2 pts / min |
+| | L-Sit Hold *(tuck → full)* | 24 pts / min |
+| | Plank *(forearm · high · side)* | 10 pts / min |
+| | Dead Hang | 12 pts / min |
 | | Russian Twists *(one rep = one side)* | 0.25 pt / rep |
 | **Cardio** | Run | 5 pts / km |
 | | Sprint Intervals *(one sprint = 15 sec / 100 m)* | 2 pts / sprint |
 | | Biking | 1.5 pts / km |
-| | Swim *(active swim time)* | 12 pts / hour |
+| | Swim *(active swim time)* | 30 pts / hour |
 | | Walking | 2.5 pts / km |
-| | Rowing machine | 10 pts / hour |
-| | Jump rope | 8 pts / hour |
-| **Sport** | Football · Basketball · Rugby · Boxing · Squash · Climbing | 10 pts / hour |
-| | Tennis · Padel · Volleyball · Badminton · Table tennis | 7 pts / hour |
+| | Rowing machine | 30 pts / hour |
+| | Jump rope | 33 pts / hour |
+| **Sport** | Football · Basketball · Rugby · Boxing · Squash · Climbing | 18 pts / hour |
+| | Tennis · Padel · Volleyball · Badminton · Table tennis | 12 pts / hour |
 | **Gym** | Any lift — scored from your bodyweight and the bar | see below |
 | **Recovery** | Stretching Session *(10 min minimum)* | 5 pts flat |
 
 These are the anchors. Every other exercise in the bank is priced **from** them
 rather than guessed — see *How the bank is priced* below.
 
-### Why sport pays less than swimming
+### Why a distance pays more than a duration
 
-An hour of sport is the least checkable entry in the app, and includes a lot of
+An hour of sport is the least checkable entry in the app and includes a lot of
 standing around. Distance entries (run, walk, bike) are priced at effort because
-your phone measures the distance; time entries take an honesty discount. That is
-the whole reason swimming sits at 12 and football at 10.
+your phone measured the distance; time entries take an honesty discount. That is
+why running is 50 an hour, swimming 30, and football 18.
+
+The discount used to be a cliff rather than a slope: swimming paid 12 an hour,
+rowing 10 and skipping 8, against running's 50. Nothing about a length of front
+crawl is a fifth of a kilometre of jogging, so the continuous efforts were moved
+onto the same argument in 2.10.
+
+### Why a hold pays like a set
+
+A plank paid 2 points a minute and a dead hang 1 point per 30 seconds, while a
+set of reps pays 20-30 points a minute. Thirty seconds of plank was worth one
+point, which is how you teach people to stop logging holds. Endurance holds now
+pay what a hard set pays — a two minute plank scores like twenty push-ups — and
+the skill holds (L-sit, front lever, handstand) keep their premium above that.
+
+Changing a rate never rewrites history: points are stamped on a row when it is
+written, so every finished week keeps exactly the numbers it finished with.
+
+### The body
+
+Every exercise says what it trains, as a share of the points it scores: a
+hundred points of bench press put fifty into the chest and thirty into the
+triceps. Fourteen regions, drawn on a front and a back.
+
+A region's reading is not its share of your work — that would make training
+your legs harder make your chest look worse, and it would say nothing about
+whether you did enough. Each region charges towards full instead:
+
+```
+pct = 100 x (1 - exp(-points / target))
+```
+
+One target reads 63%, two 86%, three 95%, and no amount of work reads 100%. It
+rises fastest when a region is empty, which is what makes the neglected one
+worth more than another set of curls. Over a range longer than a week the
+target grows with the weeks actually trained, so the all-time figure still
+means something in month three.
+
+**Balance is your weakest region and nothing else.** An average would let a
+pair of enormous arms hide a back nobody has trained.
 
 ### How the bank is priced
 
@@ -248,6 +291,14 @@ stays as one table, since a single division is not a division.
 Each finished week crowns two people: the **champion** on points, and **Most
 Improved** — the biggest gain on your own previous week. You have to have
 competed the week before to win it, so it cannot be won by simply showing up.
+
+### Crowns
+
+One crown per week won, for everybody in the league, above the Hall of Fame.
+Nothing is stored: the count is read back from the same finished weeks, so a
+week that is corrected corrects the count and a new league starts honestly
+empty. Pick a target — first to 3, 5 or 10 — and the bars measure against it.
+The app keeps the count; what the run is worth is between you.
 
 ### Duel record
 
@@ -361,7 +412,7 @@ everybody genuinely starts that league on zero.
 
 - Anyone can create a league from the **LEAGUES** tab; they get a 6-character code
   and a share link.
-- **30 people maximum** per league (the database refuses number 31).
+- **36 people maximum** per league (the database refuses number 37).
 - You can be in several leagues at once — tap one in the LEAGUES tab to switch.
   Each league has its own separate leaderboard and history.
 - Joining mid-week is fine: you simply start that week on 0 points.

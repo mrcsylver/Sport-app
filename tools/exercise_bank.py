@@ -109,31 +109,51 @@ CORE_REPS = [
     ('mountainclimb','Mountain Climbers',  0.25, 'mountain climber cardio abs'),
     ('rollout',     'Ab Wheel Rollout',    2.0,  'ab wheel rollout barbell'),
 ]
-CORE_HOLD = [   # key, name, cat, mode, rate, aliases
-    ('plank',      'Plank',           'CORE', 'minutes', 2,     'front elbow forearm'),
-    ('sideplank',  'Side Plank',      'CORE', 'minutes', 2.5,   'oblique side'),
-    ('hollowhold', 'Hollow Hold',     'CORE', 'seconds', 3/60,  'hollow body'),
-    ('lsit',       'L-sit',           'CORE', 'seconds', 1/3,   'lsit legs parallel'),
-    ('wallsit',    'Wall Sit',        'LEGS', 'seconds', 1.5/60,'isometric quads'),
-    ('deadhang',   'Dead Hang',       'PULL', 'seconds', 2/60,  'hang grip forearm'),
-    ('frontlever', 'Front Lever',     'PULL', 'seconds', 0.5,   'lever static hold'),
+# Holds are priced per MINUTE OF HOLD, not per minute of clock, because
+# nobody holds one for an hour: the honest unit is the set you can actually
+# finish. The endurance holds used to sit at 90-180 points an hour while a set
+# of reps pays 20-30 points a minute, so thirty seconds of plank was worth one
+# point and a dead hang was worth two — the exact "1 point per 30 seconds" that
+# made people stop logging them. They now pay what a hard set pays: a two
+# minute plank scores like twenty push-ups, a sixty second dead hang like
+# twelve. The skill holds keep their premium above that, in the same spirit as
+# the handstand and the muscle-up.
+HOLD_MIN = 60.0                       # rates below are points per HOUR of hold
+CORE_HOLD = [   # key, name, cat, mode, points/hour, aliases
+    ('plank',      'Plank',           'CORE', 'minutes',  600, 'front elbow forearm'),
+    ('sideplank',  'Side Plank',      'CORE', 'minutes',  720, 'oblique side'),
+    ('hollowhold', 'Hollow Hold',     'CORE', 'seconds',  900, 'hollow body'),
+    ('lsit',       'L-sit',           'CORE', 'seconds', 1440, 'lsit legs parallel'),
+    ('wallsit',    'Wall Sit',        'LEGS', 'seconds',  540, 'isometric quads'),
+    ('deadhang',   'Dead Hang',       'PULL', 'seconds',  720, 'hang grip forearm'),
+    ('frontlever', 'Front Lever',     'PULL', 'seconds', 2700, 'lever static hold'),
 ]
 
+# Distance entries are priced per kilometre; time entries per hour. The two
+# have to agree, and for a long time they did not: running ten kilometres in an
+# hour paid 50, while an hour of swimming paid 12, an hour of rowing 10 and an
+# hour of skipping 8. Nothing about a length of front crawl is a fifth of a
+# kilometre of jogging. The continuous ones now sit at 30-33 an hour — below
+# running, because what is typed in is a duration nobody can check rather than
+# a distance a watch recorded, but inside the same argument instead of outside
+# it.
 CARDIO = [   # (key, name, mode, rate, aliases, variants)
     ('run',     'Run',              'km',      5,      'running jog jogging', 'Outdoor or treadmill'),
     ('sprints', 'Sprint Intervals', 'reps',    2,      'sprint interval hiit', 'One sprint = 15 sec flat out, 100 m minimum'),
     ('bike',    'Biking',           'km',      1.5,    'cycling bicycle spin', 'Road / Trail / Stationary'),
-    ('swim',    'Swim',             'minutes', 12/60,  'swimming pool crawl', 'Any stroke, active swim time'),
+    ('swim',    'Swim',             'minutes', 30/60,  'swimming pool crawl', 'Any stroke, active swim time'),
     ('walk',    'Walking',          'km',      2.5,    'walk hike hiking steps', 'Hiking counts too'),
-    ('row',     'Rowing Machine',   'minutes', 10/60,  'erg ergometer concept2', 'Indoor erg'),
-    ('jumprope','Jump Rope',        'minutes', 8/60,   'skipping rope', 'Skipping'),
-    ('stairs',  'Stair Climbing',   'minutes', 9/60,   'stairmaster steps', 'Real stairs or machine'),
+    ('row',     'Rowing Machine',   'minutes', 30/60,  'erg ergometer concept2', 'Indoor erg'),
+    ('jumprope','Jump Rope',        'minutes', 33/60,  'skipping rope', 'Skipping'),
+    ('stairs',  'Stair Climbing',   'minutes', 30/60,  'stairmaster steps', 'Real stairs or machine'),
 ]
 # Team and racket sports. Priced BELOW swimming on purpose: an hour of sport is
 # the least verifiable entry in the app and includes a lot of standing around,
 # so the honest ceiling is the constraint, not the effort.
-SPORT_HIGH = 10/60   # 10 pts / hour
-SPORT_MOD  = 7/60    # 7 pts / hour
+# Still the cheapest hour in the app, and deliberately so, but ten points for
+# ninety minutes of football read as an insult rather than a discount.
+SPORT_HIGH = 18/60   # 18 pts / hour
+SPORT_MOD  = 12/60   # 12 pts / hour
 SPORTS = [
     ('football',   'Football / Soccer', SPORT_HIGH, 'soccer foot futbol match'),
     ('basketball', 'Basketball',        SPORT_HIGH, 'basket hoops ball'),
@@ -201,3 +221,191 @@ GYM = [
 ]
 K_GYM = {'push': K_PUSH, 'pull': K_PULL, 'legs': K_LEGS, 'legsiso': K_LEGS,
          'coreiso': 1.0}   # core work is priced against the knee-raise anchor
+
+
+# ------------------------------------------------------------------ muscles --
+# What each exercise actually trains, as a share of the points it scores. The
+# shares sum to 1, so a hundred points of bench press put fifty into the chest
+# and thirty into the triceps: nothing is invented and nothing is double
+# counted. Fourteen regions is "medium detail" on purpose — enough that
+# somebody can see their triceps lagging their biceps, few enough that every
+# one of them is a shape you can point at on a figure.
+#
+# Recovery trains nothing here. Stretching is worth points and worth doing; it
+# is not volume on a muscle, and pretending otherwise would let a week of
+# stretching read as a balanced week of training.
+MUSCLE_ORDER = ['chest', 'shoulders', 'biceps', 'triceps', 'forearms', 'traps',
+                'lats', 'lowerback', 'abs', 'obliques', 'glutes', 'quads',
+                'hamstrings', 'calves']
+
+MUSCLE_NAME = {
+    'chest': 'Chest',        'shoulders': 'Shoulders', 'biceps': 'Biceps',
+    'triceps': 'Triceps',    'forearms': 'Forearms',   'traps': 'Traps',
+    'lats': 'Lats',          'lowerback': 'Lower back','abs': 'Abs',
+    'obliques': 'Obliques',  'glutes': 'Glutes',       'quads': 'Quads',
+    'hamstrings': 'Hamstrings', 'calves': 'Calves',
+}
+
+# Which view a region is drawn on. Four of them show on both.
+MUSCLE_VIEW = {
+    'chest': 'front', 'shoulders': 'both', 'biceps': 'front', 'triceps': 'back',
+    'forearms': 'both', 'traps': 'both', 'lats': 'back', 'lowerback': 'back',
+    'abs': 'front', 'obliques': 'front', 'glutes': 'back', 'quads': 'front',
+    'hamstrings': 'back', 'calves': 'both',
+}
+
+# A week's worth of work on each region, in points, scaled by how much of you
+# it is. These are the K in the charge curve below, and they are what makes a
+# hundred points of calf raises read differently from a hundred points of
+# squats. Calibrated so a balanced 700-point week lands every region near 65%.
+MUSCLE_TARGET = {
+    'chest': 70, 'shoulders': 55, 'biceps': 30, 'triceps': 40, 'forearms': 25,
+    'traps': 30, 'lats': 70, 'lowerback': 30, 'abs': 45, 'obliques': 30,
+    'glutes': 55, 'quads': 85, 'hamstrings': 55, 'calves': 25,
+}
+
+MUSCLES = {
+    # ---- push ----
+    'wallpush':    {'chest': .50, 'triceps': .30, 'shoulders': .20},
+    'kneepush':    {'chest': .50, 'triceps': .30, 'shoulders': .20},
+    'inclinepush': {'chest': .50, 'triceps': .30, 'shoulders': .20},
+    'pushups':     {'chest': .45, 'triceps': .30, 'shoulders': .15, 'abs': .10},
+    'widepush':    {'chest': .60, 'shoulders': .20, 'triceps': .20},
+    'diamondpush': {'triceps': .50, 'chest': .35, 'shoulders': .15},
+    'declinepush': {'chest': .40, 'shoulders': .30, 'triceps': .25, 'abs': .05},
+    'pikepush':    {'shoulders': .55, 'triceps': .30, 'chest': .15},
+    'clappush':    {'chest': .40, 'triceps': .30, 'shoulders': .20, 'abs': .10},
+    'archerpush':  {'chest': .45, 'triceps': .25, 'shoulders': .20, 'abs': .10},
+    'planchepush': {'shoulders': .35, 'chest': .30, 'abs': .20, 'triceps': .15},
+    'benchdips':   {'triceps': .60, 'chest': .20, 'shoulders': .20},
+    'dips':        {'triceps': .40, 'chest': .40, 'shoulders': .20},
+    'ringdips':    {'triceps': .35, 'chest': .35, 'shoulders': .20, 'abs': .10},
+    'onearmpush':  {'chest': .40, 'triceps': .25, 'abs': .20, 'shoulders': .15},
+    'sphinxpush':  {'triceps': .70, 'chest': .15, 'abs': .15},
+    'handstand':   {'shoulders': .55, 'triceps': .30, 'traps': .10, 'abs': .05},
+    # ---- pull ----
+    'rows':         {'lats': .40, 'biceps': .25, 'traps': .20, 'forearms': .15},
+    'scapulapull':  {'traps': .50, 'lats': .30, 'forearms': .20},
+    'bandpullup':   {'lats': .45, 'biceps': .30, 'forearms': .15, 'traps': .10},
+    'chinups':      {'biceps': .40, 'lats': .35, 'forearms': .15, 'traps': .10},
+    'pullups':      {'lats': .45, 'biceps': .25, 'forearms': .15, 'traps': .15},
+    'widepullup':   {'lats': .55, 'biceps': .15, 'traps': .15, 'forearms': .15},
+    'commandopull': {'lats': .40, 'biceps': .30, 'forearms': .15, 'obliques': .15},
+    'lsitpullup':   {'lats': .35, 'abs': .25, 'biceps': .20, 'forearms': .20},
+    'typewriter':   {'lats': .40, 'biceps': .20, 'forearms': .20, 'obliques': .20},
+    'archerpull':   {'lats': .40, 'biceps': .25, 'forearms': .20, 'obliques': .15},
+    'muscleup':     {'lats': .30, 'triceps': .20, 'biceps': .20, 'shoulders': .15,
+                     'forearms': .15},
+    'deadhang':     {'forearms': .60, 'lats': .20, 'traps': .20},
+    'frontlever':   {'lats': .35, 'abs': .30, 'forearms': .20, 'lowerback': .15},
+    # ---- legs ----
+    'calves':      {'calves': 1.0},
+    'airsquats':   {'quads': .50, 'glutes': .30, 'hamstrings': .20},
+    'jumpsquats':  {'quads': .45, 'glutes': .25, 'calves': .20, 'hamstrings': .10},
+    'lunges':      {'quads': .40, 'glutes': .35, 'hamstrings': .25},
+    'splitsquat':  {'quads': .40, 'glutes': .35, 'hamstrings': .25},
+    'stepups':     {'quads': .40, 'glutes': .35, 'hamstrings': .15, 'calves': .10},
+    'gluteBridge': {'glutes': .60, 'hamstrings': .30, 'lowerback': .10},
+    'nordic':      {'hamstrings': .75, 'glutes': .15, 'calves': .10},
+    'sissy':       {'quads': .80, 'calves': .10, 'abs': .10},
+    'shrimp':      {'quads': .45, 'glutes': .30, 'hamstrings': .15, 'calves': .10},
+    'pistols':     {'quads': .45, 'glutes': .30, 'hamstrings': .15, 'calves': .10},
+    'wallsit':     {'quads': .70, 'glutes': .20, 'calves': .10},
+    # ---- core ----
+    'crunches':     {'abs': 1.0},
+    'situps':       {'abs': .80, 'obliques': .10, 'quads': .10},
+    'twists':       {'obliques': .70, 'abs': .30},
+    'legraises':    {'abs': .80, 'quads': .20},
+    'kneeraises':   {'abs': .70, 'forearms': .15, 'obliques': .15},
+    'hangingleg':   {'abs': .65, 'forearms': .15, 'obliques': .10, 'quads': .10},
+    'toestobar':    {'abs': .60, 'lats': .15, 'forearms': .15, 'obliques': .10},
+    'dragonflag':   {'abs': .55, 'lowerback': .20, 'lats': .15, 'obliques': .10},
+    'vups':         {'abs': .75, 'quads': .15, 'obliques': .10},
+    'supermans':    {'lowerback': .60, 'glutes': .25, 'traps': .15},
+    'sidecrunch':   {'obliques': .80, 'abs': .20},
+    'bicycle':      {'abs': .50, 'obliques': .50},
+    'deadbug':      {'abs': .80, 'lowerback': .20},
+    'birddog':      {'lowerback': .50, 'glutes': .25, 'abs': .25},
+    'flutterkick':  {'abs': .70, 'quads': .30},
+    'mountainclimb':{'abs': .50, 'shoulders': .20, 'quads': .20, 'obliques': .10},
+    'rollout':      {'abs': .60, 'lats': .20, 'lowerback': .10, 'shoulders': .10},
+    'plank':        {'abs': .60, 'shoulders': .20, 'lowerback': .20},
+    'sideplank':    {'obliques': .70, 'shoulders': .20, 'abs': .10},
+    'hollowhold':   {'abs': .80, 'quads': .20},
+    'lsit':         {'abs': .60, 'quads': .20, 'triceps': .20},
+    # ---- cardio ----
+    'run':      {'quads': .30, 'calves': .30, 'hamstrings': .25, 'glutes': .15},
+    'sprints':  {'quads': .30, 'hamstrings': .30, 'calves': .20, 'glutes': .20},
+    'bike':     {'quads': .50, 'calves': .20, 'glutes': .20, 'hamstrings': .10},
+    'swim':     {'lats': .30, 'shoulders': .30, 'chest': .15, 'abs': .15, 'triceps': .10},
+    'walk':     {'calves': .35, 'quads': .30, 'hamstrings': .20, 'glutes': .15},
+    'row':      {'lats': .30, 'quads': .25, 'biceps': .15, 'lowerback': .15, 'traps': .15},
+    'jumprope': {'calves': .55, 'quads': .20, 'shoulders': .15, 'hamstrings': .10},
+    'stairs':   {'quads': .40, 'glutes': .30, 'calves': .20, 'hamstrings': .10},
+    # ---- sport ----
+    'football':   {'quads': .25, 'hamstrings': .20, 'calves': .20, 'glutes': .15,
+                   'abs': .10, 'shoulders': .10},
+    'basketball': {'quads': .25, 'calves': .25, 'hamstrings': .15, 'glutes': .15,
+                   'shoulders': .10, 'abs': .10},
+    'rugby':      {'quads': .25, 'hamstrings': .20, 'shoulders': .15, 'glutes': .15,
+                   'calves': .15, 'abs': .10},
+    'handball':   {'quads': .25, 'shoulders': .20, 'calves': .20, 'abs': .15,
+                   'hamstrings': .10, 'obliques': .10},
+    'hockey':     {'quads': .30, 'glutes': .20, 'hamstrings': .15, 'obliques': .15,
+                   'forearms': .10, 'calves': .10},
+    'squash':     {'quads': .30, 'calves': .20, 'shoulders': .15, 'obliques': .15,
+                   'forearms': .10, 'hamstrings': .10},
+    'boxing':     {'shoulders': .25, 'abs': .20, 'triceps': .15, 'obliques': .15,
+                   'calves': .15, 'chest': .10},
+    'climbing':   {'forearms': .30, 'lats': .30, 'biceps': .15, 'abs': .15,
+                   'shoulders': .10},
+    'tennis':     {'quads': .25, 'shoulders': .20, 'calves': .20, 'obliques': .15,
+                   'forearms': .10, 'hamstrings': .10},
+    'padel':      {'quads': .25, 'shoulders': .20, 'calves': .20, 'obliques': .15,
+                   'forearms': .10, 'hamstrings': .10},
+    'volleyball': {'quads': .30, 'calves': .25, 'shoulders': .25, 'abs': .10,
+                   'hamstrings': .10},
+    'badminton':  {'quads': .25, 'shoulders': .20, 'calves': .25, 'obliques': .15,
+                   'forearms': .15},
+    'tabletennis':{'shoulders': .25, 'forearms': .20, 'obliques': .20, 'quads': .20,
+                   'calves': .15},
+    'othersport': {'quads': .20, 'shoulders': .15, 'abs': .15, 'calves': .15,
+                   'hamstrings': .10, 'glutes': .10, 'chest': .075, 'lats': .075},
+    # ---- gym ----
+    'gymbench':      {'chest': .50, 'triceps': .30, 'shoulders': .20},
+    'gymdbbench':    {'chest': .50, 'triceps': .25, 'shoulders': .25},
+    'gymohp':        {'shoulders': .55, 'triceps': .30, 'traps': .15},
+    'gymdip':        {'triceps': .40, 'chest': .40, 'shoulders': .20},
+    'gymchestmach':  {'chest': .60, 'triceps': .25, 'shoulders': .15},
+    'gymtricep':     {'triceps': 1.0},
+    'gymlatraise':   {'shoulders': .85, 'traps': .15},
+    'gymdeadlift':   {'lowerback': .25, 'glutes': .25, 'hamstrings': .25,
+                      'traps': .15, 'forearms': .10},
+    'gymbarbellrow': {'lats': .40, 'traps': .20, 'biceps': .20, 'lowerback': .10,
+                      'forearms': .10},
+    'gymdbrow':      {'lats': .45, 'biceps': .20, 'traps': .20, 'forearms': .15},
+    'gymlatpull':    {'lats': .55, 'biceps': .30, 'forearms': .15},
+    'gymcablerow':   {'lats': .45, 'traps': .25, 'biceps': .20, 'forearms': .10},
+    'gymweightpull': {'lats': .45, 'biceps': .25, 'forearms': .15, 'traps': .15},
+    'gymcurl':       {'biceps': .80, 'forearms': .20},
+    'gymfacepull':   {'shoulders': .50, 'traps': .35, 'biceps': .15},
+    'gymsquat':      {'quads': .45, 'glutes': .30, 'hamstrings': .15, 'lowerback': .10},
+    'gymfrontsquat': {'quads': .55, 'glutes': .20, 'abs': .15, 'lowerback': .10},
+    'gymlegpress':   {'quads': .55, 'glutes': .30, 'hamstrings': .15},
+    'gymrdl':        {'hamstrings': .45, 'glutes': .30, 'lowerback': .25},
+    'gymhipthrust':  {'glutes': .70, 'hamstrings': .25, 'lowerback': .05},
+    'gymlegcurl':    {'hamstrings': .90, 'calves': .10},
+    'gymlegext':     {'quads': 1.0},
+    'gymlunge':      {'quads': .40, 'glutes': .35, 'hamstrings': .25},
+    'gymcalf':       {'calves': 1.0},
+    'gymcablecrunch':{'abs': .90, 'obliques': .10},
+    'gymwoodchop':   {'obliques': .70, 'abs': .20, 'shoulders': .10},
+    'gympullover':   {'lats': .55, 'chest': .25, 'triceps': .20},
+    'gymshrug':      {'traps': .85, 'forearms': .15},
+    'gymincline':    {'chest': .45, 'shoulders': .30, 'triceps': .25},
+    'gymgoblet':     {'quads': .45, 'glutes': .30, 'abs': .15, 'hamstrings': .10},
+    'gymstepup':     {'quads': .40, 'glutes': .35, 'hamstrings': .15, 'calves': .10},
+    # ---- recovery trains nothing; see the note above ----
+    'stretch': {},
+    'sauna':   {},
+}

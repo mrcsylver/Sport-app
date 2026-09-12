@@ -1044,3 +1044,63 @@ p.ms-next b{color:var(--txt);font-weight:800}
   background:var(--panel-2);border:1px solid var(--line);border-radius:3px;padding:5px 7px}
 .chip.on{color:var(--green);border-color:rgba(38,208,124,.45)}
 .tag-count{margin-left:auto;margin-right:8px;font:700 10px/1 var(--mono);color:var(--muted)}
+
+/* ---- crowns: one per week won, and a race to a target ------------------- */
+.segmented.tiny{margin-top:6px}
+.segmented.tiny button{padding:7px 4px;font-size:11px;letter-spacing:.12em}
+.win{display:grid;grid-template-columns:1fr auto auto;grid-template-rows:auto auto;
+  gap:2px 10px;align-items:center;background:var(--panel);border:1px solid var(--line);
+  border-radius:4px;padding:10px 12px}
+.win.me{border-color:rgba(255,46,46,.4)}
+.win.done{border-color:var(--gold)}
+.win-w{display:flex;align-items:center;gap:7px;min-width:0}
+.win-w b{font:700 14px/1.1 var(--display);letter-spacing:.06em;text-transform:uppercase;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.win-w i{font:400 10px/1 var(--mono);color:var(--muted);font-style:normal;white-space:nowrap}
+.win-c{display:flex;align-items:center;gap:1px;font-size:13px;line-height:1}
+.win-c .cr{font-style:normal}
+.win-c .crx{font:800 12px/1 var(--mono);color:var(--gold);margin-left:2px}
+.win-n{font:800 20px/1 var(--display);color:var(--gold);min-width:22px;text-align:right}
+.win-bar{grid-column:1/-1;height:4px;border-radius:2px;background:var(--panel-2);overflow:hidden}
+.win-bar span{display:block;height:100%;background:var(--gold);transition:width .3s ease}
+.win.done .win-bar span{background:var(--red)}
+
+/* ---- the body ----------------------------------------------------------- */
+.bodywrap{display:grid;grid-template-columns:1fr;justify-items:center;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:4px;
+  padding:12px;margin-top:10px}
+.bodywrap .segmented{width:100%;max-width:220px}
+.bodyfig{width:100%;max-width:230px}
+.bsvg{width:100%;height:auto;display:block;overflow:visible}
+.bout{fill:var(--panel-2);stroke:var(--line-2);stroke-width:1.5}
+.bpart{stroke:rgba(0,0,0,.35);stroke-width:.8;cursor:pointer;
+  transition:fill .35s ease,opacity .2s ease}
+.bpart:hover{opacity:.82}
+.bpart.on{stroke:var(--txt);stroke-width:2.4}
+.bodyread{display:grid;grid-template-columns:auto auto;grid-auto-rows:auto;gap:0 10px;
+  align-items:baseline;justify-items:start;width:100%;max-width:230px;
+  border-top:1px solid var(--line);padding-top:8px}
+.br-l{font:700 11px/1 var(--display);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted)}
+.br-n{grid-row:1/3;grid-column:2;font:800 30px/1 var(--display);justify-self:end;
+  font-variant-numeric:tabular-nums}
+.br-s{font:400 10px/1.3 var(--mono);color:var(--muted)}
+
+.musclelist{margin-top:12px}
+.balance{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+  padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:4px}
+.bal-l{font:800 12px/1 var(--display);letter-spacing:.16em;color:var(--txt)}
+.bal-bar{height:8px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+.bal-bar span{display:block;height:100%;transition:width .35s ease}
+.bal-n{font:800 16px/1 var(--display);font-variant-numeric:tabular-nums;min-width:46px;
+  text-align:right}
+.mrow{display:grid;grid-template-columns:96px 1fr 52px;gap:10px;align-items:center;
+  width:100%;background:none;border:0;border-bottom:1px solid var(--line);
+  padding:9px 2px;text-align:left;cursor:pointer}
+.mrow:last-child{border-bottom:0}
+.mrow.on{background:var(--panel)}
+.mr-n{font:700 12px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mr-bar{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.mr-bar span{display:block;height:100%;transition:width .35s ease}
+.mr-p{font:700 12px/1 var(--mono);text-align:right;font-variant-numeric:tabular-nums}
