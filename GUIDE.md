@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 12 September 2026 · app version 2.13.0*
+*Last updated 12 September 2026 · app version 2.14.0*
 
 ---
 
@@ -192,11 +192,16 @@ vraiment : cent points de développé couché mettent cinquante dans les
 pectoraux et trente dans les triceps. Touche une zone pour lire son
 pourcentage, ou lis la liste dessous.
 
-**100 % = une semaine complète de ce muscle.** C'est tout. 30 points de
-lombaires, 105 de pectoraux, 130 de quadriceps — chaque zone a sa dose parce
-qu'un mollet et une cuisse ne demandent pas la même chose. Tu peux dépasser,
-ça continue de compter : 250 % veut dire deux semaines et demie de pecs en
-une. Il y en a quatorze, et l'objectif est de toutes les remplir.
+**100 % = une semaine complète de ce muscle.** C'est tout. Chaque zone a sa
+dose, parce qu'un mollet et une cuisse ne demandent pas la même chose. Tu peux
+dépasser, ça continue de compter. Il y en a quatorze, et l'objectif est de
+toutes les remplir.
+
+**Et une semaine complète, c'est une semaine complète pour toi.** La dose monte
+avec l'athlète : le plus grand des deux entre ton grade et la médiane de tes
+semaines terminées. Un débutant remplit ses quatorze avec un volume de
+débutant, et quelqu'un à treize cents points la semaine a une barre qui vaut
+la peine plutôt que 250 % sur six zones. Le total est affiché sous le corps.
 
 **Quoi faire.** Sous le corps, trois exercices du catalogue qui travaillent
 la zone sélectionnée, chacun chiffré dans l'unité que tu saisirais — de quoi
@@ -397,11 +402,16 @@ set you log spreads over the muscles it actually trains: a hundred points of
 bench press put fifty into the chest and thirty into the triceps. Touch a
 region to read its percentage, or read the list underneath.
 
-**100% is one full week of that muscle.** That is the whole thing. 30 points
-for the lower back, 105 for the chest, 130 for the quads — each region has its
-own dose, because a calf and a thigh do not ask for the same. Going over is
-fine and keeps counting: 250% means two and a half weeks of chest in one week.
-There are fourteen of them, and the point is to fill all fourteen.
+**100% is one full week of that muscle.** That is the whole thing. Each region
+has its own dose, because a calf and a thigh do not ask for the same. Going
+over is fine and keeps counting. There are fourteen, and the point is to fill
+all fourteen.
+
+**And a full week means a full week for you.** The dose grows with the athlete,
+from whichever is higher: your grade, and the middle of your own finished
+weeks. So a beginner's fourteen fill on a beginner's volume, and somebody
+putting up thirteen hundred points a week gets a bar worth clearing instead of
+250% on six regions. The app tells you the number under the figure.
 
 **What to do about it.** Under the figure, three exercises from the bank that
 train whatever region you are holding, each priced in the units you would type

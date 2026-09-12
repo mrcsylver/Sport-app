@@ -37,8 +37,8 @@ async function boot(b, whenISO){
    timezoneId:'Europe/Paris',locale:'en-GB',serviceWorkers:'block'});
  const pg=await ctx.newPage();
  await pg.clock.install({time:new Date(whenISO)});
- await pg.route('**/vendor/supabase.js',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},body:MOCK+SEED}));
- await pg.route('**/config.js',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},
+ await pg.route('**/vendor/supabase.js*',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},body:MOCK+SEED}));
+ await pg.route('**/config.js*',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},
    body:'window.APP_CONFIG={SUPABASE_URL:"https://d.supabase.co",SUPABASE_ANON_KEY:"k",TIMEZONE:"Europe/Paris",DEFAULT_LEAGUE_CODE:"",APP_NAME:"IRON LEAGUE"};'}));
  await pg.addInitScript(()=>{ try{ localStorage.setItem('mock.uid','u1'); }catch(e){} });
  return {ctx,pg};

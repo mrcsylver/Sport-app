@@ -95,9 +95,9 @@ const SEED = `
     const page = await ctx.newPage();
     page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
     page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
-    await page.route('**/vendor/supabase.js', route =>
+    await page.route('**/vendor/supabase.js*', route =>
       route.fulfill({ contentType: 'text/javascript', body: MOCK + (opts.seed !== false ? SEED : '') }));
-    await page.route('**/config.js', route => route.fulfill({ contentType: 'text/javascript',
+    await page.route('**/config.js*', route => route.fulfill({ contentType: 'text/javascript',
       body: 'window.APP_CONFIG={SUPABASE_URL:"https://demo.supabase.co",SUPABASE_ANON_KEY:"demo-key",TIMEZONE:"Europe/Paris",DEFAULT_LEAGUE_CODE:"",APP_NAME:"IRON LEAGUE"};' }));
     await page.route('**/sw.js', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
     if (opts.uid) await page.addInitScript(u => { window.__UID__ = u; }, opts.uid);
@@ -198,8 +198,8 @@ const SEED = `
   /* ---------- 7. unconfigured install ---------- */
   await ctx.close();
   ({ ctx, page } = await newPage({ seed: false }));
-  await page.unroute('**/config.js');
-  await page.route('**/config.js', r => r.fulfill({ contentType: 'text/javascript',
+  await page.unroute('**/config.js*');
+  await page.route('**/config.js*', r => r.fulfill({ contentType: 'text/javascript',
     body: 'window.APP_CONFIG={SUPABASE_URL:"PASTE_YOUR_PROJECT_URL_HERE",SUPABASE_ANON_KEY:"PASTE",TIMEZONE:"Europe/Paris"};' }));
   await page.goto('http://localhost:4321/');
   await page.waitForSelector('#setup:not([hidden])');

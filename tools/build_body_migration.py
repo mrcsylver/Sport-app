@@ -37,10 +37,12 @@ RESHAPED = [
 # schema.sql turns it off: these functions reference each other and Postgres
 # resolves a SQL body at create time, so a strict run stops at the first
 # forward reference whatever order they are in.
-OBJECTS = ["weekly_history", "muscle_charge", "my_muscles", "league_wins",
+OBJECTS = ["weekly_history", "muscle_charge", "muscle_dose", "my_muscles",
+           "league_wins",
            "league_champions", "set_body_form", "my_badges", "workouts_update_guard"]
 
-WANTED = ("muscle_charge", "my_muscles", "league_wins", "league_champions",
+WANTED = ("muscle_charge", "muscle_dose", "my_muscles", "league_wins",
+          "league_champions",
           "set_body_form", "weekly_history", "my_badges", "public.muscles")
 
 HEAD = """-- ======================================================================

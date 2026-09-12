@@ -29,8 +29,8 @@ function seed(bounty){ return `(function(){var DB=window.__DB__,W=window.__weekS
     timezoneId:'Europe/Paris',locale:'en-GB',serviceWorkers:'block'});
   const pg=await ctx.newPage();
   pg.on('pageerror',e=>errs.push(e.message)); pg.on('console',m=>{if(m.type()==='error')errs.push('CONSOLE '+m.text());});
-  await pg.route('**/vendor/supabase.js',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},body:MOCK+seed(bounty)}));
-  await pg.route('**/config.js',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},
+  await pg.route('**/vendor/supabase.js*',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},body:MOCK+seed(bounty)}));
+  await pg.route('**/config.js*',r=>r.fulfill({contentType:'text/javascript',headers:{'Cache-Control':'no-store'},
     body:'window.APP_CONFIG={SUPABASE_URL:"https://d.supabase.co",SUPABASE_ANON_KEY:"k",TIMEZONE:"Europe/Paris",DEFAULT_LEAGUE_CODE:"",APP_NAME:"IRON LEAGUE"};'}));
   await pg.addInitScript(()=>{ try{ localStorage.setItem('mock.uid','u1'); }catch(e){} });
   await pg.goto('http://localhost:4408/');

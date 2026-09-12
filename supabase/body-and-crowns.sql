@@ -158,6 +158,30 @@ returns numeric language sql immutable set search_path = public as $$
   select round(least(100 * greatest(p_points, 0) / greatest(p_target, 1), 999)::numeric, 0)
 $$;
 
+-- ----------------------------------------------------------- muscle_dose ---
+create or replace function public.muscle_dose(p_profile uuid)
+returns numeric language sql stable set search_path = public as $$
+  with life as (
+    select coalesce(sum(points), 0) as pts from (
+      select distinct on (group_id) group_id, points
+      from public.workouts where profile_id = p_profile
+      order by group_id, league_id) one),
+  weeks as (
+    select percentile_cont(0.5) within group (order by pts) as mid from (
+      select week_start, sum(points) as pts from (
+        select distinct on (group_id) group_id, week_start, points
+        from public.workouts where profile_id = p_profile
+        order by group_id, league_id) one
+      where week_start < public.current_week_start()
+      group by week_start) w)
+  -- log() over numeric, not float: round(double precision, int) does not
+  -- exist in Postgres and the whole expression has to stay numeric.
+  select round(least(4.0, greatest(
+    least(2.8, 0.6 + 0.9 * log(10.0, 1 + (select pts from life) / 200.0)),
+    coalesce((select mid from weeks), 0)::numeric / 645.0,
+    0.6))::numeric, 2)
+$$;
+
 -- ------------------------------------------------------------ my_muscles ---
 create or replace function public.my_muscles(p_league uuid, p_all boolean default false)
 returns table (key text, name text, view text, points numeric,
@@ -176,6 +200,7 @@ language sql stable security definer set search_path = public as $$
     where w.league_id = p_league and w.profile_id = (select id from me)
       and (p_all or w.week_start = public.current_week_start())
   ),
+  dose as (select public.muscle_dose((select id from me)) as f),
   spread as (
     select s.key as mkey, sum(x.points * (s.value)::numeric) as pts
     from mine x
@@ -186,8 +211,8 @@ language sql stable security definer set search_path = public as $$
   select m.key, m.name, m.view,
          round(coalesce(sp.pts, 0), 1),
          public.muscle_charge(coalesce(sp.pts, 0),
-                              m.target::numeric * (select n from wk)),
-         (m.target * (select n from wk))::numeric,
+                              m.target * (select f from dose) * (select n from wk)),
+         round(m.target * (select f from dose) * (select n from wk))::numeric,
          (select n from wk)
   from public.muscles m
   left join spread sp on sp.mkey = m.key
@@ -292,7 +317,8 @@ language sql stable security definer set search_path = public as $$
   balbest as (
     select coalesce(max(worst), 0) as best from (
       select w.week_start,
-             min(public.muscle_charge(coalesce(sp.pts, 0), m.target::numeric)) as worst
+             min(public.muscle_charge(coalesce(sp.pts, 0),
+                 m.target * public.muscle_dose((select id from me)))) as worst
       from public.muscles m
       cross join (select distinct week_start from public.workouts
                   where league_id = p_league and profile_id = (select id from me)) w
@@ -382,12 +408,14 @@ revoke all on function public.weekly_history(uuid)          from public, anon;
 revoke all on function public.set_body_form(text)           from public, anon;
 revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
 revoke all on function public.my_muscles(uuid,boolean)      from public, anon;
+revoke all on function public.muscle_dose(uuid)             from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
 revoke all on function public.league_champions(uuid)        from public, anon;
 grant execute on function public.weekly_history(uuid)          to authenticated;
 grant execute on function public.set_body_form(text)           to authenticated;
 grant execute on function public.muscle_charge(numeric,numeric) to authenticated;
 grant execute on function public.my_muscles(uuid,boolean)      to authenticated;
+grant execute on function public.muscle_dose(uuid)             to authenticated;
 grant execute on function public.league_wins(uuid)             to authenticated;
 grant select on public.muscles to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;

@@ -129,6 +129,29 @@ select case when (select target from public.my_muscles(
        then 'a longer range asks for more work, not the same work'
        else 'ALL TIME WOULD READ 99 FOR EVERYBODY BY MONTH TWO' end;
 
+\echo '--- 8c. the dose grows with the athlete'
+select 'a beginner (nothing logged)      -> x' || public.muscle_dose(
+  'eeee0000-0000-0000-0000-000000000003');
+select 'somebody a week or two in        -> x' || public.muscle_dose(
+  'eeee0000-0000-0000-0000-000000000002');
+select case when public.muscle_dose('eeee0000-0000-0000-0000-000000000002')
+          >= public.muscle_dose('eeee0000-0000-0000-0000-000000000003')
+       then 'the further along you are, the bigger a full week is'
+       else 'THE DOSE SHRANK' end;
+select case when public.muscle_dose('eeee0000-0000-0000-0000-000000000003') >= 0.6
+       then 'and it never drops below the beginner floor' else 'IT WENT UNDER' end;
+-- the figure has to ask for the base dose times this person's own factor,
+-- which for somebody one light week in is less than the base, not more
+select 'the figure asks this reader for ' ||
+       (select max(target) from public.my_muscles('ffff0000-0000-0000-0000-000000000001'))
+       || ' on the biggest region, base ' || (select max(target) from public.muscles);
+select case when (select max(target) from public.my_muscles(
+                    'ffff0000-0000-0000-0000-000000000001'))
+          =  round((select max(target) from public.muscles)
+                   * public.muscle_dose('eeee0000-0000-0000-0000-000000000001'))
+       then 'the target is the base scaled by that reader''s dose'
+       else 'THE TARGET IGNORED THE DOSE' end;
+
 \echo '--- 9. wins: nobody has won anything before the first week ends'
 select 'members listed: ' || count(*) || ', weeks finished: ' || max(weeks)
        || ', wins between ' || min(wins) || ' and ' || max(wins)

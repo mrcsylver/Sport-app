@@ -1,9 +1,20 @@
 /* Iron League service worker — offline app shell.
-   Bump CACHE when you change any file so phones pick up the new version. */
-var CACHE = 'ironleague-v32';
+   GENERATED VERSION: run tools/bump_version.py, never edit the two lines below.
+
+   A release used to reach phones only sometimes, and this is why. Bumping
+   CACHE alone is not enough: install fetches the shell through the browser's
+   OWN http cache, and GitHub Pages serves assets with ten minutes of
+   freshness, so a worker could delete the old bucket and refill the new one
+   with exactly the same stale bytes. Two things fix it — every shell request
+   is made with cache:'reload' so the http cache cannot answer, and the assets
+   carry ?v= so a new release is a different URL that nothing has cached. */
+var VERSION = '2.14.0';
+var CACHE = 'ironleague-v2.14.0';
 var SHELL = [
-  './', './index.html', './styles.css', './app.js',
-  './vendor/supabase.js', './vendor/game-icons.js', './manifest.webmanifest',
+  './', './index.html',
+  './styles.css?v=' + VERSION, './app.js?v=' + VERSION,
+  './vendor/supabase.js?v=' + VERSION, './vendor/game-icons.js?v=' + VERSION,
+  './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-1024.png',
   './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png',
   './fonts/barlow-condensed-latin-600-normal.woff2',
@@ -14,9 +25,15 @@ var SHELL = [
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
-    caches.open(CACHE)
-      .then(function (c) { return c.addAll(SHELL); })
-      .then(function () { return self.skipWaiting(); })
+    caches.open(CACHE).then(function (c) {
+      // cache:'reload' on every one of them: the http cache must not be
+      // allowed to hand back the release we are trying to replace.
+      return Promise.all(SHELL.map(function (u) {
+        return fetch(new Request(u, { cache: 'reload' })).then(function (res) {
+          if (res && (res.ok || res.type === 'opaque')) return c.put(u, res);
+        }).catch(function () {});
+      }));
+    }).then(function () { return self.skipWaiting(); })
   );
 });
 

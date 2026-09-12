@@ -224,9 +224,18 @@ itself instead:
 pct = 100 x points / target
 ```
 
-**100% is one full week of that muscle.** 30 points for the lower back, 105
-for the chest, 130 for the quads. Over 100 keeps counting — 250% is two and a
-half weeks of chest in one — and the bar stops filling. Over a range longer
+**100% is one full week of that muscle** — 70 points of chest, 85 of quads, 30
+of lower back at the base. Over 100 keeps counting and the bar stops filling.
+
+The dose is not the same for everybody. A fixed one is wrong at both ends: 645
+points across the fourteen is a serious week four weeks in and a light one for
+somebody putting up thirteen hundred, and the second person reading 250% on six
+regions is being told nothing. So it scales, from whichever is higher — a floor
+from the grade (`0.6 + 0.9·log10(1 + lifetime/200)`, held under 2.8), which
+works from the first week when there is no history to read, and the median of
+their own finished weeks over the base, which is the honest number once a few
+weeks exist. Capped at four so one enormous week cannot put the bar out of
+reach for a month. Over a range longer
 than a week the target grows with the weeks actually trained, so the all-time
 figure still means something in month three.
 

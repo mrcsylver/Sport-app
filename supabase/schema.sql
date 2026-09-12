@@ -93,6 +93,7 @@ drop function if exists public.set_units(p_units text) cascade;
 drop function if exists public.set_body_form(p_form text) cascade;
 drop function if exists public.muscle_charge(p_points numeric, p_target numeric) cascade;
 drop function if exists public.my_muscles(p_league uuid, p_all boolean) cascade;
+drop function if exists public.muscle_dose(p_profile uuid) cascade;
 drop function if exists public.league_wins(p_league uuid) cascade;
 drop function if exists public.league_champions(p_league uuid) cascade;
 drop function if exists public.set_banner(p_banner text) cascade;
@@ -882,7 +883,8 @@ language sql stable security definer set search_path = public as $$
   balbest as (
     select coalesce(max(worst), 0) as best from (
       select w.week_start,
-             min(public.muscle_charge(coalesce(sp.pts, 0), m.target::numeric)) as worst
+             min(public.muscle_charge(coalesce(sp.pts, 0),
+                 m.target * public.muscle_dose((select id from me)))) as worst
       from public.muscles m
       cross join (select distinct week_start from public.workouts
                   where league_id = p_league and profile_id = (select id from me)) w
@@ -1169,6 +1171,48 @@ returns numeric language sql immutable set search_path = public as $$
   select round(least(100 * greatest(p_points, 0) / greatest(p_target, 1), 999)::numeric, 0)
 $$;
 
+-- How big a week is, for this person.
+--
+-- A fixed dose is wrong at both ends: 645 points across the fourteen is a
+-- serious week for somebody four weeks in and a light one for somebody
+-- putting up thirteen hundred, and the second person reading 200% on six
+-- regions is being told nothing at all. So the dose scales with the athlete,
+-- from two things, whichever is higher:
+--
+--   the grade  0.6 + 0.9 x log10(1 + lifetime/200), held between 0.6 and 2.8.
+--              Coarse and slow, but it works from the first week, before
+--              there is any history to read.
+--
+--   the habit  the middle one of their finished weeks, divided by 645. Once
+--              somebody has a few weeks in the books this is the honest
+--              number: a full week for you is what your weeks actually are.
+--
+-- Taking the greater means the grade sets a floor that rises as you climb and
+-- your own weeks take over as soon as they exist. It is capped at four so a
+-- single enormous week cannot put the bar out of reach for a month.
+create function public.muscle_dose(p_profile uuid)
+returns numeric language sql stable set search_path = public as $$
+  with life as (
+    select coalesce(sum(points), 0) as pts from (
+      select distinct on (group_id) group_id, points
+      from public.workouts where profile_id = p_profile
+      order by group_id, league_id) one),
+  weeks as (
+    select percentile_cont(0.5) within group (order by pts) as mid from (
+      select week_start, sum(points) as pts from (
+        select distinct on (group_id) group_id, week_start, points
+        from public.workouts where profile_id = p_profile
+        order by group_id, league_id) one
+      where week_start < public.current_week_start()
+      group by week_start) w)
+  -- log() over numeric, not float: round(double precision, int) does not
+  -- exist in Postgres and the whole expression has to stay numeric.
+  select round(least(4.0, greatest(
+    least(2.8, 0.6 + 0.9 * log(10.0, 1 + (select pts from life) / 200.0)),
+    coalesce((select mid from weeks), 0)::numeric / 645.0,
+    0.6))::numeric, 2)
+$$;
+
 -- One row per region, for this week or for everything.
 --
 -- Over a range longer than a week the target grows with it, otherwise every
@@ -1192,6 +1236,7 @@ language sql stable security definer set search_path = public as $$
     where w.league_id = p_league and w.profile_id = (select id from me)
       and (p_all or w.week_start = public.current_week_start())
   ),
+  dose as (select public.muscle_dose((select id from me)) as f),
   spread as (
     select s.key as mkey, sum(x.points * (s.value)::numeric) as pts
     from mine x
@@ -1202,8 +1247,8 @@ language sql stable security definer set search_path = public as $$
   select m.key, m.name, m.view,
          round(coalesce(sp.pts, 0), 1),
          public.muscle_charge(coalesce(sp.pts, 0),
-                              m.target::numeric * (select n from wk)),
-         (m.target * (select n from wk))::numeric,
+                              m.target * (select f from dose) * (select n from wk)),
+         round(m.target * (select f from dose) * (select n from wk))::numeric,
          (select n from wk)
   from public.muscles m
   left join spread sp on sp.mkey = m.key
@@ -2130,6 +2175,7 @@ revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.set_body_form(text)           from public, anon;
 revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
 revoke all on function public.my_muscles(uuid,boolean)      from public, anon;
+revoke all on function public.muscle_dose(uuid)             from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
 revoke all on function public.league_champions(uuid)        from public, anon;
 revoke all on function public.combo_threshold()             from public, anon;
@@ -2180,6 +2226,7 @@ grant execute on function public.set_units(text)               to authenticated;
 grant execute on function public.set_body_form(text)           to authenticated;
 grant execute on function public.muscle_charge(numeric,numeric) to authenticated;
 grant execute on function public.my_muscles(uuid,boolean)      to authenticated;
+grant execute on function public.muscle_dose(uuid)             to authenticated;
 grant execute on function public.league_wins(uuid)             to authenticated;
 grant select on public.muscles to authenticated;
 grant execute on function public.set_banner(text)              to authenticated;

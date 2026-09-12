@@ -26,8 +26,8 @@ const SEED=`(function(){var DB=window.__DB__;
  const ctx=await b.newContext({viewport:{width:1200,height:900},timezoneId:'Europe/Paris',locale:'en-GB',serviceWorkers:'block'});
  const pg=await ctx.newPage();
  pg.on('pageerror',e=>errs.push(e.message)); pg.on('console',m=>{if(m.type()==='error')errs.push('CONSOLE '+m.text());});
- await pg.route('**/vendor/supabase.js',r=>r.fulfill({contentType:'text/javascript',body:MOCK+SEED}));
- await pg.route('**/config.js',r=>r.fulfill({contentType:'text/javascript',
+ await pg.route('**/vendor/supabase.js*',r=>r.fulfill({contentType:'text/javascript',body:MOCK+SEED}));
+ await pg.route('**/config.js*',r=>r.fulfill({contentType:'text/javascript',
    body:'window.APP_CONFIG={SUPABASE_URL:"https://d.supabase.co",SUPABASE_ANON_KEY:"k",TIMEZONE:"Europe/Paris",DEFAULT_LEAGUE_CODE:"",APP_NAME:"IRON LEAGUE"};'}));
  await pg.addInitScript(()=>{window.__UID__='u1';});
  await pg.goto('http://localhost:4412/admin.html');

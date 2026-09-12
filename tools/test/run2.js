@@ -37,8 +37,8 @@ const SEED = `(function(){var DB=window.__DB__;
     page.on('console', m => { if (m.type()==='error') errors.push('CONSOLE: '+m.text()); });
     page.on('pageerror', e => errors.push('PAGEERROR: '+e.message));
     page.on('dialog', d => d.accept());   // the new "create a SEPARATE league?" confirm
-    await page.route('**/vendor/supabase.js', r => r.fulfill({ contentType:'text/javascript', body: MOCK + SEED }));
-    await page.route('**/config.js', r => r.fulfill({ contentType:'text/javascript',
+    await page.route('**/vendor/supabase.js*', r => r.fulfill({ contentType:'text/javascript', body: MOCK + SEED }));
+    await page.route('**/config.js*', r => r.fulfill({ contentType:'text/javascript',
       body:'window.APP_CONFIG={SUPABASE_URL:"https://demo.supabase.co",SUPABASE_ANON_KEY:"k",TIMEZONE:"Europe/Paris",DEFAULT_LEAGUE_CODE:"X7K2Q9",APP_NAME:"IRON LEAGUE"};' }));
     await page.route('**/sw.js', r => r.fulfill({ contentType:'text/javascript', body:'' }));
     await page.addInitScript(u => { window.__UID__ = u; }, uid);

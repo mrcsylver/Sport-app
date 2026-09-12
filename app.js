@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.13.0';
+  var APP_VERSION = '2.14.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -2179,10 +2179,13 @@
           bodyStep(bal).col + '"></span></span>' +
         '<span class="bal-n" style="color:' + bodyStep(bal).ink + '">' +
           num(bal) + '%</span></div>' +
-      '<p class="hint"><b>100% is one full week of that muscle.</b> Over is fine ' +
-        'and keeps counting. Your balance is the one you have filled least — ' +
-        '40% on all fourteen earns NO WEAK LINK, all fourteen full is FULLY ' +
-        'FORGED.</p>';
+      '<p class="hint"><b>100% is one full week of that muscle.</b> A full week ' +
+        'for you is <b>' + num(rows.reduce(function (a, m) {
+            return a + Number(m.target); }, 0)) + ' points</b> across the ' +
+        'fourteen, and it grows with you — with your grade, and with what your ' +
+        'own finished weeks actually look like. Over 100 keeps counting. Your ' +
+        'balance is the one you have filled least: 40% on all fourteen earns ' +
+        'NO WEAK LINK, all fourteen full is FULLY FORGED.</p>';
     $('#muscleCount').textContent = num(bal) + '% WEAKEST';
     $('#bodyList').innerHTML =
       rows.slice().sort(function (a, b) { return Number(b.pct) - Number(a.pct); })
@@ -3411,9 +3414,23 @@
   /* ===================================================================
      15. PWA plumbing
      =================================================================== */
+  /* updateViaCache 'none' so the worker script itself is never read from the
+     http cache, and a reload the moment a new worker takes over — otherwise
+     the page you are looking at keeps running the release you just replaced
+     and the update only shows up two launches later. Guarded so a worker
+     claiming a page for the first time does not bounce it. */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js').catch(function () {});
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+        .then(function (reg) { reg.update(); })
+        .catch(function () {});
+    });
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (hadController && !window.__reloading__) {
+        window.__reloading__ = true;
+        location.reload();
+      }
     });
   }
   var deferredPrompt = null;

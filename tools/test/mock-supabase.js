@@ -690,6 +690,21 @@
                (a.p_all || w.week_start === cur); });
       var weeks = Math.max(1, Object.keys(mine.reduce(function (o, w) {
         o[w.week_start] = 1; return o; }, {})).length);
+      /* the same dose the server works out: a grade floor from lifetime, and
+         the middle of your finished weeks once you have any */
+      var cur = weekStart(), byWeek = {}, life = 0;
+      DB.workouts.filter(function (w) { return w.profile_id === p.id; })
+        .forEach(function (w) {
+          life += w.points;
+          if (w.week_start < cur) {
+            byWeek[w.week_start] = (byWeek[w.week_start] || 0) + w.points; }
+        });
+      var done = Object.keys(byWeek).map(function (k) { return byWeek[k]; })
+        .sort(function (a, b) { return a - b; });
+      var base = MUSCLE_META.reduce(function (a, m) { return a + m.target; }, 0);
+      var mid = done.length ? done[Math.floor((done.length - 1) / 2)] : 0;
+      var dose = Math.round(Math.min(4, Math.max(0.6,
+        Math.min(2.8, 0.6 + 0.9 * Math.log10(1 + life / 200)), mid / base)) * 100) / 100;
       var pts = {};
       mine.forEach(function (w) {
         var m = MUSCLE_OF[w.exercise_key] || {};
@@ -697,7 +712,7 @@
           pts[k] = (pts[k] || 0) + w.points * m[k]; });
       });
       return ok(MUSCLE_META.map(function (m) {
-        var got = pts[m.key] || 0, target = m.target * weeks;
+        var got = pts[m.key] || 0, target = Math.round(m.target * dose * weeks);
         var pct = Math.min(999, Math.round(100 * got / target));
         return { key: m.key, name: m.name, view: m.view,
                  points: Math.round(got * 10) / 10, pct: pct,
