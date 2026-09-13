@@ -35,6 +35,16 @@ them somewhere else.
 | `run13.js` | the catch-up day |
 | `run14.js` | the crowns tracker and the muscle figure |
 
+## Before a release
+
+```bash
+python3 tools/check_version.py
+```
+
+Four places carry the version and they are not near each other. When they
+disagree nothing errors — a phone just quietly runs last week's release.
+`tools/bump_version.py 2.14.1` sets all four; this asserts they agree.
+
 ## The mock is not the server
 
 It answers the same calls, but it is JavaScript pretending to be Postgres. It
