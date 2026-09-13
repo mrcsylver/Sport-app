@@ -155,3 +155,24 @@ are the migration written down in `ROADMAP.md`.
 `symbolEffect` all need it. `MeshGradient` would have been tidier than the
 `Canvas` in `LivingBackground.swift`, but that is iOS 18 and not worth the
 users it would cost.
+
+## The clock
+
+`Core/LeagueClock.swift` owns every date the app reasons about, and it reads
+`Config.timeZone` — Europe/Paris — never `TimeZone.current`. Two people in one
+league are in one week that ends at one instant; a phone in Chicago must not
+think it is still Sunday when Paris has turned Monday.
+
+It mirrors the web app function for function, and the two were checked against
+each other on every rest-day configuration:
+
+| rests on | league closes at the end of |
+|---|---|
+| Sunday | Saturday |
+| Monday | Sunday |
+| Saturday + Sunday | Friday |
+| nothing | Sunday |
+
+The countdown used to run to Sunday midnight whatever the league had chosen,
+which is only right for a league resting on Sunday. On a rest day it now counts
+that day out instead, and the log sheet offers recovery and nothing else.

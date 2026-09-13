@@ -26,6 +26,35 @@ struct LogSheet: View {
         let points: Double
     }
 
+    /// Whether today is a rest day is asked when the sheet opens, not once at
+    /// launch: the league may not have loaded yet at launch, and somebody can
+    /// leave the app open across midnight or switch to a league that rests on
+    /// a different day.
+    private var restOnly: Bool { LeagueClock.isRestDay(session.league) }
+
+    private var restNote: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "moon.zzz.fill")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Theme.azure)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("REST DAY")
+                    .font(Theme.display(12, .heavy)).kerning(1.4)
+                    .foregroundStyle(Theme.ink)
+                Text("The league is shut today. One stretching session counts, "
+                     + "and only once. It opens again at midnight.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkFaint)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .stroke(Theme.azure.opacity(0.35), lineWidth: 1))
+    }
+
     private var exercise: Exercise? { session.exercise(key) }
     private var isGym: Bool { exercise?.isGym ?? false }
 
@@ -48,6 +77,7 @@ struct LogSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
+                    if restOnly { restNote }
                     picker
                     if isGym { gymFields }
                     modeRow

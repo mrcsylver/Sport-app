@@ -17,10 +17,20 @@ struct ExercisePicker: View {
     private static let order = ["PUSH", "PULL", "LEGS", "CORE",
                                 "CARDIO", "SPORT", "GYM", "RECOVERY"]
 
+    /// On a rest day the league is shut and one stretch is the only thing that
+    /// counts, so the picker offers nothing else. The server enforces this;
+    /// showing a hundred and eighteen exercises you cannot log would just be
+    /// a hundred and eighteen ways to be told no.
+    private var restOnly: Bool { LeagueClock.isRestDay(session.league) }
+
+    private var pool: [Exercise] {
+        restOnly ? session.exercises.filter { $0.cat == "RECOVERY" } : session.exercises
+    }
+
     private var matches: [Exercise] {
         guard !query.isEmpty else { return [] }
         let q = query.lowercased()
-        return session.exercises
+        return pool
             .filter { $0.matches(q) }
             .sorted { a, b in
                 // a name that starts with what you typed always wins
@@ -33,11 +43,12 @@ struct ExercisePicker: View {
     }
 
     private var recents: [Exercise] {
-        Recents.keys.compactMap { key in session.exercises.first { $0.key == key } }
+        restOnly ? [] : Recents.keys.compactMap { key in
+            session.exercises.first { $0.key == key } }
     }
 
     private func group(_ cat: String) -> [Exercise] {
-        session.exercises.filter { $0.cat == cat }.sorted { $0.sort < $1.sort }
+        pool.filter { $0.cat == cat }.sorted { $0.sort < $1.sort }
     }
 
     var body: some View {
@@ -59,10 +70,15 @@ struct ExercisePicker: View {
                             label("RECENT")
                             ForEach(recents) { ex in row(ex) }
                         }
-                        label("EVERYTHING")
-                        ForEach(Self.order, id: \.self) { cat in
-                            let items = group(cat)
-                            if !items.isEmpty { folder(cat, items) }
+                        if restOnly {
+                            label("REST DAY · RECOVERY ONLY")
+                            ForEach(group("RECOVERY")) { ex in row(ex) }
+                        } else {
+                            label("EVERYTHING")
+                            ForEach(Self.order, id: \.self) { cat in
+                                let items = group(cat)
+                                if !items.isEmpty { folder(cat, items) }
+                            }
                         }
                     }
                     Color.clear.frame(height: 20)

@@ -58,6 +58,41 @@ KNOWN = {
 }
 
 
+def theme_members(root):
+    """Every `static let`/`var` on Theme, and every Theme.<name> used.
+
+    There is no compiler here, so an invented colour ships silently and shows
+    up as a build failure on the Mac — which is the slowest possible place to
+    find out. Theme is one file and one enum, so checking it is cheap and it
+    catches the whole class.
+    """
+    path = os.path.join(root, "Design", "Theme.swift")
+    text = open(path, encoding="utf-8").read()
+    body = text[text.index("enum Theme"):]
+    depth, end = 0, len(body)
+    for i, ch in enumerate(body):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    declared = set(re.findall(r"static\s+(?:let|var|func)\s+(\w+)", body[:end]))
+
+    bad = []
+    for dirpath, _dirs, files in os.walk(root):
+        for f in files:
+            if not f.endswith(".swift"):
+                continue
+            full = os.path.join(dirpath, f)
+            for used in set(re.findall(r"\bTheme\.(\w+)", open(full, encoding="utf-8").read())):
+                if used not in declared:
+                    bad.append("%s uses Theme.%s, which does not exist"
+                               % (os.path.relpath(full, root), used))
+    return sorted(bad), len(declared)
+
+
 def main():
     files = []
     for base, _, names in os.walk(ROOT):
@@ -130,6 +165,13 @@ def main():
         for p in problems:
             print("  · %s" % p)
         sys.exit(1)
+    bad, n = theme_members(ROOT)
+    if bad:
+        print("\nTHEME")
+        for line in bad:
+            print("  · %s" % line)
+        sys.exit(1)
+    print("theme      : %d colours, every reference resolves" % n)
     if not unknown:
         print("no unbalanced files, no duplicate types, no unknown names")
 

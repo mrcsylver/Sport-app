@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.14.1';
+  var APP_VERSION = '2.14.2';
 
   /* ===================================================================
      1. THE POINTS TABLE

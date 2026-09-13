@@ -25,12 +25,12 @@ struct LeagueHeader: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 1) {
-                Text("ENDS IN")
+                Text(countdown.label)
                     .font(Theme.display(8, .heavy)).kerning(1.2)
                     .foregroundStyle(Theme.inkFaint)
                 Text(remaining)
                     .font(Theme.mono(15, .bold))
-                    .foregroundStyle(Theme.flame)
+                    .foregroundStyle(resting ? Theme.azure : Theme.flame)
                     .contentTransition(.numericText())
             }
         }
@@ -44,13 +44,18 @@ struct LeagueHeader: View {
         .onReceive(tick) { now = $0 }
     }
 
-    /// Monday 00:00 to Sunday 23:59 in the league's timezone — the same window
-    /// the server scores against, so the two never disagree.
+    /// The countdown ran to Sunday midnight whatever the league had chosen,
+    /// which is only right for a league that rests on Sunday. It runs to the
+    /// close now — the end of the last day of the week that is not a rest day
+    /// — and on a rest day it counts that day out instead. LeagueClock owns
+    /// both, so this screen and the web app cannot drift apart.
+    private var resting: Bool { LeagueClock.isRestDay(session.league, now: now) }
+    private var countdown: (label: String, target: Date) {
+        LeagueClock.countdown(session.league, now: now)
+    }
+
     private var remaining: String {
-        var cal = Calendar(identifier: .iso8601)
-        cal.timeZone = Config.timeZone
-        guard let interval = cal.dateInterval(of: .weekOfYear, for: now) else { return "--:--" }
-        let secs = max(0, Int(interval.end.timeIntervalSince(now)))
+        let secs = max(0, Int(countdown.target.timeIntervalSince(now)))
         let d = secs / 86400, h = (secs % 86400) / 3600
         let m = (secs % 3600) / 60, s = secs % 60
         return d > 0 ? String(format: "%dd %02d:%02d", d, h, m)
