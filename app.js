@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.14.0';
+  var APP_VERSION = '2.14.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -745,12 +745,18 @@
     var back = (w.getUTCDay() + 6) % 7;
     return iso(new Date(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate() - back)));
   }
-  /* The league's rest days are stored as ISO weekdays (1=Mon ... 7=Sun).
-     The selected league is the source of truth; Sunday is only the database
-     default for old leagues that have never changed their settings. */
+  /* The league's rest days, as ISO weekdays (1 = Monday … 7 = Sunday).
+
+     The league is the only source of truth. It used to fall back to Sunday
+     when no league was loaded yet, which meant the app said "Sunday is a rest
+     day" for a moment on every launch whatever the league had actually
+     chosen — and said it in a hard-coded sentence, so it said Sunday even to
+     a league that rests on Monday. No league loaded now means no rest day
+     known yet; the server refuses the entry either way, and it refuses it
+     with a reason that names the real day. */
   function restDows() {
     var l = league();
-    var dows = l && Array.isArray(l.rest_dow) ? l.rest_dow : [7];
+    var dows = l && Array.isArray(l.rest_dow) ? l.rest_dow : [];
     return dows.map(Number).filter(function (d) { return d >= 1 && d <= 7; });
   }
   function isoDow(d) {
@@ -759,34 +765,30 @@
   }
   function isRestDay() { return restDows().indexOf(isoDow(wallNow())) !== -1; }
 
-  /* Return the next selected rest-day boundary after the supplied wall date.
-     This is a display/countdown boundary only; the database still decides
-     whether an entry is allowed. */
-  function nextRestBoundaryMs() {
-    var w = wallNow();
-    var dows = restDows();
-    if (!dows.length) return weekDeadlineMs(currentWeekStart());
-    var today = isoDow(w);
-    var best = 8;
-    dows.forEach(function (d) {
-      var delta = (d - today + 7) % 7;
-      if (delta === 0) delta = 7;
-      if (delta < best) best = delta;
-    });
-    var wallBoundary = Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate() + best, 0, 0, 0, 0);
-    return wallToUtcMs(wallBoundary);
+  /* The instant the league stops scoring this week: the end of the last day
+     of it that is not a rest day.
+
+     This was Saturday 23:59, back when Sunday was the rest day and the rest
+     day was a constant. It is the same instant for such a league now, and the
+     right one for any other — a league resting on Monday scores until Sunday
+     night, a league resting midweek still closes on Sunday. Counting down to
+     the next rest day instead, which is what it briefly did, answers a
+     different and much less interesting question: the week is the thing being
+     competed for. */
+  function leagueCloseMs(weekStartIso) {
+    var p = weekStartIso.split('-');
+    var rest = restDows();
+    var last = 6;                                   // Sunday, day 7 of the week
+    while (last > 0 && rest.indexOf(last + 1) !== -1) last--;
+    return wallToUtcMs(Date.UTC(+p[0], +p[1] - 1, +p[2] + last, 23, 59, 59, 999));
   }
 
-  /* When today is a rest day, the league reopens at the end of this rest day. */
+  /* A rest day ends at midnight, whichever day it falls on. */
   function restDayEndMs() {
     var w = wallNow();
-    var wallEnd = Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate(), 23, 59, 59, 999);
-    return wallToUtcMs(wallEnd);
+    return wallToUtcMs(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate(),
+                                23, 59, 59, 999));
   }
-
-  /* Kept as a compatibility helper for code that may still refer to it.
-     It now means the next selected rest-day boundary rather than Saturday. */
-  function competitionEndMs() { return nextRestBoundaryMs(); }
 
   /* End of the current calendar week in the league timezone. */
   function weekDeadlineMs(weekStartIso) {
@@ -1154,7 +1156,7 @@
   function tick() {
     var wk = currentWeekStart();
     var rest = isRestDay();
-    var ms = (rest ? restDayEndMs() : nextRestBoundaryMs()) - Date.now();
+    var ms = (rest ? restDayEndMs() : leagueCloseMs(wk)) - Date.now();
     if (ms < 0) ms = 0;
     var s = Math.floor(ms / 1000);
     var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
@@ -1164,7 +1166,7 @@
     t.textContent = (d > 0 ? d + 'D ' : '') + pad(h) + ':' + pad(m) + ':' + pad(sec);
     t.classList.toggle('urgent', s < 3600 * 6 && !rest);
     document.querySelector('.cd-label').textContent =
-      rest ? 'REST DAY · OPENS IN' : 'REST DAY STARTS IN';
+      rest ? 'REST DAY · OPENS IN' : 'LEAGUE CLOSES IN';
     $('#countdown').classList.toggle('resting', rest);
 
     if (state.view === 'duel') tickDuel();
@@ -1549,6 +1551,11 @@
   }
 
   window.__cutRuns__ = cutRuns;   // the run maths, reachable from a test
+  /* The clock, so a test can prove it reads Paris and not the phone. */
+  window.__clock__ = {
+    tz: TZ, wallNow: wallNow, weekStart: currentWeekStart, isRestDay: isRestDay,
+    restDows: restDows, close: leagueCloseMs, restEnd: restDayEndMs
+  };
   window.__state__ = state;
   window.__BODY__ = BODY;
   window.__renderWins__ = renderWins;
@@ -2021,9 +2028,9 @@
       $('#comboCard').innerHTML =
         '<div class="combo-top"><span class="combo-t">REST DAY</span>' +
           '<span class="combo-p">LEAGUE CLOSED</span></div>' +
-        '<div class="combo-hint">Today is a rest day — nothing can be ' +
-        'added, edited or deleted today. One <b>stretching session</b> is the only ' +
-        'thing that still counts. Recover, and come back when the rest day ends.</div>';
+        '<div class="combo-hint">Today is a rest day for this league — nothing ' +
+        'can be added, edited or deleted. One <b>stretching session</b> is the ' +
+        'only thing that counts today. The league opens again at midnight.</div>';
       return;
     }
     $('#comboCard').className = 'combo';
@@ -3305,8 +3312,9 @@
     if (!rest) { $('#addBtn').disabled = false; return; }
     $('#restNote').innerHTML = state.restDone
       ? '<b>Recovery already logged.</b> That is your one session for today — ' +
-        'the league opens again when the rest day ends.'
-      : '<b>Rest day.</b> One stretching session is all that counts today, and only once.';
+        'the league opens again at midnight.'
+      : '<b>Rest day.</b> One stretching session is all that counts today, ' +
+        'and only once.';
     $('#addBtn').disabled = state.restDone;
   }
 
@@ -3322,6 +3330,17 @@
     $('#sessionList').innerHTML = '';
     $('#sessionTotal').textContent = '0';
     $('#modalErr').textContent = '';
+
+    /* Whether today is a rest day is decided here, not once at boot. At boot
+       the league has not loaded yet, so the picker was built from a guess —
+       it used to guess Sunday, which is how a league resting on Monday still
+       got told about Sunday. It is also wrong for anyone who leaves the app
+       open across midnight, or switches to a league that rests on a different
+       day. Asking at the moment the sheet opens is right in all three cases. */
+    modal.restOnly = isRestDay();
+    if (modal.restOnly) modal.key = 'stretch';
+    renderExList('');
+
     selectExercise(modal.key || EXERCISES[0].key);
     $('#logModal').hidden = false;
     document.body.style.overflow = 'hidden';

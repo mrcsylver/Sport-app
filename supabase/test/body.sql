@@ -10,8 +10,14 @@ on conflict (id) do nothing;
 insert into public.profiles (id, user_id, display_name, restore_code) values
   ('eeee0000-0000-0000-0000-000000000001','b1111111-1111-1111-1111-111111111111','ARM DAY','BD1'),
   ('eeee0000-0000-0000-0000-000000000002','b2222222-2222-2222-2222-222222222222','ROUNDED','BD2');
-insert into public.leagues (id, name, code, owner_id, rest_dow) values
-  ('ffff0000-0000-0000-0000-000000000001','IRON','BODY01','eeee0000-0000-0000-0000-000000000001','{1}');
+-- The rest day is "tomorrow", worked out at run time. Hard-coding one means
+-- the fixture cannot log on that weekday, and a suite that passes six days a
+-- week and fails on the seventh is worse than no suite: the day it breaks is
+-- the day nobody believes it.
+insert into public.leagues (id, name, code, owner_id, rest_dow)
+select 'ffff0000-0000-0000-0000-000000000001','IRON','BODY01',
+       'eeee0000-0000-0000-0000-000000000001',
+       array[(extract(isodow from (now() at time zone public.app_timezone()))::int % 7) + 1];
 insert into public.league_members (league_id, profile_id) values
   ('ffff0000-0000-0000-0000-000000000001','eeee0000-0000-0000-0000-000000000001'),
   ('ffff0000-0000-0000-0000-000000000001','eeee0000-0000-0000-0000-000000000002');

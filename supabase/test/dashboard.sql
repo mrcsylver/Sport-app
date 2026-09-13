@@ -15,9 +15,15 @@ insert into public.profiles (id, user_id, display_name, restore_code, is_admin) 
 
 -- two leagues, both of which QUENTIN is in, which is what makes a naive
 -- lifetime total double-count: one log writes one row per league
-insert into public.leagues (id, name, code, owner_id, rest_dow) values
-  ('bbbb0000-0000-0000-0000-000000000001','IRON','ADM001','aaaa0000-0000-0000-0000-000000000001','{1}'),
-  ('bbbb0000-0000-0000-0000-000000000002','STEEL','ADM002','aaaa0000-0000-0000-0000-000000000001','{1}');
+-- The rest day is "tomorrow", worked out at run time. Hard-coding one means
+-- the fixture cannot log on that weekday, and a suite that passes six days a
+-- week and fails on the seventh is worse than no suite: the day it breaks is
+-- the day nobody believes it.
+insert into public.leagues (id, name, code, owner_id, rest_dow)
+select id, nm, cd, 'aaaa0000-0000-0000-0000-000000000001',
+       array[(extract(isodow from (now() at time zone public.app_timezone()))::int % 7) + 1]
+from (values ('bbbb0000-0000-0000-0000-000000000001'::uuid,'IRON','ADM001'),
+             ('bbbb0000-0000-0000-0000-000000000002'::uuid,'STEEL','ADM002')) v(id, nm, cd);
 insert into public.league_members (league_id, profile_id) values
   ('bbbb0000-0000-0000-0000-000000000001','aaaa0000-0000-0000-0000-000000000001'),
   ('bbbb0000-0000-0000-0000-000000000001','aaaa0000-0000-0000-0000-000000000002'),

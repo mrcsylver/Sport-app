@@ -11,8 +11,14 @@ insert into public.profiles (id, user_id, display_name, restore_code) values
   ('cccc0000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','LEADER','CU1'),
   ('cccc0000-0000-0000-0000-000000000002','22222222-2222-2222-2222-222222222222','MIDDLE','CU2'),
   ('cccc0000-0000-0000-0000-000000000003','33333333-3333-3333-3333-333333333333','BEHIND','CU3');
-insert into public.leagues (id, name, code, owner_id, rest_dow) values
-  ('dddd0000-0000-0000-0000-000000000001','IRON','CUTEST','cccc0000-0000-0000-0000-000000000001','{1}');
+-- The rest day is "tomorrow", worked out at run time. Hard-coding one means
+-- the fixture cannot log on that weekday, and a suite that passes six days a
+-- week and fails on the seventh is worse than no suite: the day it breaks is
+-- the day nobody believes it.
+insert into public.leagues (id, name, code, owner_id, rest_dow)
+select 'dddd0000-0000-0000-0000-000000000001','IRON','CUTEST',
+       'cccc0000-0000-0000-0000-000000000001',
+       array[(extract(isodow from (now() at time zone public.app_timezone()))::int % 7) + 1];
 insert into public.league_members (league_id, profile_id)
 select 'dddd0000-0000-0000-0000-000000000001', id from public.profiles
 where restore_code in ('CU1','CU2','CU3');
@@ -30,14 +36,22 @@ from (values (0), (100), (150), (200), (250), (300), (400), (500), (700), (1200)
 
 \echo '--- setting it, and the rules around it'
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
-select public.set_league_settings('dddd0000-0000-0000-0000-000000000001',
-                                  '{1}'::int[], null, 7);
-select 'rest day ' || rest_dow::text || ', catch-up day ' || catchup_dow
+select 'set' from public.set_league_settings(
+  'dddd0000-0000-0000-0000-000000000001',
+  array[(extract(isodow from (now() at time zone public.app_timezone()))::int % 7) + 1],
+  null,
+  ((extract(isodow from (now() at time zone public.app_timezone()))::int + 1) % 7) + 1);
+select 'rest day is tomorrow, catch-up the day after: '
+       || rest_dow::text || ' / ' || catchup_dow
 from public.leagues where code = 'CUTEST';
 
-do $$ begin
+do $$
+declare tomorrow int := (extract(isodow from (now() at time zone
+                          public.app_timezone()))::int % 7) + 1;
+begin
+  -- the same day as both, whatever day that is
   perform public.set_league_settings('dddd0000-0000-0000-0000-000000000001',
-                                     '{1,7}'::int[], null, 7);
+                                     array[tomorrow], null, tomorrow);
   raise exception 'A REST DAY WAS ALSO SET AS THE CATCH-UP DAY';
 exception when others then
   if sqlerrm like '%A REST DAY WAS%' then raise; end if;
@@ -75,7 +89,10 @@ select 'a member who has logged nothing: x' || public.catchup_multiplier(
 
 \echo '--- on the day itself, the boost is stamped onto the row'
 -- pretend today is the catch-up day by pointing it at today's weekday
-select public.set_league_settings('dddd0000-0000-0000-0000-000000000001', '{1}'::int[], null,
+select 'set' from public.set_league_settings(
+  'dddd0000-0000-0000-0000-000000000001',
+  array[(extract(isodow from (now() at time zone public.app_timezone()))::int % 7) + 1],
+  null,
   extract(isodow from (now() at time zone public.app_timezone()))::int);
 select case when public.is_catchup_day('dddd0000-0000-0000-0000-000000000001')
        then 'today is the catch-up day' else 'IT IS NOT' end;
@@ -108,7 +125,10 @@ select case when (select boost from public.workouts
        then 'a row keeps the multiplier it was logged at' else 'IT MOVED' end;
 
 \echo '--- off the day, nothing is boosted'
-select public.set_league_settings('dddd0000-0000-0000-0000-000000000001', '{1}'::int[], null, null);
+select 'set' from public.set_league_settings(
+  'dddd0000-0000-0000-0000-000000000001',
+  array[(extract(isodow from (now() at time zone public.app_timezone()))::int % 7) + 1],
+  null, null);
 set request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 insert into public.workouts (league_id, profile_id, exercise_key, mode, amount)
 values ('dddd0000-0000-0000-0000-000000000001','cccc0000-0000-0000-0000-000000000003','pullups','reps',10);
