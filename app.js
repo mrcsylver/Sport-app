@@ -700,7 +700,7 @@
     NO_SUCH_CHALLENGE: 'No duel found with that code.',
     CHALLENGE_UNAVAILABLE: 'That duel is no longer open.',
     NOT_A_MEMBER: 'That duel belongs to a league you are not in.',
-    REST_DAY: 'Sunday is a rest day — a stretching session is the only thing that counts.',
+    REST_DAY: 'Today is a rest day — a stretching session is the only thing that counts.',
     REST_DAY_DONE: 'You already logged your recovery today. Rest.'
   };
   function niceError(e) {
@@ -716,7 +716,7 @@
   }
 
   /* ===================================================================
-     3. Weeks and the Sunday 23:59 deadline (timezone aware)
+     3. Weeks, rest days and deadlines (timezone aware)
      =================================================================== */
   function tzOffsetMs(date, tz) {
     var dtf = new Intl.DateTimeFormat('en-US', {
@@ -745,16 +745,50 @@
     var back = (w.getUTCDay() + 6) % 7;
     return iso(new Date(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate() - back)));
   }
-  /* Sunday is a rest day: the league is closed and only recovery counts. */
-  function isRestDay() { return wallNow().getUTCDay() === 0; }
+  /* The league's rest days are stored as ISO weekdays (1=Mon ... 7=Sun).
+     The selected league is the source of truth; Sunday is only the database
+     default for old leagues that have never changed their settings. */
+  function restDows() {
+    var l = league();
+    var dows = l && Array.isArray(l.rest_dow) ? l.rest_dow : [7];
+    return dows.map(Number).filter(function (d) { return d >= 1 && d <= 7; });
+  }
+  function isoDow(d) {
+    var day = d.getUTCDay();
+    return day === 0 ? 7 : day;
+  }
+  function isRestDay() { return restDows().indexOf(isoDow(wallNow())) !== -1; }
 
-  /* Instant of Saturday 23:59:59.999 — when the competition stops. */
-  function competitionEndMs(weekStartIso) {
-    var p = weekStartIso.split('-');
-    return wallToUtcMs(Date.UTC(+p[0], +p[1] - 1, +p[2] + 5, 23, 59, 59, 999));
+  /* Return the next selected rest-day boundary after the supplied wall date.
+     This is a display/countdown boundary only; the database still decides
+     whether an entry is allowed. */
+  function nextRestBoundaryMs() {
+    var w = wallNow();
+    var dows = restDows();
+    if (!dows.length) return weekDeadlineMs(currentWeekStart());
+    var today = isoDow(w);
+    var best = 8;
+    dows.forEach(function (d) {
+      var delta = (d - today + 7) % 7;
+      if (delta === 0) delta = 7;
+      if (delta < best) best = delta;
+    });
+    var wallBoundary = Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate() + best, 0, 0, 0, 0);
+    return wallToUtcMs(wallBoundary);
   }
 
-  /* Instant of Sunday 23:59:59.999 that closes the given week. */
+  /* When today is a rest day, the league reopens at the end of this rest day. */
+  function restDayEndMs() {
+    var w = wallNow();
+    var wallEnd = Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate(), 23, 59, 59, 999);
+    return wallToUtcMs(wallEnd);
+  }
+
+  /* Kept as a compatibility helper for code that may still refer to it.
+     It now means the next selected rest-day boundary rather than Saturday. */
+  function competitionEndMs() { return nextRestBoundaryMs(); }
+
+  /* End of the current calendar week in the league timezone. */
   function weekDeadlineMs(weekStartIso) {
     var p = weekStartIso.split('-');
     var wallEnd = Date.UTC(+p[0], +p[1] - 1, +p[2] + 6, 23, 59, 59, 999);
@@ -1114,13 +1148,13 @@
   }
 
   /* ===================================================================
-     8. Countdown to Sunday 23:59
+     8. Countdown follows the selected rest day
      =================================================================== */
   var lastWeekSeen = state.week;
   function tick() {
     var wk = currentWeekStart();
     var rest = isRestDay();
-    var ms = (rest ? weekDeadlineMs(wk) : competitionEndMs(wk)) - Date.now();
+    var ms = (rest ? restDayEndMs() : nextRestBoundaryMs()) - Date.now();
     if (ms < 0) ms = 0;
     var s = Math.floor(ms / 1000);
     var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
@@ -1130,7 +1164,7 @@
     t.textContent = (d > 0 ? d + 'D ' : '') + pad(h) + ':' + pad(m) + ':' + pad(sec);
     t.classList.toggle('urgent', s < 3600 * 6 && !rest);
     document.querySelector('.cd-label').textContent =
-      rest ? 'REST DAY · OPENS IN' : 'LEAGUE CLOSES IN';
+      rest ? 'REST DAY · OPENS IN' : 'REST DAY STARTS IN';
     $('#countdown').classList.toggle('resting', rest);
 
     if (state.view === 'duel') tickDuel();
@@ -1987,9 +2021,9 @@
       $('#comboCard').innerHTML =
         '<div class="combo-top"><span class="combo-t">REST DAY</span>' +
           '<span class="combo-p">LEAGUE CLOSED</span></div>' +
-        '<div class="combo-hint">Saturday night closed the week — nothing can be ' +
+        '<div class="combo-hint">Today is a rest day — nothing can be ' +
         'added, edited or deleted today. One <b>stretching session</b> is the only ' +
-        'thing that still counts. Recover, and come back Monday.</div>';
+        'thing that still counts. Recover, and come back when the rest day ends.</div>';
       return;
     }
     $('#comboCard').className = 'combo';
@@ -3271,9 +3305,8 @@
     if (!rest) { $('#addBtn').disabled = false; return; }
     $('#restNote').innerHTML = state.restDone
       ? '<b>Recovery already logged.</b> That is your one session for today — ' +
-        'the league opens again on Monday.'
-      : '<b>Rest day.</b> The league closed on Saturday night. One stretching ' +
-        'session is all that counts today, and only once.';
+        'the league opens again when the rest day ends.'
+      : '<b>Rest day.</b> One stretching session is all that counts today, and only once.';
     $('#addBtn').disabled = state.restDone;
   }
 
