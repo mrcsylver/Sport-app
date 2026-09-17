@@ -94,14 +94,26 @@ select case when (select lifetime from public.admin_players()
        then 'and it carries the weeks that are already over'
        else 'LIFETIME FORGOT A FINISHED WEEK' end;
 
+-- The raw rows are what the movements are worth; the week is what they score
+-- once the repetition discount has run. The dashboard has to sit above the
+-- scored week (it adds the bonuses) and below the raw rows (it discounts the
+-- 300 push-ups), and being on the wrong side of either is a different bug.
 select case when (select week_points from public.admin_players()
                   where display_name = 'QUENTIN')
-            > (select coalesce(sum(points), 0) from public.workouts
+            > (select points from public.week_scored(
+                 'bbbb0000-0000-0000-0000-000000000001', public.current_week_start())
+               where profile_id = 'aaaa0000-0000-0000-0000-000000000002')
+       then 'this week carries the bonuses the scored rows do not'
+       else 'THE BONUSES ARE MISSING FROM THIS WEEK' end;
+
+select case when (select week_points from public.admin_players()
+                  where display_name = 'QUENTIN')
+            < (select coalesce(sum(points), 0) from public.workouts
                where profile_id = 'aaaa0000-0000-0000-0000-000000000002'
                  and league_id = 'bbbb0000-0000-0000-0000-000000000001'
                  and week_start = public.current_week_start())
-       then 'this week carries the bonuses the raw rows do not'
-       else 'THE BONUSES ARE MISSING FROM THIS WEEK' end;
+       then 'and it prices the 300 push-ups below what the rows say'
+       else 'THE REPETITION DISCOUNT NEVER RAN' end;
 
 \echo '--- somebody who has never logged is zero, not null'
 select 'BOSS: lifetime ' || lifetime || ', this week ' || week_points

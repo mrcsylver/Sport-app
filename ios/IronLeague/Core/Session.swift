@@ -25,6 +25,10 @@ final class Session {
     var history: [HistoryRow] = []
     var stats: [StatRow] = []
     var statsAllTime = false
+    /// Raw points banked on each exercise THIS week, so the log sheet can draw
+    /// the budget before a set is committed. A discount discovered afterwards
+    /// reads as a broken app; one shown up front reads as the rule it is.
+    var weekEx: [String: Double] = [:]
     var duel: DuelRecord?
     var challenges: [Challenge] = []
 
@@ -122,12 +126,31 @@ final class Session {
         async let c = try? API.shared.currentBounty(id)
         async let d = try? API.shared.combo(id)
         async let e = try? API.shared.streaks(id)
+        async let f = try? API.shared.myStats(id, allTime: false)
 
         if let v = await a { standings = v }
         raid = await b ?? nil
         bounty = await c ?? nil
         if let v = await d { combo = v }
         if let v = await e { streaks = v }
+        if let v = await f { weekEx = Session.weekTotals(v) }
+    }
+
+    /// This week's raw points per exercise. A movement logged in two units
+    /// (a handstand in reps and in seconds) shares one budget, so its rows are
+    /// added together — the budget belongs to the exercise, not to the unit.
+    static func weekTotals(_ rows: [StatRow]) -> [String: Double] {
+        var by: [String: Double] = [:]
+        for r in rows {
+            by[r.exerciseKey, default: 0] += r.rawPoints ?? r.totalPoints
+        }
+        return by
+    }
+
+    /// What `raw` more points of this movement would actually score right now.
+    func scoredDelta(key: String, raw: Double) -> Double {
+        let cap = exercise(key)?.weekCap ?? Scoring.defaultCap
+        return Scoring.delta(raw: raw, used: weekEx[key] ?? 0, cap: cap)
     }
 
     func loadFeed(_ profileId: UUID) async {
@@ -164,6 +187,7 @@ final class Session {
         async let b = try? API.shared.badges(id)
         stats = await s ?? []
         badges = await b ?? []
+        if !statsAllTime { weekEx = Session.weekTotals(stats) }
     }
 
     // MARK: - Actions
@@ -201,6 +225,7 @@ final class Session {
         feeds.removeAll()
         history = []
         stats = []
+        weekEx = [:]
         badges = []
         rivalries = []
         await refresh()

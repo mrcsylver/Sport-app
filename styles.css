@@ -466,6 +466,18 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
   padding:12px 14px;border:1px solid var(--line-2);border-left:3px solid var(--red);background:var(--panel)}
 .preview-pts{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.1em;color:var(--muted)}
 .preview-pts b{font-size:30px;color:var(--txt);letter-spacing:0;margin-right:4px}
+/* The weekly budget for one movement. Never drawn as a subtraction: the bar
+   fills up like a week filling up, and the words are about what to do next
+   rather than about what was taken away. */
+.budget{margin-top:8px}
+.budget-bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;display:flex}
+.budget-bar i{display:block;height:100%;background:var(--green);transition:width .18s ease}
+.budget-bar i.half{background:var(--gold)}
+.budget-bar i.quarter{background:var(--red)}
+.budget-txt{margin:6px 0 0;font-size:12px;color:var(--muted);font-family:var(--mono)}
+.budget-txt b{color:var(--txt)}
+.budget-txt.over b{color:var(--gold)}
+
 .session-head{display:flex;align-items:baseline;justify-content:space-between;margin-top:20px}
 .session-head .lbl{margin:0}
 .session-total{font-family:var(--display);font-weight:800;color:var(--muted);font-size:13px;letter-spacing:.1em}

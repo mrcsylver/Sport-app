@@ -4,9 +4,10 @@
 RUN, and you have a working database. It drops everything first, so running it
 twice is a rebuild, not a mess — and running it on a live database wipes it.
 
-`bounty-pool.sql`, `catch-up-day.sql` and `dashboard-points.sql` are migrations
-for a database that is already running. They only add; nothing logged is
-touched, and all three are safe to run twice.
+`bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
+`body-and-crowns.sql` and `repetition-cap.sql` are migrations for a database
+that is already running. They only add; nothing logged is touched, and all of
+them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
 It was lifetime — every workout ever logged, counted once even when the same
@@ -24,6 +25,35 @@ swimming 12). Twenty-six rates change; nothing already earned does, because
 points are stamped when a row is written. The file rescores the week in
 progress, and only that week, so a live week is not half priced at the old
 rates and half at the new ones.
+
+`repetition-cap.sql` makes one movement get cheaper as the week fills. The
+first `cap` points of a single exercise in a single week pay in full, the next
+`cap` pay half, everything past that pays a quarter — and it never reaches
+zero, so no total is capped, nobody is ever told to stop, and more work is
+always more points.
+
+The reason is that points are linear in reps and effort is not. The ceiling on
+a hard movement is what a body can do; the ceiling on an easy one is only
+boredom. So the cheapest thing a person can repeat forever was the best points
+per hour going, and it showed: one member's step-ups were seven per cent of an
+entire league's week, and push-ups alone were sixteen. Repeating one movement
+now stops being the best way to score, which makes variety the best move left.
+There is no separate bonus for variety — a bonus large enough to matter only
+ever pays the people already scoring the most.
+
+The default cap is 200 points and it is generous on purpose: 200 push-ups, 100
+pull-ups, 400 squats, 800 Russian twists, twenty minutes of plank. Across every
+week logged so far, nine person-weeks out of six hundred crossed it. Distance
+cardio has its own numbers, because a long ride is one session and not a farm
+— 100 km of running, 100 km of walking, 200 km of biking. They live in
+`public.exercises.cap`, so tuning one movement is a seed change.
+
+Nothing is stamped. `workouts.points` stays what the movement is worth and
+every board derives the discount on read, the way divisions and streaks
+already do. That buys three things: an edit or a delete can never leave the
+rows after it mis-scored, the order entries arrived in cannot change a week,
+and the migration rewrites no history. A lifetime total is the sum of its
+discounted weeks, never one giant pile run through the curve.
 
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read
@@ -69,9 +99,10 @@ Do not hand-edit these:
 | `catch-up-day.sql` | `tools/build_catchup.py` |
 | `dashboard-points.sql` | `tools/build_dashboard.py` |
 | `body-and-crowns.sql` | `tools/build_body_migration.py` |
+| `repetition-cap.sql` | `tools/build_cap_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
-| `RATES`/`CATS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |
+| `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |
 | the open-exercise list in `bounty_open_to_all()` | `tools/build_bounties.py` |
 | the `OPEN_TO_ALL` block in `tools/test/mock-supabase.js` | `tools/build_bounties.py` |
 

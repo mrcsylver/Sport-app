@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.14.2">
+  <link rel="stylesheet" href="./styles.css?v=2.15.0">
 </head>
 <body>
 
@@ -542,6 +542,15 @@
         <span class="preview-pts"><b id="ptsPreview">10</b> PTS</span>
       </div>
 
+      <!-- The weekly budget for THIS movement, drawn before anything is
+           committed. Repeating one exercise gets cheaper as the week fills,
+           and a rule you only meet after the fact is indistinguishable from
+           a bug. -->
+      <div id="budgetRow" class="budget" hidden>
+        <div class="budget-bar"><i id="budgetFill"></i></div>
+        <p class="budget-txt" id="budgetTxt"></p>
+      </div>
+
       <button id="addBtn" class="btn primary xl" type="button">ADD</button>
       <button id="cancelEditBtn" class="btn ghost" type="button" hidden>CANCEL EDIT</button>
 
@@ -564,8 +573,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.14.2"></script>
-<script src="./vendor/game-icons.js?v=2.14.2"></script>
-<script src="./app.js?v=2.14.2"></script>
+<script src="./vendor/supabase.js?v=2.15.0"></script>
+<script src="./vendor/game-icons.js?v=2.15.0"></script>
+<script src="./app.js?v=2.15.0"></script>
 </body>
 </html>

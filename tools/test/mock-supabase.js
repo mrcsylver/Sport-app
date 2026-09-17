@@ -111,11 +111,39 @@
      mock that scores differently is a test that passes on a bug. */
   var RATES = {"wallpush":{"reps":0.25},"kneepush":{"reps":0.75},"inclinepush":{"reps":0.75},"pushups":{"reps":1.0},"widepush":{"reps":1.0},"diamondpush":{"reps":1.0},"declinepush":{"reps":1.25},"pikepush":{"reps":1.25},"clappush":{"reps":1.5},"archerpush":{"reps":1.5},"planchepush":{"reps":1.5},"benchdips":{"reps":0.75},"dips":{"reps":1.5},"ringdips":{"reps":1.75},"onearmpush":{"reps":2.0},"sphinxpush":{"reps":0.75},"handstand":{"reps":2.5,"seconds":0.3},"rows":{"reps":1.0},"scapulapull":{"reps":0.75},"bandpullup":{"reps":1.25},"chinups":{"reps":2.0},"pullups":{"reps":2.0},"widepullup":{"reps":2.25},"commandopull":{"reps":2.25},"lsitpullup":{"reps":2.5},"typewriter":{"reps":2.5},"archerpull":{"reps":2.5},"muscleup":{"reps":3.5,"seconds":2.0},"deadhang":{"seconds":0.2},"frontlever":{"seconds":0.75},"calves":{"reps":0.2},"airsquats":{"reps":0.5},"jumpsquats":{"reps":0.75},"lunges":{"reps":0.5},"splitsquat":{"reps":0.75},"stepups":{"reps":0.5},"gluteBridge":{"reps":0.25},"nordic":{"reps":1.0},"sissy":{"reps":0.75},"shrimp":{"reps":1.0},"pistols":{"reps":2.0},"wallsit":{"seconds":0.15},"crunches":{"reps":0.25},"situps":{"reps":0.5},"twists":{"reps":0.25},"legraises":{"reps":0.5},"kneeraises":{"reps":1.0},"hangingleg":{"reps":1.5},"toestobar":{"reps":2.0},"dragonflag":{"reps":3.0},"vups":{"reps":0.75},"supermans":{"reps":0.25},"sidecrunch":{"reps":0.25},"bicycle":{"reps":0.25},"deadbug":{"reps":0.5},"birddog":{"reps":0.5},"flutterkick":{"reps":0.25},"mountainclimb":{"reps":0.25},"rollout":{"reps":2.0},"plank":{"minutes":10.0},"sideplank":{"minutes":12.0},"hollowhold":{"seconds":0.25},"lsit":{"seconds":0.4},"run":{"km":5.0},"sprints":{"reps":2.0},"bike":{"km":1.5},"swim":{"minutes":0.5},"walk":{"km":2.5},"row":{"minutes":0.5},"jumprope":{"minutes":0.55},"stairs":{"minutes":0.5},"football":{"minutes":0.25},"basketball":{"minutes":0.25},"rugby":{"minutes":0.25},"handball":{"minutes":0.25},"hockey":{"minutes":0.25},"squash":{"minutes":0.25},"boxing":{"minutes":0.25},"climbing":{"minutes":0.25},"tennis":{"minutes":0.166667},"padel":{"minutes":0.166667},"volleyball":{"minutes":0.166667},"badminton":{"minutes":0.166667},"tabletennis":{"minutes":0.166667},"othersport":{"minutes":0.166667},"stretch":{"flat":5.0},"sauna":{"flat":3.0}};
   var CATS = {"wallpush":"PUSH","kneepush":"PUSH","inclinepush":"PUSH","pushups":"PUSH","widepush":"PUSH","diamondpush":"PUSH","declinepush":"PUSH","pikepush":"PUSH","clappush":"PUSH","archerpush":"PUSH","planchepush":"PUSH","benchdips":"PUSH","dips":"PUSH","ringdips":"PUSH","onearmpush":"PUSH","sphinxpush":"PUSH","handstand":"PUSH","rows":"PULL","scapulapull":"PULL","bandpullup":"PULL","chinups":"PULL","pullups":"PULL","widepullup":"PULL","commandopull":"PULL","lsitpullup":"PULL","typewriter":"PULL","archerpull":"PULL","muscleup":"PULL","deadhang":"PULL","frontlever":"PULL","calves":"LEGS","airsquats":"LEGS","jumpsquats":"LEGS","lunges":"LEGS","splitsquat":"LEGS","stepups":"LEGS","gluteBridge":"LEGS","nordic":"LEGS","sissy":"LEGS","shrimp":"LEGS","pistols":"LEGS","wallsit":"LEGS","crunches":"CORE","situps":"CORE","twists":"CORE","legraises":"CORE","kneeraises":"CORE","hangingleg":"CORE","toestobar":"CORE","dragonflag":"CORE","vups":"CORE","supermans":"CORE","sidecrunch":"CORE","bicycle":"CORE","deadbug":"CORE","birddog":"CORE","flutterkick":"CORE","mountainclimb":"CORE","rollout":"CORE","plank":"CORE","sideplank":"CORE","hollowhold":"CORE","lsit":"CORE","run":"CARDIO","sprints":"CARDIO","bike":"CARDIO","swim":"CARDIO","walk":"CARDIO","row":"CARDIO","jumprope":"CARDIO","stairs":"CARDIO","football":"CARDIO","basketball":"CARDIO","rugby":"CARDIO","handball":"CARDIO","hockey":"CARDIO","squash":"CARDIO","boxing":"CARDIO","climbing":"CARDIO","tennis":"CARDIO","padel":"CARDIO","volleyball":"CARDIO","badminton":"CARDIO","tabletennis":"CARDIO","othersport":"CARDIO","gymbench":"PUSH","gymdbbench":"PUSH","gymohp":"PUSH","gymdip":"PUSH","gymchestmach":"PUSH","gymtricep":"PUSH","gymlatraise":"PUSH","gymdeadlift":"PULL","gymbarbellrow":"PULL","gymdbrow":"PULL","gymlatpull":"PULL","gymcablerow":"PULL","gymweightpull":"PULL","gymcurl":"PULL","gymfacepull":"PULL","gymsquat":"LEGS","gymfrontsquat":"LEGS","gymlegpress":"LEGS","gymrdl":"LEGS","gymhipthrust":"LEGS","gymlegcurl":"LEGS","gymlegext":"LEGS","gymlunge":"LEGS","gymcalf":"LEGS","gymcablecrunch":"CORE","gymwoodchop":"CORE","gympullover":"PULL","gymshrug":"PULL","gymincline":"PUSH","gymgoblet":"LEGS","gymstepup":"LEGS","stretch":"RECOVERY","sauna":"RECOVERY"};
+  var CAPS = {"wallpush":200,"kneepush":200,"inclinepush":200,"pushups":200,"widepush":200,"diamondpush":200,"declinepush":200,"pikepush":200,"clappush":200,"archerpush":200,"planchepush":200,"benchdips":200,"dips":200,"ringdips":200,"onearmpush":200,"sphinxpush":200,"handstand":200,"rows":200,"scapulapull":200,"bandpullup":200,"chinups":200,"pullups":200,"widepullup":200,"commandopull":200,"lsitpullup":200,"typewriter":200,"archerpull":200,"muscleup":200,"deadhang":200,"frontlever":200,"calves":200,"airsquats":200,"jumpsquats":200,"lunges":200,"splitsquat":200,"stepups":200,"gluteBridge":200,"nordic":200,"sissy":200,"shrimp":200,"pistols":200,"wallsit":200,"crunches":200,"situps":200,"twists":200,"legraises":200,"kneeraises":200,"hangingleg":200,"toestobar":200,"dragonflag":200,"vups":200,"supermans":200,"sidecrunch":200,"bicycle":200,"deadbug":200,"birddog":200,"flutterkick":200,"mountainclimb":200,"rollout":200,"plank":200,"sideplank":200,"hollowhold":200,"lsit":200,"run":500,"sprints":200,"bike":300,"swim":200,"walk":250,"row":200,"jumprope":200,"stairs":200,"football":200,"basketball":200,"rugby":200,"handball":200,"hockey":200,"squash":200,"boxing":200,"climbing":200,"tennis":200,"padel":200,"volleyball":200,"badminton":200,"tabletennis":200,"othersport":200,"gymbench":200,"gymdbbench":200,"gymohp":200,"gymdip":200,"gymchestmach":200,"gymtricep":200,"gymlatraise":200,"gymdeadlift":200,"gymbarbellrow":200,"gymdbrow":200,"gymlatpull":200,"gymcablerow":200,"gymweightpull":200,"gymcurl":200,"gymfacepull":200,"gymsquat":200,"gymfrontsquat":200,"gymlegpress":200,"gymrdl":200,"gymhipthrust":200,"gymlegcurl":200,"gymlegext":200,"gymlunge":200,"gymcalf":200,"gymcablecrunch":200,"gymwoodchop":200,"gympullover":200,"gymshrug":200,"gymincline":200,"gymgoblet":200,"gymstepup":200,"stretch":200,"sauna":200};
   var MUSCLE_OF = {"wallpush":{"chest":0.5,"shoulders":0.2,"triceps":0.3},"kneepush":{"chest":0.5,"shoulders":0.2,"triceps":0.3},"inclinepush":{"chest":0.5,"shoulders":0.2,"triceps":0.3},"pushups":{"chest":0.45,"shoulders":0.15,"triceps":0.3,"abs":0.1},"widepush":{"chest":0.6,"shoulders":0.2,"triceps":0.2},"diamondpush":{"chest":0.35,"shoulders":0.15,"triceps":0.5},"declinepush":{"chest":0.4,"shoulders":0.3,"triceps":0.25,"abs":0.05},"pikepush":{"chest":0.15,"shoulders":0.55,"triceps":0.3},"clappush":{"chest":0.4,"shoulders":0.2,"triceps":0.3,"abs":0.1},"archerpush":{"chest":0.45,"shoulders":0.2,"triceps":0.25,"abs":0.1},"planchepush":{"chest":0.3,"shoulders":0.35,"triceps":0.15,"abs":0.2},"benchdips":{"chest":0.2,"shoulders":0.2,"triceps":0.6},"dips":{"chest":0.4,"shoulders":0.2,"triceps":0.4},"ringdips":{"chest":0.35,"shoulders":0.2,"triceps":0.35,"abs":0.1},"onearmpush":{"chest":0.4,"shoulders":0.15,"triceps":0.25,"abs":0.2},"sphinxpush":{"chest":0.15,"triceps":0.7,"abs":0.15},"handstand":{"shoulders":0.55,"triceps":0.3,"traps":0.1,"abs":0.05},"rows":{"biceps":0.25,"forearms":0.15,"traps":0.2,"lats":0.4},"scapulapull":{"forearms":0.2,"traps":0.5,"lats":0.3},"bandpullup":{"biceps":0.3,"forearms":0.15,"traps":0.1,"lats":0.45},"chinups":{"biceps":0.4,"forearms":0.15,"traps":0.1,"lats":0.35},"pullups":{"biceps":0.25,"forearms":0.15,"traps":0.15,"lats":0.45},"widepullup":{"biceps":0.15,"forearms":0.15,"traps":0.15,"lats":0.55},"commandopull":{"biceps":0.3,"forearms":0.15,"lats":0.4,"obliques":0.15},"lsitpullup":{"biceps":0.2,"forearms":0.2,"lats":0.35,"abs":0.25},"typewriter":{"biceps":0.2,"forearms":0.2,"lats":0.4,"obliques":0.2},"archerpull":{"biceps":0.25,"forearms":0.2,"lats":0.4,"obliques":0.15},"muscleup":{"shoulders":0.15,"biceps":0.2,"triceps":0.2,"forearms":0.15,"lats":0.3},"deadhang":{"forearms":0.6,"traps":0.2,"lats":0.2},"frontlever":{"forearms":0.2,"lats":0.35,"lowerback":0.15,"abs":0.3},"calves":{"calves":1.0},"airsquats":{"glutes":0.3,"quads":0.5,"hamstrings":0.2},"jumpsquats":{"glutes":0.25,"quads":0.45,"hamstrings":0.1,"calves":0.2},"lunges":{"glutes":0.35,"quads":0.4,"hamstrings":0.25},"splitsquat":{"glutes":0.35,"quads":0.4,"hamstrings":0.25},"stepups":{"glutes":0.35,"quads":0.4,"hamstrings":0.15,"calves":0.1},"gluteBridge":{"lowerback":0.1,"glutes":0.6,"hamstrings":0.3},"nordic":{"glutes":0.15,"hamstrings":0.75,"calves":0.1},"sissy":{"abs":0.1,"quads":0.8,"calves":0.1},"shrimp":{"glutes":0.3,"quads":0.45,"hamstrings":0.15,"calves":0.1},"pistols":{"glutes":0.3,"quads":0.45,"hamstrings":0.15,"calves":0.1},"wallsit":{"glutes":0.2,"quads":0.7,"calves":0.1},"crunches":{"abs":1.0},"situps":{"abs":0.8,"obliques":0.1,"quads":0.1},"twists":{"abs":0.3,"obliques":0.7},"legraises":{"abs":0.8,"quads":0.2},"kneeraises":{"forearms":0.15,"abs":0.7,"obliques":0.15},"hangingleg":{"forearms":0.15,"abs":0.65,"obliques":0.1,"quads":0.1},"toestobar":{"forearms":0.15,"lats":0.15,"abs":0.6,"obliques":0.1},"dragonflag":{"lats":0.15,"lowerback":0.2,"abs":0.55,"obliques":0.1},"vups":{"abs":0.75,"obliques":0.1,"quads":0.15},"supermans":{"traps":0.15,"lowerback":0.6,"glutes":0.25},"sidecrunch":{"abs":0.2,"obliques":0.8},"bicycle":{"abs":0.5,"obliques":0.5},"deadbug":{"lowerback":0.2,"abs":0.8},"birddog":{"lowerback":0.5,"abs":0.25,"glutes":0.25},"flutterkick":{"abs":0.7,"quads":0.3},"mountainclimb":{"shoulders":0.2,"abs":0.5,"obliques":0.1,"quads":0.2},"rollout":{"shoulders":0.1,"lats":0.2,"lowerback":0.1,"abs":0.6},"plank":{"shoulders":0.2,"lowerback":0.2,"abs":0.6},"sideplank":{"shoulders":0.2,"abs":0.1,"obliques":0.7},"hollowhold":{"abs":0.8,"quads":0.2},"lsit":{"triceps":0.2,"abs":0.6,"quads":0.2},"run":{"glutes":0.15,"quads":0.3,"hamstrings":0.25,"calves":0.3},"sprints":{"glutes":0.2,"quads":0.3,"hamstrings":0.3,"calves":0.2},"bike":{"glutes":0.2,"quads":0.5,"hamstrings":0.1,"calves":0.2},"swim":{"chest":0.15,"shoulders":0.3,"triceps":0.1,"lats":0.3,"abs":0.15},"walk":{"glutes":0.15,"quads":0.3,"hamstrings":0.2,"calves":0.35},"row":{"biceps":0.15,"traps":0.15,"lats":0.3,"lowerback":0.15,"quads":0.25},"jumprope":{"shoulders":0.15,"quads":0.2,"hamstrings":0.1,"calves":0.55},"stairs":{"glutes":0.3,"quads":0.4,"hamstrings":0.1,"calves":0.2},"football":{"shoulders":0.1,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.2,"calves":0.2},"basketball":{"shoulders":0.1,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.15,"calves":0.25},"rugby":{"shoulders":0.15,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.2,"calves":0.15},"handball":{"shoulders":0.2,"abs":0.15,"obliques":0.1,"quads":0.25,"hamstrings":0.1,"calves":0.2},"hockey":{"forearms":0.1,"obliques":0.15,"glutes":0.2,"quads":0.3,"hamstrings":0.15,"calves":0.1},"squash":{"shoulders":0.15,"forearms":0.1,"obliques":0.15,"quads":0.3,"hamstrings":0.1,"calves":0.2},"boxing":{"chest":0.1,"shoulders":0.25,"triceps":0.15,"abs":0.2,"obliques":0.15,"calves":0.15},"climbing":{"shoulders":0.1,"biceps":0.15,"forearms":0.3,"lats":0.3,"abs":0.15},"tennis":{"shoulders":0.2,"forearms":0.1,"obliques":0.15,"quads":0.25,"hamstrings":0.1,"calves":0.2},"padel":{"shoulders":0.2,"forearms":0.1,"obliques":0.15,"quads":0.25,"hamstrings":0.1,"calves":0.2},"volleyball":{"shoulders":0.25,"abs":0.1,"quads":0.3,"hamstrings":0.1,"calves":0.25},"badminton":{"shoulders":0.2,"forearms":0.15,"obliques":0.15,"quads":0.25,"calves":0.25},"tabletennis":{"shoulders":0.25,"forearms":0.2,"obliques":0.2,"quads":0.2,"calves":0.15},"othersport":{"chest":0.075,"shoulders":0.15,"lats":0.075,"abs":0.15,"glutes":0.1,"quads":0.2,"hamstrings":0.1,"calves":0.15},"gymbench":{"chest":0.5,"shoulders":0.2,"triceps":0.3},"gymdbbench":{"chest":0.5,"shoulders":0.25,"triceps":0.25},"gymohp":{"shoulders":0.55,"triceps":0.3,"traps":0.15},"gymdip":{"chest":0.4,"shoulders":0.2,"triceps":0.4},"gymchestmach":{"chest":0.6,"shoulders":0.15,"triceps":0.25},"gymtricep":{"triceps":1.0},"gymlatraise":{"shoulders":0.85,"traps":0.15},"gymdeadlift":{"forearms":0.1,"traps":0.15,"lowerback":0.25,"glutes":0.25,"hamstrings":0.25},"gymbarbellrow":{"biceps":0.2,"forearms":0.1,"traps":0.2,"lats":0.4,"lowerback":0.1},"gymdbrow":{"biceps":0.2,"forearms":0.15,"traps":0.2,"lats":0.45},"gymlatpull":{"biceps":0.3,"forearms":0.15,"lats":0.55},"gymcablerow":{"biceps":0.2,"forearms":0.1,"traps":0.25,"lats":0.45},"gymweightpull":{"biceps":0.25,"forearms":0.15,"traps":0.15,"lats":0.45},"gymcurl":{"biceps":0.8,"forearms":0.2},"gymfacepull":{"shoulders":0.5,"biceps":0.15,"traps":0.35},"gymsquat":{"lowerback":0.1,"glutes":0.3,"quads":0.45,"hamstrings":0.15},"gymfrontsquat":{"lowerback":0.1,"abs":0.15,"glutes":0.2,"quads":0.55},"gymlegpress":{"glutes":0.3,"quads":0.55,"hamstrings":0.15},"gymrdl":{"lowerback":0.25,"glutes":0.3,"hamstrings":0.45},"gymhipthrust":{"lowerback":0.05,"glutes":0.7,"hamstrings":0.25},"gymlegcurl":{"hamstrings":0.9,"calves":0.1},"gymlegext":{"quads":1.0},"gymlunge":{"glutes":0.35,"quads":0.4,"hamstrings":0.25},"gymcalf":{"calves":1.0},"gymcablecrunch":{"abs":0.9,"obliques":0.1},"gymwoodchop":{"shoulders":0.1,"abs":0.2,"obliques":0.7},"gympullover":{"chest":0.25,"triceps":0.2,"lats":0.55},"gymshrug":{"forearms":0.15,"traps":0.85},"gymincline":{"chest":0.45,"shoulders":0.3,"triceps":0.25},"gymgoblet":{"abs":0.15,"glutes":0.3,"quads":0.45,"hamstrings":0.1},"gymstepup":{"glutes":0.35,"quads":0.4,"hamstrings":0.15,"calves":0.1},"stretch":{},"sauna":{}};
   var MUSCLE_META = [{"key":"chest","name":"Chest","view":"front","target":70},{"key":"shoulders","name":"Shoulders","view":"both","target":55},{"key":"biceps","name":"Biceps","view":"front","target":30},{"key":"triceps","name":"Triceps","view":"both","target":40},{"key":"forearms","name":"Forearms","view":"both","target":25},{"key":"traps","name":"Traps","view":"both","target":30},{"key":"lats","name":"Lats","view":"back","target":70},{"key":"lowerback","name":"Lower back","view":"back","target":30},{"key":"abs","name":"Abs","view":"front","target":45},{"key":"obliques","name":"Obliques","view":"front","target":30},{"key":"glutes","name":"Glutes","view":"back","target":55},{"key":"quads","name":"Quads","view":"front","target":85},{"key":"hamstrings","name":"Hamstrings","view":"back","target":55},{"key":"calves","name":"Calves","view":"both","target":25}];
-  /* BANK END */  /* BANK END */  /* BANK END */
+  /* BANK END */
   function calc(k, m, a) { return Math.round((((RATES[k] || {})[m]) || 0) * a * 100) / 100; }
   window.__calc__ = calc;
+
+  /* The repetition discount, same curve as tier_points() in SQL: the first
+     CAPS[key] points of one exercise in one week pay in full, the next as many
+     pay half, the rest a quarter. A mock that scores differently is a test
+     that passes on a bug. */
+  function tier(sum, cap) {
+    var v = Math.max(Number(sum) || 0, 0), a = Math.max(Number(cap) || 200, 1);
+    return Math.round((Math.min(v, a)
+      + Math.max(Math.min(v, a * 2) - a, 0) * 0.5
+      + Math.max(v - a * 2, 0) * 0.25) * 100) / 100;
+  }
+  window.__tier__ = tier;
+  /* Score a list of rows the way every board does: group by week and
+     exercise, run each group through the curve, add the results up. */
+  function scored(ws) {
+    var per = {};
+    ws.forEach(function (w) {
+      var k = w.week_start + '|' + w.exercise_key;
+      per[k] = per[k] || { key: w.exercise_key, raw: 0 };
+      per[k].raw += Number(w.points);
+    });
+    var t = 0;
+    Object.keys(per).forEach(function (k) {
+      t += tier(per[k].raw, CAPS[per[k].key]);
+    });
+    return Math.round(t * 100) / 100;
+  }
 
   function me() { return DB.profiles.filter(function (p) { return p.user_id === uid; })[0] || null; }
   function isMember(lid) { var m = me(); return !!m && DB.members.some(function (x) { return x.league_id === lid && x.profile_id === m.id; }); }
@@ -216,7 +244,7 @@
         var p = DB.profiles.filter(function (x) { return x.id === m.profile_id; })[0];
         var ws = DB.workouts.filter(function (w) {
           return w.league_id === a.p_league && w.profile_id === p.id && w.week_start === wk; });
-        var base = Math.round(ws.reduce(function (s, w) { return s + w.points; }, 0) * 100) / 100;
+        var base = scored(ws);
         var byDay = {};
         ws.forEach(function (w) {
           if (CATS[w.exercise_key] === 'RECOVERY') return;
@@ -230,11 +258,10 @@
           bonus += n >= 5 ? 12 : n === 4 ? 8 : n === 3 ? 5 : 0;
         });
         // lifetime drives the rank banner on each row
-        var life = DB.workouts.filter(function (w) {
-          return w.league_id === a.p_league && w.profile_id === p.id;
-        }).reduce(function (t, w) { return t + w.points; }, 0);
+        var life = scored(DB.workouts.filter(function (w) {
+          return w.league_id === a.p_league && w.profile_id === p.id; }));
         return { profile_id: p.id, display_name: p.display_name, avatar: p.avatar || null,
-          joined_at: m.joined_at, entries: ws.length, lifetime: Math.round(life * 100) / 100,
+          joined_at: m.joined_at, entries: ws.length, lifetime: life,
           base_points: base, bonus: bonus,
           points: Math.round((base + bonus) * 100) / 100 };
       });
@@ -283,17 +310,18 @@
       var cur = weekStart();
       return ok(DB.profiles.map(function (q) {
         var ws = DB.workouts.filter(function (w) { return w.profile_id === q.id; });
-        var seen = {}, life = 0, logs = 0;
+        var seen = {}, one = [], logs = 0;
         ws.forEach(function (w) {
           if (seen[w.group_id]) return;
-          seen[w.group_id] = 1; life += w.points; logs++;
+          seen[w.group_id] = 1; one.push(w); logs++;
         });
+        var life = scored(one);
         var week = 0;
         DB.members.filter(function (m) { return m.profile_id === q.id; })
           .forEach(function (m) {
             var here = ws.filter(function (w) {
               return w.league_id === m.league_id && w.week_start === cur; });
-            var base = here.reduce(function (t, w) { return t + w.points; }, 0);
+            var base = scored(here);
             var byDay = {};
             here.forEach(function (w) {
               if (CATS[w.exercise_key] === 'RECOVERY') return;
@@ -511,18 +539,40 @@
     my_stats: function (a) {
       var p = me(); if (!p) return ok([]);
       var cur = weekStart(), agg = {};
-      DB.workouts.filter(function (w) {
+      var mine = DB.workouts.filter(function (w) {
         return w.league_id === a.p_league && w.profile_id === p.id &&
-               (a.p_all || w.week_start === cur);
-      }).forEach(function (w) {
-        var k = w.exercise_key + '|' + w.mode;
+               (a.p_all || w.week_start === cur); });
+      /* the budget belongs to the exercise, not the unit it is logged in, so
+         a movement's discount is worked out once and then shared between its
+         rows in proportion to what each earned */
+      var byEx = {};
+      mine.forEach(function (w) {
+        byEx[w.exercise_key] = byEx[w.exercise_key] ||
+          { raw: 0, pts: 0, cap: CAPS[w.exercise_key] || 200, wk: {} };
+        byEx[w.exercise_key].raw += Number(w.points);
+        byEx[w.exercise_key].wk[w.week_start] =
+          (byEx[w.exercise_key].wk[w.week_start] || 0) + Number(w.points);
+      });
+      Object.keys(byEx).forEach(function (k) {
+        var e = byEx[k];
+        e.pts = Object.keys(e.wk).reduce(function (t, w) {
+          return t + tier(e.wk[w], e.cap); }, 0);
+      });
+      mine.forEach(function (w) {
+        var k = w.exercise_key + '|' + w.mode, e = byEx[w.exercise_key];
         if (!agg[k]) agg[k] = { exercise_key: w.exercise_key, category: CATS[w.exercise_key],
-          mode: w.mode, total_amount: 0, total_points: 0, entries: 0, active_days: 1 };
+          mode: w.mode, total_amount: 0, total_points: 0, entries: 0, active_days: 1,
+          raw_points: 0, cap: e.cap };
         agg[k].total_amount += Number(w.amount);
-        agg[k].total_points = Math.round((agg[k].total_points + w.points) * 100) / 100;
+        agg[k].raw_points = Math.round((agg[k].raw_points + w.points) * 100) / 100;
         agg[k].entries++;
       });
-      var out = Object.keys(agg).map(function (k) { return agg[k]; });
+      var out = Object.keys(agg).map(function (k) {
+        var r = agg[k], e = byEx[r.exercise_key];
+        r.total_points = e.raw > 0
+          ? Math.round(e.pts * r.raw_points / e.raw * 100) / 100 : 0;
+        return r;
+      });
       out.sort(function (x, y) { return y.total_points - x.total_points; });
       return ok(out);
     },
@@ -692,15 +742,20 @@
         o[w.week_start] = 1; return o; }, {})).length);
       /* the same dose the server works out: a grade floor from lifetime, and
          the middle of your finished weeks once you have any */
+      /* both numbers read the discounted score, so the bar somebody is
+         measured against is built from the points the board actually pays */
       var cur = weekStart(), byWeek = {}, life = 0;
       DB.workouts.filter(function (w) { return w.profile_id === p.id; })
         .forEach(function (w) {
-          life += w.points;
-          if (w.week_start < cur) {
-            byWeek[w.week_start] = (byWeek[w.week_start] || 0) + w.points; }
+          (byWeek[w.week_start] = byWeek[w.week_start] || []).push(w);
         });
-      var done = Object.keys(byWeek).map(function (k) { return byWeek[k]; })
-        .sort(function (a, b) { return a - b; });
+      var done = [];
+      Object.keys(byWeek).forEach(function (k) {
+        var v = scored(byWeek[k]);
+        life += v;
+        if (k < cur) done.push(v);
+      });
+      done.sort(function (a, b) { return a - b; });
       var base = MUSCLE_META.reduce(function (a, m) { return a + m.target; }, 0);
       var mid = done.length ? done[Math.floor((done.length - 1) / 2)] : 0;
       var dose = Math.round(Math.min(4, Math.max(0.6,
@@ -736,8 +791,9 @@
             joined_at: (DB.members.filter(function (m) {
               return m.league_id === a.p_league && m.profile_id === w.profile_id; })[0] || {}).joined_at || null,
             display_name: (DB.profiles.filter(function (p) { return p.id === w.profile_id; })[0] || {}).display_name };
-          agg[k].points = Math.round((agg[k].points + w.points) * 100) / 100; agg[k].entries++;
+          agg[k].rows = agg[k].rows || []; agg[k].rows.push(w); agg[k].entries++;
         });
+      Object.keys(agg).forEach(function (k) { agg[k].points = scored(agg[k].rows); });
       var out = Object.keys(agg).map(function (k) { return agg[k]; });
       out.sort(function (x, y) { return x.week_start < y.week_start ? 1 : x.week_start > y.week_start ? -1 : y.points - x.points; });
       return ok(out);

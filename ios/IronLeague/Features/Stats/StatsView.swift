@@ -269,6 +269,13 @@ struct StatsView: View {
                             Text(volume(row))
                                 .font(Theme.mono(10))
                                 .foregroundStyle(Theme.inkFaint)
+                            // only said when it happened; most rows never
+                            // come near their weekly budget
+                            if row.wasDiscounted {
+                                Text("\(Int(row.rawPoints ?? 0)) full")
+                                    .font(Theme.mono(9))
+                                    .foregroundStyle(Theme.gold)
+                            }
                             Text("\(Int(row.totalPoints))")
                                 .font(Theme.display(13, .bold))
                                 .foregroundStyle(Theme.flame)

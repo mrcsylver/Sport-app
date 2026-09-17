@@ -188,11 +188,8 @@ $$;
 create function public.catchup_multiplier(p_league uuid, p_profile uuid)
 returns numeric language sql stable set search_path = public as $$
   with tot as (
-    select w.profile_id, coalesce(sum(w.points), 0) as p
-    from public.workouts w
-    where w.league_id = p_league
-      and w.week_start = public.current_week_start()
-    group by 1),
+    select s.profile_id, s.points as p
+    from public.week_scored(p_league, public.current_week_start()) s),
   best as (select coalesce(max(p), 0) as top from tot),
   mine as (select coalesce((select p from tot where profile_id = p_profile), 0) as p),
   gap  as (select greatest((select top from best) - (select p from mine), 0) as g)
@@ -245,7 +242,11 @@ create table public.exercises (
   modes    jsonb not null,
   -- what the movement trains, as a share of the points it scores, adding to
   -- 1. Recovery trains nothing and carries {}.
-  muscles  jsonb not null default '{}'::jsonb
+  muscles  jsonb not null default '{}'::jsonb,
+  -- how many points of THIS movement one week pays in full, before the
+  -- repetition discount in section 2b starts. Data, not code, so tuning one
+  -- movement is a seed change and never a function change.
+  cap      numeric not null default 200 check (cap > 0)
 );
 alter table public.exercises enable row level security;
 create policy exercises_read on public.exercises for select to authenticated using (true);
@@ -305,6 +306,92 @@ language sql stable set search_path = public as $$
     else x.cat
   end
   from public.exercises x where x.key = p_key
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- 2b. Repetition pricing — one movement gets cheaper as the week fills
+-- ---------------------------------------------------------------------
+-- Points are linear in reps but effort is not. The ceiling on a hard movement
+-- is what a body can do; the ceiling on an easy one is only boredom. So the
+-- cheapest thing a person can repeat forever was always the best points per
+-- hour, and one member's step-ups came to seven per cent of an entire
+-- league's week.
+--
+-- The answer is a price, not a wall. The first 200 points of ONE exercise in
+-- ONE week pay in full, the next 200 pay half, everything past that pays a
+-- quarter. It never reaches zero, so nobody is ever told to stop and no total
+-- is ever capped: repeating one movement simply stops being the best way to
+-- score, and the best move left is to do something else. That is the whole
+-- variety rule — there is no separate bonus, because a bonus large enough to
+-- matter only ever pays the people already scoring the most.
+--
+-- The discount depends on the week's TOTAL for that exercise and never on the
+-- order entries arrived in, so editing or deleting an old log cannot leave the
+-- ones after it mis-scored. Nothing is stamped: workouts.points stays what the
+-- movement is worth, and every board derives the discount on read, the way
+-- divisions, streaks and rivalries already do.
+create function public.cap_full() returns numeric
+language sql immutable set search_path = public as $$ select 200::numeric $$;
+
+-- What a week's worth of ONE exercise actually scores. The cap is the
+-- exercise's own, because distance cardio is not repetition: a cyclist covers
+-- 130 km in a single Sunday, so run, walk and bike carry their own numbers in
+-- public.exercises.cap while everything else sits on the default.
+create function public.tier_points(p_sum numeric, p_cap numeric default null)
+returns numeric language sql immutable set search_path = public as $$
+  with s as (select greatest(coalesce(p_sum, 0), 0) as v,
+                    greatest(coalesce(p_cap, public.cap_full()), 1) as a)
+  select round(
+      least(v, a)
+    + greatest(least(v, a * 2) - a, 0) * 0.5
+    + greatest(v - a * 2, 0) * 0.25
+  , 2) from s
+$$;
+
+-- The cap for one movement, default included, for a single lookup.
+create function public.exercise_cap(p_key text) returns numeric
+language sql stable set search_path = public as $$
+  select coalesce((select x.cap from public.exercises x where x.key = p_key),
+                  public.cap_full())
+$$;
+
+-- One league week, scored. Every board that decides who is winning reads this
+-- rather than sum(points), so the live board, the Hall of Fame, the catch-up
+-- gap and the control room can never disagree about the same week.
+create function public.week_scored(p_league uuid, p_week date)
+returns table (profile_id uuid, points numeric, entries bigint)
+language sql stable set search_path = public as $$
+  with per as (
+    select w.profile_id, w.exercise_key,
+           sum(w.points) as raw, count(*) as n,
+           max(x.cap) as cap
+    from public.workouts w
+    left join public.exercises x on x.key = w.exercise_key
+    where w.league_id = p_league and w.week_start = p_week
+    group by 1, 2)
+  select profile_id, sum(public.tier_points(raw, cap))::numeric, sum(n)::bigint
+  from per group by 1
+$$;
+
+-- Lifetime, scored, for everyone at once. The discount is per week and per
+-- exercise, so a lifetime total is the sum of its weeks — not one giant pile
+-- run through the curve, which would punish a year of training as if it were
+-- a single session. A log fans out to one row per league, so each is counted
+-- once by group_id or joining a second league would double a rank.
+create function public.life_scored_all()
+returns table (profile_id uuid, points numeric)
+language sql stable set search_path = public as $$
+  with one as (
+    select distinct on (group_id)
+           group_id, profile_id, week_start, exercise_key, points
+    from public.workouts order by group_id, league_id),
+  per as (select o.profile_id, o.week_start, o.exercise_key,
+                 sum(o.points) as raw, max(x.cap) as cap
+          from one o left join public.exercises x on x.key = o.exercise_key
+          group by 1, 2, 3)
+  select profile_id, sum(public.tier_points(raw, cap))::numeric
+  from per group by 1
 $$;
 
 
@@ -796,33 +883,27 @@ language sql stable security definer set search_path = public as $$
   with wk as (select coalesce(p_week, public.current_week_start()) as w),
   cb as (select * from public.week_combo_bonus(p_league, (select w from wk))),
   bb as (select * from public.week_bounty_points(p_league, (select w from wk))),
-  lt as (
-    -- Lifetime follows the person, not the league. A log fans out to one row
-    -- per league, so count each log once (by group_id) or joining a second
-    -- league would double everyone's rank.
-    select profile_id, sum(points) as total
-    from (select distinct on (group_id) group_id, profile_id, points
-          from public.workouts order by group_id, league_id) one_per_log
-    group by profile_id)
+  -- The week, already through the repetition discount of section 2b, so the
+  -- board shows what a week is worth rather than what it was logged at.
+  ws as (select * from public.week_scored(p_league, (select w from wk))),
+  -- Lifetime follows the person, not the league, and is discounted the same
+  -- way — week by week, so a year of training is never run through one curve.
+  lt as (select * from public.life_scored_all())
   select p.id, p.display_name, p.avatar,
-         (coalesce(sum(w.points), 0) + coalesce(max(cb.bonus), 0)
-                                     + coalesce(max(bb.bounty), 0))::numeric,
-         coalesce(sum(w.points), 0)::numeric,
-         (coalesce(max(cb.bonus), 0) + coalesce(max(bb.bounty), 0))::numeric,
-         count(w.id), m.joined_at,
-         coalesce(max(lt.total), 0)::numeric, p.banner, p.pinned_badges,
+         (coalesce(ws.points, 0) + coalesce(cb.bonus, 0)
+                                 + coalesce(bb.bounty, 0))::numeric,
+         coalesce(ws.points, 0)::numeric,
+         (coalesce(cb.bonus, 0) + coalesce(bb.bounty, 0))::numeric,
+         coalesce(ws.entries, 0), m.joined_at,
+         coalesce(lt.points, 0)::numeric, p.banner, p.pinned_badges,
          p.name_color
   from public.league_members m
   join public.profiles p on p.id = m.profile_id
-  left join public.workouts w
-         on w.profile_id = p.id and w.league_id = p_league
-        and w.week_start = (select w from wk)
+  left join ws on ws.profile_id = p.id
   left join cb on cb.profile_id = p.id
   left join bb on bb.profile_id = p.id
   left join lt on lt.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
-  group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
-           p.name_color, m.joined_at
   order by 4 desc, 8 asc
 $$;
 
@@ -860,9 +941,15 @@ language sql stable security definer set search_path = public as $$
   ),
   strk as (select best_streak from public.league_streaks(p_league)
            where profile_id = (select id from me)),
-  life as (select coalesce(sum(points), 0) as pts, count(*)::numeric as logs
-           from public.workouts
-           where league_id = p_league and profile_id = (select id from me)),
+  life as (
+    select coalesce((select sum(public.tier_points(raw, cap)) from (
+             select sum(w.points) as raw, max(x.cap) as cap
+             from public.workouts w
+             left join public.exercises x on x.key = w.exercise_key
+             where w.league_id = p_league and w.profile_id = (select id from me)
+             group by w.week_start, w.exercise_key) t), 0) as pts,
+           (select count(*)::numeric from public.workouts
+            where league_id = p_league and profile_id = (select id from me)) as logs),
   duels as (select coalesce(won, 0)::numeric as w
             from public.my_duel_record(p_league) limit 1),
   cats as (select count(distinct public.exercise_category(exercise_key))::numeric as n
@@ -1013,16 +1100,21 @@ language sql stable security definer set search_path = public as $$
          (t.pts + coalesce(cb.bonus, 0) + coalesce(bb.bounty, 0))::numeric,
          t.n, t.joined_at
   from (
-    select w.week_start, p.id as profile_id, p.display_name, p.avatar,
-           sum(w.points) as pts, count(*) as n, m.joined_at
-    from public.workouts w
-    join public.profiles p on p.id = w.profile_id
+    select e.week_start, p.id as profile_id, p.display_name, p.avatar,
+           sum(public.tier_points(e.raw, e.cap)) as pts, sum(e.n) as n,
+           m.joined_at
+    from (select w.week_start, w.profile_id, w.exercise_key,
+                 sum(w.points) as raw, count(*) as n, max(x.cap) as cap
+          from public.workouts w
+          left join public.exercises x on x.key = w.exercise_key
+          where w.league_id = p_league
+            and w.week_start < public.current_week_start()
+          group by 1, 2, 3) e
+    join public.profiles p on p.id = e.profile_id
     join public.league_members m
-      on m.profile_id = p.id and m.league_id = w.league_id
-    where w.league_id = p_league
-      and w.week_start < public.current_week_start()
-      and public.is_member(p_league)
-    group by w.week_start, p.id, p.display_name, p.avatar, m.joined_at
+      on m.profile_id = p.id and m.league_id = p_league
+    where public.is_member(p_league)
+    group by e.week_start, p.id, p.display_name, p.avatar, m.joined_at
   ) t
   left join lateral (
     select bonus from public.week_combo_bonus(p_league, t.week_start) b
@@ -1192,19 +1284,24 @@ $$;
 -- single enormous week cannot put the bar out of reach for a month.
 create function public.muscle_dose(p_profile uuid)
 returns numeric language sql stable set search_path = public as $$
-  with life as (
-    select coalesce(sum(points), 0) as pts from (
-      select distinct on (group_id) group_id, points
-      from public.workouts where profile_id = p_profile
-      order by group_id, league_id) one),
+  with one as (
+    select distinct on (group_id)
+           group_id, week_start, exercise_key, points
+    from public.workouts where profile_id = p_profile
+    order by group_id, league_id),
+  -- both numbers read the discounted score, so the bar a person is measured
+  -- against is built from the same points the board pays them
+  per as (
+    select o.week_start, o.exercise_key,
+           sum(o.points) as raw, max(x.cap) as cap
+    from one o left join public.exercises x on x.key = o.exercise_key
+    group by 1, 2),
+  wkly as (select week_start, sum(public.tier_points(raw, cap)) as pts
+           from per group by 1),
+  life as (select coalesce(sum(pts), 0) as pts from wkly),
   weeks as (
-    select percentile_cont(0.5) within group (order by pts) as mid from (
-      select week_start, sum(points) as pts from (
-        select distinct on (group_id) group_id, week_start, points
-        from public.workouts where profile_id = p_profile
-        order by group_id, league_id) one
-      where week_start < public.current_week_start()
-      group by week_start) w)
+    select percentile_cont(0.5) within group (order by pts) as mid
+    from wkly where week_start < public.current_week_start())
   -- log() over numeric, not float: round(double precision, int) does not
   -- exist in Postgres and the whole expression has to stay numeric.
   select round(least(4.0, greatest(
@@ -1571,19 +1668,45 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- Personal totals for the stats tab.
+-- `total_points` is what the work scored after the repetition discount;
+-- `raw_points` is what the movement is worth before it, and `cap` how much of
+-- it a week pays in full. The stats tab shows all three, and the log sheet
+-- reads this to draw the budget BEFORE anyone commits a set — a discount
+-- discovered afterwards reads as a broken app, not as a rule.
 create function public.my_stats(p_league uuid, p_all boolean default false)
 returns table (exercise_key text, category text, mode text,
                total_amount numeric, total_points numeric, entries bigint,
-               active_days bigint)
+               active_days bigint, raw_points numeric, cap numeric)
 language sql stable security definer set search_path = public as $$
-  select w.exercise_key, public.exercise_category(w.exercise_key), w.mode,
-         sum(w.amount)::numeric, sum(w.points)::numeric, count(*),
-         count(distinct (w.created_at at time zone public.app_timezone())::date)
-  from public.workouts w
-  where w.league_id  = p_league
-    and w.profile_id = public.my_profile_id()
-    and (p_all or w.week_start = public.current_week_start())
-    and public.is_member(p_league)
+  with mine as (
+    select w.exercise_key, w.mode, w.week_start, w.amount, w.points,
+           (w.created_at at time zone public.app_timezone())::date as d
+    from public.workouts w
+    where w.league_id  = p_league
+      and w.profile_id = public.my_profile_id()
+      and (p_all or w.week_start = public.current_week_start())
+      and public.is_member(p_league)),
+  -- the discount is per week, so a lifetime view sums its weeks rather than
+  -- running one enormous pile through the curve
+  wk as (
+    select m.exercise_key, m.week_start, sum(m.points) as raw,
+           coalesce(max(x.cap), public.cap_full()) as cap
+    from mine m left join public.exercises x on x.key = m.exercise_key
+    group by 1, 2),
+  scored as (
+    select exercise_key, sum(public.tier_points(raw, cap)) as pts,
+           sum(raw) as raw, max(cap) as cap
+    from wk group by 1)
+  -- A handful of movements are logged in two units (a handstand in reps and
+  -- in seconds). The budget is the exercise's, not the unit's, so the week's
+  -- discount is shared between its rows in proportion to what each earned —
+  -- otherwise one exercise's cap would be counted once per unit.
+  select m.exercise_key, public.exercise_category(m.exercise_key), m.mode,
+         sum(m.amount)::numeric,
+         round(max(s.pts) * sum(m.points) / nullif(max(s.raw), 0), 2)::numeric,
+         count(*), count(distinct m.d),
+         sum(m.points)::numeric, max(s.cap)::numeric
+  from mine m join scored s on s.exercise_key = m.exercise_key
   group by 1, 2, 3
   order by 5 desc
 $$;
@@ -1875,9 +1998,14 @@ language sql stable security definer set search_path = public as $$
   with wk as (select public.current_week_start() as w),
   lg as (select distinct league_id from public.league_members),
   base as (
-    select x.profile_id, x.league_id, sum(x.points) as pts
-    from public.workouts x
-    where x.week_start = (select w from wk)
+    select e.profile_id, e.league_id,
+           sum(public.tier_points(e.raw, e.cap)) as pts
+    from (select x.profile_id, x.league_id, x.exercise_key,
+                 sum(x.points) as raw, max(ex.cap) as cap
+          from public.workouts x
+          left join public.exercises ex on ex.key = x.exercise_key
+          where x.week_start = (select w from wk)
+          group by 1, 2, 3) e
     group by 1, 2),
   cb as (
     select l.league_id, c.profile_id, c.bonus
@@ -1897,10 +2025,8 @@ language sql stable security definer set search_path = public as $$
   select p.id, p.display_name, p.avatar, p.restore_code,
          (select count(*)::int from public.league_members m where m.profile_id = p.id),
          (select count(distinct w.group_id) from public.workouts w where w.profile_id = p.id),
-         coalesce((select sum(points) from (
-            select distinct on (group_id) group_id, points
-            from public.workouts where profile_id = p.id
-            order by group_id, league_id) x), 0),
+         coalesce((select lp.points from public.life_scored_all() lp
+                   where lp.profile_id = p.id), 0),
          coalesce((select total from board where board.profile_id = p.id), 0)::numeric,
          (select max(w.created_at) from public.workouts w where w.profile_id = p.id),
          p.created_at, p.is_admin
@@ -2291,13 +2417,14 @@ grant execute on function public.current_week_start()          to authenticated;
 -- the league already agreed on. Mirrors EX_BANK in app.js exactly.
 -- ---------------------------------------------------------------------
 -- BANK BEGIN
-insert into public.exercises (key,name,cat,variants,aliases,sort,modes,muscles)
-select e->>0, e->>1, e->>2, e->>3, e->>4, (e->>5)::int, e->6, e->7
-from jsonb_array_elements($j$[["wallpush","Wall Push-up","PUSH","","wall easy beginner",0,{"reps":{"rate":0.25}},{"chest":0.5,"shoulders":0.2,"triceps":0.3}],["kneepush","Knee Push-up","PUSH","","knees modified beginner",1,{"reps":{"rate":0.75}},{"chest":0.5,"shoulders":0.2,"triceps":0.3}],["inclinepush","Incline Push-up","PUSH","","bench elevated hands raised",2,{"reps":{"rate":0.75}},{"chest":0.5,"shoulders":0.2,"triceps":0.3}],["pushups","Push-ups","PUSH","Any hand position. Wide, diamond and decline have their own entries.","pushup press floor",3,{"reps":{"rate":1.0}},{"chest":0.45,"shoulders":0.15,"triceps":0.3,"abs":0.1}],["widepush","Wide Push-up","PUSH","","wide grip chest",4,{"reps":{"rate":1.0}},{"chest":0.6,"shoulders":0.2,"triceps":0.2}],["diamondpush","Diamond Push-up","PUSH","","triceps close narrow",5,{"reps":{"rate":1.0}},{"chest":0.35,"shoulders":0.15,"triceps":0.5}],["declinepush","Decline Push-up","PUSH","","feet elevated",6,{"reps":{"rate":1.25}},{"chest":0.4,"shoulders":0.3,"triceps":0.25,"abs":0.05}],["pikepush","Pike Push-up","PUSH","","shoulders delts",7,{"reps":{"rate":1.25}},{"chest":0.15,"shoulders":0.55,"triceps":0.3}],["clappush","Clap Push-up","PUSH","","explosive plyo power",8,{"reps":{"rate":1.5}},{"chest":0.4,"shoulders":0.2,"triceps":0.3,"abs":0.1}],["archerpush","Archer Push-up","PUSH","","one side unilateral",9,{"reps":{"rate":1.5}},{"chest":0.45,"shoulders":0.2,"triceps":0.25,"abs":0.1}],["planchepush","Pseudo Planche Push-up","PUSH","","lean planche straight arm",10,{"reps":{"rate":1.5}},{"chest":0.3,"shoulders":0.35,"triceps":0.15,"abs":0.2}],["benchdips","Bench Dips","PUSH","","tricep chair",11,{"reps":{"rate":0.75}},{"chest":0.2,"shoulders":0.2,"triceps":0.6}],["dips","Dips","PUSH","Parallel bars, rings or between two chairs","parallel bars triceps",12,{"reps":{"rate":1.5}},{"chest":0.4,"shoulders":0.2,"triceps":0.4}],["ringdips","Ring Dips","PUSH","","rings unstable",13,{"reps":{"rate":1.75}},{"chest":0.35,"shoulders":0.2,"triceps":0.35,"abs":0.1}],["onearmpush","One-arm Push-up","PUSH","","single arm",14,{"reps":{"rate":2.0}},{"chest":0.4,"shoulders":0.15,"triceps":0.25,"abs":0.2}],["sphinxpush","Sphinx Push-up","PUSH","","sphinx forearm tricep",15,{"reps":{"rate":0.75}},{"chest":0.15,"triceps":0.7,"abs":0.15}],["handstand","Handstand Push-up","PUSH","Against a wall, freestanding, or hanging from a bar","hspu wall overhead invert",16,{"reps":{"rate":2.5},"seconds":{"rate":0.3}},{"shoulders":0.55,"triceps":0.3,"traps":0.1,"abs":0.05}],["rows","Inverted Rows","PULL","","australian bodyweight row horizontal",17,{"reps":{"rate":1.0}},{"biceps":0.25,"forearms":0.15,"traps":0.2,"lats":0.4}],["scapulapull","Scapular Pull-up","PULL","","scap shrug",18,{"reps":{"rate":0.75}},{"forearms":0.2,"traps":0.5,"lats":0.3}],["bandpullup","Assisted Pull-up","PULL","","band assisted machine",19,{"reps":{"rate":1.25}},{"biceps":0.3,"forearms":0.15,"traps":0.1,"lats":0.45}],["chinups","Chin-ups","PULL","","supinated underhand biceps",20,{"reps":{"rate":2.0}},{"biceps":0.4,"forearms":0.15,"traps":0.1,"lats":0.35}],["pullups","Pull-ups","PULL","Overhand grip. Kipping counts, but be honest.","pullup overhand lats",21,{"reps":{"rate":2.0}},{"biceps":0.25,"forearms":0.15,"traps":0.15,"lats":0.45}],["widepullup","Wide-grip Pull-up","PULL","","wide lats",22,{"reps":{"rate":2.25}},{"biceps":0.15,"forearms":0.15,"traps":0.15,"lats":0.55}],["commandopull","Commando Pull-up","PULL","","mixed grip",23,{"reps":{"rate":2.25}},{"biceps":0.3,"forearms":0.15,"lats":0.4,"obliques":0.15}],["lsitpullup","L-sit Pull-up","PULL","","lsit legs out",24,{"reps":{"rate":2.5}},{"biceps":0.2,"forearms":0.2,"lats":0.35,"abs":0.25}],["typewriter","Typewriter Pull-up","PULL","","side to side",25,{"reps":{"rate":2.5}},{"biceps":0.2,"forearms":0.2,"lats":0.4,"obliques":0.2}],["archerpull","Archer Pull-up","PULL","","one side unilateral",26,{"reps":{"rate":2.5}},{"biceps":0.25,"forearms":0.2,"lats":0.4,"obliques":0.15}],["muscleup","Muscle-up / Flag","PULL","Bar or rings. The human flag scores here too.","muscleup bar ring humanflag",27,{"reps":{"rate":3.5},"seconds":{"rate":2.0}},{"shoulders":0.15,"biceps":0.2,"triceps":0.2,"forearms":0.15,"lats":0.3}],["deadhang","Dead Hang","PULL","","hang grip forearm",28,{"seconds":{"rate":0.2}},{"forearms":0.6,"traps":0.2,"lats":0.2}],["frontlever","Front Lever","PULL","","lever static hold",29,{"seconds":{"rate":0.75}},{"forearms":0.2,"lats":0.35,"lowerback":0.15,"abs":0.3}],["calves","Calf Raises","LEGS","","calf standing seated",30,{"reps":{"rate":0.2}},{"calves":1.0}],["airsquats","Air Squats","LEGS","","bodyweight squat",31,{"reps":{"rate":0.5}},{"glutes":0.3,"quads":0.5,"hamstrings":0.2}],["jumpsquats","Jump Squats","LEGS","","plyo explosive",32,{"reps":{"rate":0.75}},{"glutes":0.25,"quads":0.45,"hamstrings":0.1,"calves":0.2}],["lunges","Lunges","LEGS","","walking reverse forward",33,{"reps":{"rate":0.5}},{"glutes":0.35,"quads":0.4,"hamstrings":0.25}],["splitsquat","Bulgarian Split Squat","LEGS","","bulgarian rear foot elevated",34,{"reps":{"rate":0.75}},{"glutes":0.35,"quads":0.4,"hamstrings":0.25}],["stepups","Step-ups","LEGS","","box bench",35,{"reps":{"rate":0.5}},{"glutes":0.35,"quads":0.4,"hamstrings":0.15,"calves":0.1}],["gluteBridge","Glute Bridge","LEGS","","hip thrust glutes",36,{"reps":{"rate":0.25}},{"lowerback":0.1,"glutes":0.6,"hamstrings":0.3}],["nordic","Nordic Curl","LEGS","","hamstring eccentric",37,{"reps":{"rate":1.0}},{"glutes":0.15,"hamstrings":0.75,"calves":0.1}],["sissy","Sissy Squat","LEGS","","quads",38,{"reps":{"rate":0.75}},{"abs":0.1,"quads":0.8,"calves":0.1}],["shrimp","Shrimp Squat","LEGS","","advanced single leg",39,{"reps":{"rate":1.0}},{"glutes":0.3,"quads":0.45,"hamstrings":0.15,"calves":0.1}],["pistols","Pistol Squats","LEGS","","single leg one",40,{"reps":{"rate":2.0}},{"glutes":0.3,"quads":0.45,"hamstrings":0.15,"calves":0.1}],["wallsit","Wall Sit","LEGS","","isometric quads",41,{"seconds":{"rate":0.15}},{"glutes":0.2,"quads":0.7,"calves":0.1}],["crunches","Crunches","CORE","","crunch sit abs",42,{"reps":{"rate":0.25}},{"abs":1.0}],["situps","Sit-ups","CORE","","situp full",43,{"reps":{"rate":0.5}},{"abs":0.8,"obliques":0.1,"quads":0.1}],["twists","Russian Twists","CORE","","oblique twist side",44,{"reps":{"rate":0.25}},{"abs":0.3,"obliques":0.7}],["legraises","Lying Leg Raises","CORE","","floor lying",45,{"reps":{"rate":0.5}},{"abs":0.8,"quads":0.2}],["kneeraises","Hanging Knee Raises","CORE","","hanging knee tuck",46,{"reps":{"rate":1.0}},{"forearms":0.15,"abs":0.7,"obliques":0.15}],["hangingleg","Hanging Leg Raises","CORE","","straight leg toes",47,{"reps":{"rate":1.5}},{"forearms":0.15,"abs":0.65,"obliques":0.1,"quads":0.1}],["toestobar","Toes to Bar","CORE","","ttb crossfit",48,{"reps":{"rate":2.0}},{"forearms":0.15,"lats":0.15,"abs":0.6,"obliques":0.1}],["dragonflag","Dragon Flag","CORE","","dragon advanced",49,{"reps":{"rate":3.0}},{"lats":0.15,"lowerback":0.2,"abs":0.55,"obliques":0.1}],["vups","V-ups","CORE","","v up jackknife",50,{"reps":{"rate":0.75}},{"abs":0.75,"obliques":0.1,"quads":0.15}],["supermans","Supermans","CORE","","lower back extension",51,{"reps":{"rate":0.25}},{"traps":0.15,"lowerback":0.6,"glutes":0.25}],["sidecrunch","Lateral Crunches","CORE","","side oblique lateral crunch",52,{"reps":{"rate":0.25}},{"abs":0.2,"obliques":0.8}],["bicycle","Bicycle Crunches","CORE","","bicycle cycling abs",53,{"reps":{"rate":0.25}},{"abs":0.5,"obliques":0.5}],["deadbug","Dead Bug","CORE","","deadbug stability",54,{"reps":{"rate":0.5}},{"lowerback":0.2,"abs":0.8}],["birddog","Bird Dog","CORE","","birddog stability back",55,{"reps":{"rate":0.5}},{"lowerback":0.5,"abs":0.25,"glutes":0.25}],["flutterkick","Flutter Kicks","CORE","","flutter scissor kicks",56,{"reps":{"rate":0.25}},{"abs":0.7,"quads":0.3}],["mountainclimb","Mountain Climbers","CORE","","mountain climber cardio abs",57,{"reps":{"rate":0.25}},{"shoulders":0.2,"abs":0.5,"obliques":0.1,"quads":0.2}],["rollout","Ab Wheel Rollout","CORE","","ab wheel rollout barbell",58,{"reps":{"rate":2.0}},{"shoulders":0.1,"lats":0.2,"lowerback":0.1,"abs":0.6}],["plank","Plank","CORE","","front elbow forearm",59,{"minutes":{"rate":10.0}},{"shoulders":0.2,"lowerback":0.2,"abs":0.6}],["sideplank","Side Plank","CORE","","oblique side",60,{"minutes":{"rate":12.0}},{"shoulders":0.2,"abs":0.1,"obliques":0.7}],["hollowhold","Hollow Hold","CORE","","hollow body",61,{"seconds":{"rate":0.25}},{"abs":0.8,"quads":0.2}],["lsit","L-sit","CORE","","lsit legs parallel",62,{"seconds":{"rate":0.4}},{"triceps":0.2,"abs":0.6,"quads":0.2}],["run","Run","CARDIO","Outdoor or treadmill","running jog jogging",63,{"km":{"rate":5.0}},{"glutes":0.15,"quads":0.3,"hamstrings":0.25,"calves":0.3}],["sprints","Sprint Intervals","CARDIO","One sprint = 15 sec flat out, 100 m minimum","sprint interval hiit",64,{"reps":{"rate":2.0}},{"glutes":0.2,"quads":0.3,"hamstrings":0.3,"calves":0.2}],["bike","Biking","CARDIO","Road / Trail / Stationary","cycling bicycle spin",65,{"km":{"rate":1.5}},{"glutes":0.2,"quads":0.5,"hamstrings":0.1,"calves":0.2}],["swim","Swim","CARDIO","Any stroke, active swim time","swimming pool crawl",66,{"minutes":{"rate":0.5}},{"chest":0.15,"shoulders":0.3,"triceps":0.1,"lats":0.3,"abs":0.15}],["walk","Walking","CARDIO","Hiking counts too","walk hike hiking steps",67,{"km":{"rate":2.5}},{"glutes":0.15,"quads":0.3,"hamstrings":0.2,"calves":0.35}],["row","Rowing Machine","CARDIO","Indoor erg","erg ergometer concept2",68,{"minutes":{"rate":0.5}},{"biceps":0.15,"traps":0.15,"lats":0.3,"lowerback":0.15,"quads":0.25}],["jumprope","Jump Rope","CARDIO","Skipping","skipping rope",69,{"minutes":{"rate":0.55}},{"shoulders":0.15,"quads":0.2,"hamstrings":0.1,"calves":0.55}],["stairs","Stair Climbing","CARDIO","Real stairs or machine","stairmaster steps",70,{"minutes":{"rate":0.5}},{"glutes":0.3,"quads":0.4,"hamstrings":0.1,"calves":0.2}],["football","Football / Soccer","SPORT","Actual playing time, not time at the venue","soccer foot futbol match",71,{"minutes":{"rate":0.25}},{"shoulders":0.1,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.2,"calves":0.2}],["basketball","Basketball","SPORT","Actual playing time, not time at the venue","basket hoops ball",72,{"minutes":{"rate":0.25}},{"shoulders":0.1,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.15,"calves":0.25}],["rugby","Rugby","SPORT","Actual playing time, not time at the venue","rugby union league",73,{"minutes":{"rate":0.25}},{"shoulders":0.15,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.2,"calves":0.15}],["handball","Handball","SPORT","Actual playing time, not time at the venue","hand ball",74,{"minutes":{"rate":0.25}},{"shoulders":0.2,"abs":0.15,"obliques":0.1,"quads":0.25,"hamstrings":0.1,"calves":0.2}],["hockey","Hockey","SPORT","Actual playing time, not time at the venue","ice field puck",75,{"minutes":{"rate":0.25}},{"forearms":0.1,"obliques":0.15,"glutes":0.2,"quads":0.3,"hamstrings":0.15,"calves":0.1}],["squash","Squash","SPORT","Actual playing time, not time at the venue","squash racket court",76,{"minutes":{"rate":0.25}},{"shoulders":0.15,"forearms":0.1,"obliques":0.15,"quads":0.3,"hamstrings":0.1,"calves":0.2}],["boxing","Boxing / Martial Arts","SPORT","Actual playing time, not time at the venue","box mma judo bjj karate muay sparring",77,{"minutes":{"rate":0.25}},{"chest":0.1,"shoulders":0.25,"triceps":0.15,"abs":0.2,"obliques":0.15,"calves":0.15}],["climbing","Climbing","SPORT","Actual playing time, not time at the venue","bouldering rock wall",78,{"minutes":{"rate":0.25}},{"shoulders":0.1,"biceps":0.15,"forearms":0.3,"lats":0.3,"abs":0.15}],["tennis","Tennis","SPORT","Actual playing time, not time at the venue","tennis racket court",79,{"minutes":{"rate":0.166667}},{"shoulders":0.2,"forearms":0.1,"obliques":0.15,"quads":0.25,"hamstrings":0.1,"calves":0.2}],["padel","Padel","SPORT","Actual playing time, not time at the venue","padel paddle",80,{"minutes":{"rate":0.166667}},{"shoulders":0.2,"forearms":0.1,"obliques":0.15,"quads":0.25,"hamstrings":0.1,"calves":0.2}],["volleyball","Volleyball","SPORT","Actual playing time, not time at the venue","volley beach net",81,{"minutes":{"rate":0.166667}},{"shoulders":0.25,"abs":0.1,"quads":0.3,"hamstrings":0.1,"calves":0.25}],["badminton","Badminton","SPORT","Actual playing time, not time at the venue","badminton shuttle",82,{"minutes":{"rate":0.166667}},{"shoulders":0.2,"forearms":0.15,"obliques":0.15,"quads":0.25,"calves":0.25}],["tabletennis","Table Tennis","SPORT","Actual playing time, not time at the venue","ping pong",83,{"minutes":{"rate":0.166667}},{"shoulders":0.25,"forearms":0.2,"obliques":0.2,"quads":0.2,"calves":0.15}],["othersport","Other Sport","SPORT","Actual playing time, not time at the venue","other misc game match",84,{"minutes":{"rate":0.166667}},{"chest":0.075,"shoulders":0.15,"lats":0.075,"abs":0.15,"glutes":0.1,"quads":0.2,"hamstrings":0.1,"calves":0.15}],["gymbench","Bench Press","GYM","Type the total on the bar, not counting your own weight","bench barbell chest press flat",85,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.5,"shoulders":0.2,"triceps":0.3}],["gymdbbench","Dumbbell Bench Press","GYM","Type the total on the bar, not counting your own weight","dumbbell db incline chest",86,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.5,"shoulders":0.25,"triceps":0.25}],["gymohp","Overhead Press","GYM","Type the total on the bar, not counting your own weight","ohp military shoulder press standing",87,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"shoulders":0.55,"triceps":0.3,"traps":0.15}],["gymdip","Weighted Dips","GYM","Type the total on the bar, not counting your own weight","weighted dip belt",88,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.4,"shoulders":0.2,"triceps":0.4}],["gymchestmach","Chest Press (Machine)","GYM","Type the total on the bar, not counting your own weight","machine chest press pec",89,{"reps":{"k":1.5625,"equip":0.75,"legs":false,"pattern":"push"}},{"chest":0.6,"shoulders":0.15,"triceps":0.25}],["gymtricep","Tricep Pushdown","GYM","One side at a time \u2014 type the weight of the single dumbbell","cable pushdown tricep rope",90,{"reps":{"k":1.5625,"equip":0.6,"legs":false,"pattern":"push"}},{"triceps":1.0}],["gymlatraise","Lateral Raise","GYM","One side at a time \u2014 type the weight of the single dumbbell","side delt raise shoulder",91,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"shoulders":0.85,"traps":0.15}],["gymdeadlift","Deadlift","GYM","Type the total on the bar, not counting your own weight","deadlift conventional sumo barbell",92,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"forearms":0.1,"traps":0.15,"lowerback":0.25,"glutes":0.25,"hamstrings":0.25}],["gymbarbellrow","Barbell Row","GYM","Type the total on the bar, not counting your own weight","bent over row pendlay",93,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.2,"forearms":0.1,"traps":0.2,"lats":0.4,"lowerback":0.1}],["gymdbrow","Dumbbell Row","GYM","One side at a time \u2014 type the weight of the single dumbbell","one arm db row",94,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.2,"forearms":0.15,"traps":0.2,"lats":0.45}],["gymlatpull","Lat Pulldown","GYM","Type the total on the bar, not counting your own weight","pulldown machine lats",95,{"reps":{"k":2.0,"equip":0.75,"legs":false,"pattern":"pull"}},{"biceps":0.3,"forearms":0.15,"lats":0.55}],["gymcablerow","Seated Cable Row","GYM","Type the total on the bar, not counting your own weight","cable row seated",96,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}},{"biceps":0.2,"forearms":0.1,"traps":0.25,"lats":0.45}],["gymweightpull","Weighted Pull-up","GYM","Type the total on the bar, not counting your own weight","weighted pullup belt",97,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.25,"forearms":0.15,"traps":0.15,"lats":0.45}],["gymcurl","Bicep Curl","GYM","One side at a time \u2014 type the weight of the single dumbbell","curl barbell dumbbell biceps",98,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.8,"forearms":0.2}],["gymfacepull","Face Pull","GYM","Type the total on the bar, not counting your own weight","cable rear delt",99,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}},{"shoulders":0.5,"biceps":0.15,"traps":0.35}],["gymsquat","Back Squat","GYM","Type the total on the bar, not counting your own weight","squat barbell back high bar",100,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.1,"glutes":0.3,"quads":0.45,"hamstrings":0.15}],["gymfrontsquat","Front Squat","GYM","Type the total on the bar, not counting your own weight","front squat clean grip",101,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.1,"abs":0.15,"glutes":0.2,"quads":0.55}],["gymlegpress","Leg Press","GYM","Type the total on the bar, not counting your own weight","leg press machine",102,{"reps":{"k":0.588,"equip":0.75,"legs":true,"pattern":"legs"}},{"glutes":0.3,"quads":0.55,"hamstrings":0.15}],["gymrdl","Romanian Deadlift","GYM","Type the total on the bar, not counting your own weight","rdl stiff leg hamstring",103,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.25,"glutes":0.3,"hamstrings":0.45}],["gymhipthrust","Hip Thrust","GYM","Type the total on the bar, not counting your own weight","glute bridge barbell",104,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.05,"glutes":0.7,"hamstrings":0.25}],["gymlegcurl","Leg Curl","GYM","Type the total on the bar, not counting your own weight","hamstring machine curl",105,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}},{"hamstrings":0.9,"calves":0.1}],["gymlegext","Leg Extension","GYM","Type the total on the bar, not counting your own weight","quad machine extension",106,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}},{"quads":1.0}],["gymlunge","Weighted Lunge","GYM","Type the total on the bar, not counting your own weight","dumbbell lunge walking",107,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"glutes":0.35,"quads":0.4,"hamstrings":0.25}],["gymcalf","Weighted Calf Raise","GYM","Type the total on the bar, not counting your own weight","calf machine standing",108,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}},{"calves":1.0}],["gymcablecrunch","Cable Crunch","GYM","Type the total on the bar, not counting your own weight","cable crunch kneeling abs",109,{"reps":{"k":1.0,"equip":0.6,"legs":false,"pattern":"core"}},{"abs":0.9,"obliques":0.1}],["gymwoodchop","Woodchoppers","GYM","One side at a time \u2014 type the weight of the single dumbbell","woodchop cable oblique rotation",110,{"reps":{"k":1.0,"equip":0.6,"legs":false,"pattern":"core"}},{"shoulders":0.1,"abs":0.2,"obliques":0.7}],["gympullover","Dumbbell Pullover","GYM","Type the total on the bar, not counting your own weight","pullover lats chest",111,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"chest":0.25,"triceps":0.2,"lats":0.55}],["gymshrug","Shrug","GYM","Type the total on the bar, not counting your own weight","shrug traps barbell",112,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"forearms":0.15,"traps":0.85}],["gymincline","Incline Bench Press","GYM","Type the total on the bar, not counting your own weight","incline bench upper chest",113,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.45,"shoulders":0.3,"triceps":0.25}],["gymgoblet","Goblet Squat","GYM","Type the total on the bar, not counting your own weight","goblet kettlebell squat",114,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"abs":0.15,"glutes":0.3,"quads":0.45,"hamstrings":0.1}],["gymstepup","Weighted Step-up","GYM","Type the total on the bar, not counting your own weight","step up box weighted",115,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"glutes":0.35,"quads":0.4,"hamstrings":0.15,"calves":0.1}],["stretch","Stretching Session","RECOVERY","At least 10 minutes of stretching, mobility or yoga","stretch mobility yoga flexibility",116,{"flat":{"rate":5.0}},{}],["sauna","Sauna / Cold Plunge","RECOVERY","","sauna ice bath cold recovery",117,{"flat":{"rate":3.0}},{}]]$j$::jsonb) as e
+insert into public.exercises (key,name,cat,variants,aliases,sort,modes,muscles,cap)
+select e->>0, e->>1, e->>2, e->>3, e->>4, (e->>5)::int, e->6, e->7,
+       (e->>8)::numeric
+from jsonb_array_elements($j$[["wallpush","Wall Push-up","PUSH","","wall easy beginner",0,{"reps":{"rate":0.25}},{"chest":0.5,"shoulders":0.2,"triceps":0.3},200],["kneepush","Knee Push-up","PUSH","","knees modified beginner",1,{"reps":{"rate":0.75}},{"chest":0.5,"shoulders":0.2,"triceps":0.3},200],["inclinepush","Incline Push-up","PUSH","","bench elevated hands raised",2,{"reps":{"rate":0.75}},{"chest":0.5,"shoulders":0.2,"triceps":0.3},200],["pushups","Push-ups","PUSH","Any hand position. Wide, diamond and decline have their own entries.","pushup press floor",3,{"reps":{"rate":1.0}},{"chest":0.45,"shoulders":0.15,"triceps":0.3,"abs":0.1},200],["widepush","Wide Push-up","PUSH","","wide grip chest",4,{"reps":{"rate":1.0}},{"chest":0.6,"shoulders":0.2,"triceps":0.2},200],["diamondpush","Diamond Push-up","PUSH","","triceps close narrow",5,{"reps":{"rate":1.0}},{"chest":0.35,"shoulders":0.15,"triceps":0.5},200],["declinepush","Decline Push-up","PUSH","","feet elevated",6,{"reps":{"rate":1.25}},{"chest":0.4,"shoulders":0.3,"triceps":0.25,"abs":0.05},200],["pikepush","Pike Push-up","PUSH","","shoulders delts",7,{"reps":{"rate":1.25}},{"chest":0.15,"shoulders":0.55,"triceps":0.3},200],["clappush","Clap Push-up","PUSH","","explosive plyo power",8,{"reps":{"rate":1.5}},{"chest":0.4,"shoulders":0.2,"triceps":0.3,"abs":0.1},200],["archerpush","Archer Push-up","PUSH","","one side unilateral",9,{"reps":{"rate":1.5}},{"chest":0.45,"shoulders":0.2,"triceps":0.25,"abs":0.1},200],["planchepush","Pseudo Planche Push-up","PUSH","","lean planche straight arm",10,{"reps":{"rate":1.5}},{"chest":0.3,"shoulders":0.35,"triceps":0.15,"abs":0.2},200],["benchdips","Bench Dips","PUSH","","tricep chair",11,{"reps":{"rate":0.75}},{"chest":0.2,"shoulders":0.2,"triceps":0.6},200],["dips","Dips","PUSH","Parallel bars, rings or between two chairs","parallel bars triceps",12,{"reps":{"rate":1.5}},{"chest":0.4,"shoulders":0.2,"triceps":0.4},200],["ringdips","Ring Dips","PUSH","","rings unstable",13,{"reps":{"rate":1.75}},{"chest":0.35,"shoulders":0.2,"triceps":0.35,"abs":0.1},200],["onearmpush","One-arm Push-up","PUSH","","single arm",14,{"reps":{"rate":2.0}},{"chest":0.4,"shoulders":0.15,"triceps":0.25,"abs":0.2},200],["sphinxpush","Sphinx Push-up","PUSH","","sphinx forearm tricep",15,{"reps":{"rate":0.75}},{"chest":0.15,"triceps":0.7,"abs":0.15},200],["handstand","Handstand Push-up","PUSH","Against a wall, freestanding, or hanging from a bar","hspu wall overhead invert",16,{"reps":{"rate":2.5},"seconds":{"rate":0.3}},{"shoulders":0.55,"triceps":0.3,"traps":0.1,"abs":0.05},200],["rows","Inverted Rows","PULL","","australian bodyweight row horizontal",17,{"reps":{"rate":1.0}},{"biceps":0.25,"forearms":0.15,"traps":0.2,"lats":0.4},200],["scapulapull","Scapular Pull-up","PULL","","scap shrug",18,{"reps":{"rate":0.75}},{"forearms":0.2,"traps":0.5,"lats":0.3},200],["bandpullup","Assisted Pull-up","PULL","","band assisted machine",19,{"reps":{"rate":1.25}},{"biceps":0.3,"forearms":0.15,"traps":0.1,"lats":0.45},200],["chinups","Chin-ups","PULL","","supinated underhand biceps",20,{"reps":{"rate":2.0}},{"biceps":0.4,"forearms":0.15,"traps":0.1,"lats":0.35},200],["pullups","Pull-ups","PULL","Overhand grip. Kipping counts, but be honest.","pullup overhand lats",21,{"reps":{"rate":2.0}},{"biceps":0.25,"forearms":0.15,"traps":0.15,"lats":0.45},200],["widepullup","Wide-grip Pull-up","PULL","","wide lats",22,{"reps":{"rate":2.25}},{"biceps":0.15,"forearms":0.15,"traps":0.15,"lats":0.55},200],["commandopull","Commando Pull-up","PULL","","mixed grip",23,{"reps":{"rate":2.25}},{"biceps":0.3,"forearms":0.15,"lats":0.4,"obliques":0.15},200],["lsitpullup","L-sit Pull-up","PULL","","lsit legs out",24,{"reps":{"rate":2.5}},{"biceps":0.2,"forearms":0.2,"lats":0.35,"abs":0.25},200],["typewriter","Typewriter Pull-up","PULL","","side to side",25,{"reps":{"rate":2.5}},{"biceps":0.2,"forearms":0.2,"lats":0.4,"obliques":0.2},200],["archerpull","Archer Pull-up","PULL","","one side unilateral",26,{"reps":{"rate":2.5}},{"biceps":0.25,"forearms":0.2,"lats":0.4,"obliques":0.15},200],["muscleup","Muscle-up / Flag","PULL","Bar or rings. The human flag scores here too.","muscleup bar ring humanflag",27,{"reps":{"rate":3.5},"seconds":{"rate":2.0}},{"shoulders":0.15,"biceps":0.2,"triceps":0.2,"forearms":0.15,"lats":0.3},200],["deadhang","Dead Hang","PULL","","hang grip forearm",28,{"seconds":{"rate":0.2}},{"forearms":0.6,"traps":0.2,"lats":0.2},200],["frontlever","Front Lever","PULL","","lever static hold",29,{"seconds":{"rate":0.75}},{"forearms":0.2,"lats":0.35,"lowerback":0.15,"abs":0.3},200],["calves","Calf Raises","LEGS","","calf standing seated",30,{"reps":{"rate":0.2}},{"calves":1.0},200],["airsquats","Air Squats","LEGS","","bodyweight squat",31,{"reps":{"rate":0.5}},{"glutes":0.3,"quads":0.5,"hamstrings":0.2},200],["jumpsquats","Jump Squats","LEGS","","plyo explosive",32,{"reps":{"rate":0.75}},{"glutes":0.25,"quads":0.45,"hamstrings":0.1,"calves":0.2},200],["lunges","Lunges","LEGS","","walking reverse forward",33,{"reps":{"rate":0.5}},{"glutes":0.35,"quads":0.4,"hamstrings":0.25},200],["splitsquat","Bulgarian Split Squat","LEGS","","bulgarian rear foot elevated",34,{"reps":{"rate":0.75}},{"glutes":0.35,"quads":0.4,"hamstrings":0.25},200],["stepups","Step-ups","LEGS","","box bench",35,{"reps":{"rate":0.5}},{"glutes":0.35,"quads":0.4,"hamstrings":0.15,"calves":0.1},200],["gluteBridge","Glute Bridge","LEGS","","hip thrust glutes",36,{"reps":{"rate":0.25}},{"lowerback":0.1,"glutes":0.6,"hamstrings":0.3},200],["nordic","Nordic Curl","LEGS","","hamstring eccentric",37,{"reps":{"rate":1.0}},{"glutes":0.15,"hamstrings":0.75,"calves":0.1},200],["sissy","Sissy Squat","LEGS","","quads",38,{"reps":{"rate":0.75}},{"abs":0.1,"quads":0.8,"calves":0.1},200],["shrimp","Shrimp Squat","LEGS","","advanced single leg",39,{"reps":{"rate":1.0}},{"glutes":0.3,"quads":0.45,"hamstrings":0.15,"calves":0.1},200],["pistols","Pistol Squats","LEGS","","single leg one",40,{"reps":{"rate":2.0}},{"glutes":0.3,"quads":0.45,"hamstrings":0.15,"calves":0.1},200],["wallsit","Wall Sit","LEGS","","isometric quads",41,{"seconds":{"rate":0.15}},{"glutes":0.2,"quads":0.7,"calves":0.1},200],["crunches","Crunches","CORE","","crunch sit abs",42,{"reps":{"rate":0.25}},{"abs":1.0},200],["situps","Sit-ups","CORE","","situp full",43,{"reps":{"rate":0.5}},{"abs":0.8,"obliques":0.1,"quads":0.1},200],["twists","Russian Twists","CORE","","oblique twist side",44,{"reps":{"rate":0.25}},{"abs":0.3,"obliques":0.7},200],["legraises","Lying Leg Raises","CORE","","floor lying",45,{"reps":{"rate":0.5}},{"abs":0.8,"quads":0.2},200],["kneeraises","Hanging Knee Raises","CORE","","hanging knee tuck",46,{"reps":{"rate":1.0}},{"forearms":0.15,"abs":0.7,"obliques":0.15},200],["hangingleg","Hanging Leg Raises","CORE","","straight leg toes",47,{"reps":{"rate":1.5}},{"forearms":0.15,"abs":0.65,"obliques":0.1,"quads":0.1},200],["toestobar","Toes to Bar","CORE","","ttb crossfit",48,{"reps":{"rate":2.0}},{"forearms":0.15,"lats":0.15,"abs":0.6,"obliques":0.1},200],["dragonflag","Dragon Flag","CORE","","dragon advanced",49,{"reps":{"rate":3.0}},{"lats":0.15,"lowerback":0.2,"abs":0.55,"obliques":0.1},200],["vups","V-ups","CORE","","v up jackknife",50,{"reps":{"rate":0.75}},{"abs":0.75,"obliques":0.1,"quads":0.15},200],["supermans","Supermans","CORE","","lower back extension",51,{"reps":{"rate":0.25}},{"traps":0.15,"lowerback":0.6,"glutes":0.25},200],["sidecrunch","Lateral Crunches","CORE","","side oblique lateral crunch",52,{"reps":{"rate":0.25}},{"abs":0.2,"obliques":0.8},200],["bicycle","Bicycle Crunches","CORE","","bicycle cycling abs",53,{"reps":{"rate":0.25}},{"abs":0.5,"obliques":0.5},200],["deadbug","Dead Bug","CORE","","deadbug stability",54,{"reps":{"rate":0.5}},{"lowerback":0.2,"abs":0.8},200],["birddog","Bird Dog","CORE","","birddog stability back",55,{"reps":{"rate":0.5}},{"lowerback":0.5,"abs":0.25,"glutes":0.25},200],["flutterkick","Flutter Kicks","CORE","","flutter scissor kicks",56,{"reps":{"rate":0.25}},{"abs":0.7,"quads":0.3},200],["mountainclimb","Mountain Climbers","CORE","","mountain climber cardio abs",57,{"reps":{"rate":0.25}},{"shoulders":0.2,"abs":0.5,"obliques":0.1,"quads":0.2},200],["rollout","Ab Wheel Rollout","CORE","","ab wheel rollout barbell",58,{"reps":{"rate":2.0}},{"shoulders":0.1,"lats":0.2,"lowerback":0.1,"abs":0.6},200],["plank","Plank","CORE","","front elbow forearm",59,{"minutes":{"rate":10.0}},{"shoulders":0.2,"lowerback":0.2,"abs":0.6},200],["sideplank","Side Plank","CORE","","oblique side",60,{"minutes":{"rate":12.0}},{"shoulders":0.2,"abs":0.1,"obliques":0.7},200],["hollowhold","Hollow Hold","CORE","","hollow body",61,{"seconds":{"rate":0.25}},{"abs":0.8,"quads":0.2},200],["lsit","L-sit","CORE","","lsit legs parallel",62,{"seconds":{"rate":0.4}},{"triceps":0.2,"abs":0.6,"quads":0.2},200],["run","Run","CARDIO","Outdoor or treadmill","running jog jogging",63,{"km":{"rate":5.0}},{"glutes":0.15,"quads":0.3,"hamstrings":0.25,"calves":0.3},500],["sprints","Sprint Intervals","CARDIO","One sprint = 15 sec flat out, 100 m minimum","sprint interval hiit",64,{"reps":{"rate":2.0}},{"glutes":0.2,"quads":0.3,"hamstrings":0.3,"calves":0.2},200],["bike","Biking","CARDIO","Road / Trail / Stationary","cycling bicycle spin",65,{"km":{"rate":1.5}},{"glutes":0.2,"quads":0.5,"hamstrings":0.1,"calves":0.2},300],["swim","Swim","CARDIO","Any stroke, active swim time","swimming pool crawl",66,{"minutes":{"rate":0.5}},{"chest":0.15,"shoulders":0.3,"triceps":0.1,"lats":0.3,"abs":0.15},200],["walk","Walking","CARDIO","Hiking counts too","walk hike hiking steps",67,{"km":{"rate":2.5}},{"glutes":0.15,"quads":0.3,"hamstrings":0.2,"calves":0.35},250],["row","Rowing Machine","CARDIO","Indoor erg","erg ergometer concept2",68,{"minutes":{"rate":0.5}},{"biceps":0.15,"traps":0.15,"lats":0.3,"lowerback":0.15,"quads":0.25},200],["jumprope","Jump Rope","CARDIO","Skipping","skipping rope",69,{"minutes":{"rate":0.55}},{"shoulders":0.15,"quads":0.2,"hamstrings":0.1,"calves":0.55},200],["stairs","Stair Climbing","CARDIO","Real stairs or machine","stairmaster steps",70,{"minutes":{"rate":0.5}},{"glutes":0.3,"quads":0.4,"hamstrings":0.1,"calves":0.2},200],["football","Football / Soccer","SPORT","Actual playing time, not time at the venue","soccer foot futbol match",71,{"minutes":{"rate":0.25}},{"shoulders":0.1,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.2,"calves":0.2},200],["basketball","Basketball","SPORT","Actual playing time, not time at the venue","basket hoops ball",72,{"minutes":{"rate":0.25}},{"shoulders":0.1,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.15,"calves":0.25},200],["rugby","Rugby","SPORT","Actual playing time, not time at the venue","rugby union league",73,{"minutes":{"rate":0.25}},{"shoulders":0.15,"abs":0.1,"glutes":0.15,"quads":0.25,"hamstrings":0.2,"calves":0.15},200],["handball","Handball","SPORT","Actual playing time, not time at the venue","hand ball",74,{"minutes":{"rate":0.25}},{"shoulders":0.2,"abs":0.15,"obliques":0.1,"quads":0.25,"hamstrings":0.1,"calves":0.2},200],["hockey","Hockey","SPORT","Actual playing time, not time at the venue","ice field puck",75,{"minutes":{"rate":0.25}},{"forearms":0.1,"obliques":0.15,"glutes":0.2,"quads":0.3,"hamstrings":0.15,"calves":0.1},200],["squash","Squash","SPORT","Actual playing time, not time at the venue","squash racket court",76,{"minutes":{"rate":0.25}},{"shoulders":0.15,"forearms":0.1,"obliques":0.15,"quads":0.3,"hamstrings":0.1,"calves":0.2},200],["boxing","Boxing / Martial Arts","SPORT","Actual playing time, not time at the venue","box mma judo bjj karate muay sparring",77,{"minutes":{"rate":0.25}},{"chest":0.1,"shoulders":0.25,"triceps":0.15,"abs":0.2,"obliques":0.15,"calves":0.15},200],["climbing","Climbing","SPORT","Actual playing time, not time at the venue","bouldering rock wall",78,{"minutes":{"rate":0.25}},{"shoulders":0.1,"biceps":0.15,"forearms":0.3,"lats":0.3,"abs":0.15},200],["tennis","Tennis","SPORT","Actual playing time, not time at the venue","tennis racket court",79,{"minutes":{"rate":0.166667}},{"shoulders":0.2,"forearms":0.1,"obliques":0.15,"quads":0.25,"hamstrings":0.1,"calves":0.2},200],["padel","Padel","SPORT","Actual playing time, not time at the venue","padel paddle",80,{"minutes":{"rate":0.166667}},{"shoulders":0.2,"forearms":0.1,"obliques":0.15,"quads":0.25,"hamstrings":0.1,"calves":0.2},200],["volleyball","Volleyball","SPORT","Actual playing time, not time at the venue","volley beach net",81,{"minutes":{"rate":0.166667}},{"shoulders":0.25,"abs":0.1,"quads":0.3,"hamstrings":0.1,"calves":0.25},200],["badminton","Badminton","SPORT","Actual playing time, not time at the venue","badminton shuttle",82,{"minutes":{"rate":0.166667}},{"shoulders":0.2,"forearms":0.15,"obliques":0.15,"quads":0.25,"calves":0.25},200],["tabletennis","Table Tennis","SPORT","Actual playing time, not time at the venue","ping pong",83,{"minutes":{"rate":0.166667}},{"shoulders":0.25,"forearms":0.2,"obliques":0.2,"quads":0.2,"calves":0.15},200],["othersport","Other Sport","SPORT","Actual playing time, not time at the venue","other misc game match",84,{"minutes":{"rate":0.166667}},{"chest":0.075,"shoulders":0.15,"lats":0.075,"abs":0.15,"glutes":0.1,"quads":0.2,"hamstrings":0.1,"calves":0.15},200],["gymbench","Bench Press","GYM","Type the total on the bar, not counting your own weight","bench barbell chest press flat",85,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.5,"shoulders":0.2,"triceps":0.3},200],["gymdbbench","Dumbbell Bench Press","GYM","Type the total on the bar, not counting your own weight","dumbbell db incline chest",86,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.5,"shoulders":0.25,"triceps":0.25},200],["gymohp","Overhead Press","GYM","Type the total on the bar, not counting your own weight","ohp military shoulder press standing",87,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"shoulders":0.55,"triceps":0.3,"traps":0.15},200],["gymdip","Weighted Dips","GYM","Type the total on the bar, not counting your own weight","weighted dip belt",88,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.4,"shoulders":0.2,"triceps":0.4},200],["gymchestmach","Chest Press (Machine)","GYM","Type the total on the bar, not counting your own weight","machine chest press pec",89,{"reps":{"k":1.5625,"equip":0.75,"legs":false,"pattern":"push"}},{"chest":0.6,"shoulders":0.15,"triceps":0.25},200],["gymtricep","Tricep Pushdown","GYM","One side at a time \u2014 type the weight of the single dumbbell","cable pushdown tricep rope",90,{"reps":{"k":1.5625,"equip":0.6,"legs":false,"pattern":"push"}},{"triceps":1.0},200],["gymlatraise","Lateral Raise","GYM","One side at a time \u2014 type the weight of the single dumbbell","side delt raise shoulder",91,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"shoulders":0.85,"traps":0.15},200],["gymdeadlift","Deadlift","GYM","Type the total on the bar, not counting your own weight","deadlift conventional sumo barbell",92,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"forearms":0.1,"traps":0.15,"lowerback":0.25,"glutes":0.25,"hamstrings":0.25},200],["gymbarbellrow","Barbell Row","GYM","Type the total on the bar, not counting your own weight","bent over row pendlay",93,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.2,"forearms":0.1,"traps":0.2,"lats":0.4,"lowerback":0.1},200],["gymdbrow","Dumbbell Row","GYM","One side at a time \u2014 type the weight of the single dumbbell","one arm db row",94,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.2,"forearms":0.15,"traps":0.2,"lats":0.45},200],["gymlatpull","Lat Pulldown","GYM","Type the total on the bar, not counting your own weight","pulldown machine lats",95,{"reps":{"k":2.0,"equip":0.75,"legs":false,"pattern":"pull"}},{"biceps":0.3,"forearms":0.15,"lats":0.55},200],["gymcablerow","Seated Cable Row","GYM","Type the total on the bar, not counting your own weight","cable row seated",96,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}},{"biceps":0.2,"forearms":0.1,"traps":0.25,"lats":0.45},200],["gymweightpull","Weighted Pull-up","GYM","Type the total on the bar, not counting your own weight","weighted pullup belt",97,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.25,"forearms":0.15,"traps":0.15,"lats":0.45},200],["gymcurl","Bicep Curl","GYM","One side at a time \u2014 type the weight of the single dumbbell","curl barbell dumbbell biceps",98,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"biceps":0.8,"forearms":0.2},200],["gymfacepull","Face Pull","GYM","Type the total on the bar, not counting your own weight","cable rear delt",99,{"reps":{"k":2.0,"equip":0.6,"legs":false,"pattern":"pull"}},{"shoulders":0.5,"biceps":0.15,"traps":0.35},200],["gymsquat","Back Squat","GYM","Type the total on the bar, not counting your own weight","squat barbell back high bar",100,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.1,"glutes":0.3,"quads":0.45,"hamstrings":0.15},200],["gymfrontsquat","Front Squat","GYM","Type the total on the bar, not counting your own weight","front squat clean grip",101,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.1,"abs":0.15,"glutes":0.2,"quads":0.55},200],["gymlegpress","Leg Press","GYM","Type the total on the bar, not counting your own weight","leg press machine",102,{"reps":{"k":0.588,"equip":0.75,"legs":true,"pattern":"legs"}},{"glutes":0.3,"quads":0.55,"hamstrings":0.15},200],["gymrdl","Romanian Deadlift","GYM","Type the total on the bar, not counting your own weight","rdl stiff leg hamstring",103,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.25,"glutes":0.3,"hamstrings":0.45},200],["gymhipthrust","Hip Thrust","GYM","Type the total on the bar, not counting your own weight","glute bridge barbell",104,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"lowerback":0.05,"glutes":0.7,"hamstrings":0.25},200],["gymlegcurl","Leg Curl","GYM","Type the total on the bar, not counting your own weight","hamstring machine curl",105,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}},{"hamstrings":0.9,"calves":0.1},200],["gymlegext","Leg Extension","GYM","Type the total on the bar, not counting your own weight","quad machine extension",106,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}},{"quads":1.0},200],["gymlunge","Weighted Lunge","GYM","Type the total on the bar, not counting your own weight","dumbbell lunge walking",107,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"glutes":0.35,"quads":0.4,"hamstrings":0.25},200],["gymcalf","Weighted Calf Raise","GYM","Type the total on the bar, not counting your own weight","calf machine standing",108,{"reps":{"k":0.588,"equip":0.75,"legs":false,"pattern":"legs"}},{"calves":1.0},200],["gymcablecrunch","Cable Crunch","GYM","Type the total on the bar, not counting your own weight","cable crunch kneeling abs",109,{"reps":{"k":1.0,"equip":0.6,"legs":false,"pattern":"core"}},{"abs":0.9,"obliques":0.1},200],["gymwoodchop","Woodchoppers","GYM","One side at a time \u2014 type the weight of the single dumbbell","woodchop cable oblique rotation",110,{"reps":{"k":1.0,"equip":0.6,"legs":false,"pattern":"core"}},{"shoulders":0.1,"abs":0.2,"obliques":0.7},200],["gympullover","Dumbbell Pullover","GYM","Type the total on the bar, not counting your own weight","pullover lats chest",111,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"chest":0.25,"triceps":0.2,"lats":0.55},200],["gymshrug","Shrug","GYM","Type the total on the bar, not counting your own weight","shrug traps barbell",112,{"reps":{"k":2.0,"equip":1.0,"legs":false,"pattern":"pull"}},{"forearms":0.15,"traps":0.85},200],["gymincline","Incline Bench Press","GYM","Type the total on the bar, not counting your own weight","incline bench upper chest",113,{"reps":{"k":1.5625,"equip":1.0,"legs":false,"pattern":"push"}},{"chest":0.45,"shoulders":0.3,"triceps":0.25},200],["gymgoblet","Goblet Squat","GYM","Type the total on the bar, not counting your own weight","goblet kettlebell squat",114,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"abs":0.15,"glutes":0.3,"quads":0.45,"hamstrings":0.1},200],["gymstepup","Weighted Step-up","GYM","Type the total on the bar, not counting your own weight","step up box weighted",115,{"reps":{"k":0.588,"equip":1.0,"legs":true,"pattern":"legs"}},{"glutes":0.35,"quads":0.4,"hamstrings":0.15,"calves":0.1},200],["stretch","Stretching Session","RECOVERY","At least 10 minutes of stretching, mobility or yoga","stretch mobility yoga flexibility",116,{"flat":{"rate":5.0}},{},200],["sauna","Sauna / Cold Plunge","RECOVERY","","sauna ice bath cold recovery",117,{"flat":{"rate":3.0}},{},200]]$j$::jsonb) as e
 on conflict (key) do update set
   name = excluded.name, cat = excluded.cat, variants = excluded.variants,
   aliases = excluded.aliases, sort = excluded.sort, modes = excluded.modes,
-  muscles = excluded.muscles;
+  muscles = excluded.muscles, cap = excluded.cap;
 
 insert into public.muscles (key,name,view,target)
 select m->>0, m->>1, m->>2, (m->>3)::int

@@ -32,7 +32,7 @@ fresh() {
   psql -q -d "$1" -f "$HERE/bootstrap.sql"
   psql -q -d "$1" -f "$ROOT/supabase/schema.sql" >/dev/null 2>&1
 }
-clean() { grep -viE '^(SET|INSERT|UPDATE|DO|ALTER|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
+clean() { grep -viE '^(SET|INSERT|UPDATE|DELETE|DO|ALTER|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
 
 echo "· a fresh database from schema.sql"
 fresh iron
@@ -47,6 +47,10 @@ psql -d ironsc -f "$HERE/catchup.sql" 2>&1 | clean
 echo "· the control room's two totals"
 fresh irondash
 psql -d irondash -f "$HERE/dashboard.sql" 2>&1 | clean
+
+echo "· the repetition discount"
+fresh ironcap
+psql -d ironcap -f "$HERE/cap.sql" 2>&1 | clean
 
 echo "· the figure and the wins"
 fresh ironbody
@@ -67,6 +71,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/catch-up-day.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/dashboard-points.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/body-and-crowns.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/repetition-cap.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -83,4 +88,10 @@ psql -tAd ironlive -c "select 'the figure has '||count(*)||' regions and '
   from muscles;"
 psql -tAd ironlive -c "select 'a plank minute is now worth '
   ||(modes->'minutes'->>'rate')||' points' from exercises where key = 'plank';"
+psql -tAd ironlive -c "select 'one movement pays in full up to '||cap||' points a week, '
+  ||'and '||(select cap from exercises where key='run')||' for a run'
+  from exercises where key = 'pushups';"
+psql -tAd ironlive -c "select case when tier_points(600) = 350
+  then 'and the repetition discount survived the migration'
+  else 'THE DISCOUNT DID NOT SURVIVE' end;"
 echo "· all clear"

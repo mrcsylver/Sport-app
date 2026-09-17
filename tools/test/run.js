@@ -153,9 +153,12 @@ const SEED = `
   await shot(page, '07-after-log');
 
   const myPts = await page.$eval('#board .row.me .pts', e => e.textContent);
-  // PULL + PUSH + CARDIO all clear the 10-point floor, so the 3-group combo pays +5
-  const expect = 3.5*6 + 75/5 + 5*5 + 5;
-  console.log('my points after logging:', myPts, '(expect 21+15+25+5 combo =', expect + ')');
+  // PULL + PUSH + CARDIO all clear the 10-point floor, so the 3-group combo pays +5.
+  // The handstand hold is 0.3/sec since the holds were repriced — this line
+  // still said 0.2 and had been red ever since, which is how a suite stops
+  // being believed. Nothing here comes near a weekly budget, so no discount.
+  const expect = 3.5*6 + 75*0.3 + 5*5 + 5;
+  console.log('my points after logging:', myPts, '(expect 21+22.5+25+5 combo =', expect + ')');
   if (parseFloat(myPts) !== expect) { console.log('> FAIL < points mismatch'); process.exitCode = 1; }
   else console.log('  PASS   new scoring matrix applied end to end');
 

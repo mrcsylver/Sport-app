@@ -175,6 +175,28 @@ RECOVERY = [
     ('sauna',    'Sauna / Cold Plunge',3, 'sauna ice bath cold recovery'),
 ]
 
+# --------------------------------------------------------- weekly caps --
+# Points are linear in reps; effort is not. The ceiling on a hard movement is
+# what a body can do, the ceiling on an easy one is only boredom, so the
+# cheapest thing you can repeat forever was always the best points per hour.
+#
+# The first CAP points of one exercise in one week pay in full, the next CAP
+# pay half, everything after that pays a quarter. It never reaches zero: no
+# total is capped and nobody is ever told to stop, repeating one movement just
+# stops being the best way to score.
+#
+# DEFAULT_CAP is deliberately generous — 200 points is 200 push-ups, 100
+# pull-ups, 400 squats, 800 Russian twists or twenty minutes of plank, and only
+# push-ups have ever crossed it. Distance cardio gets its own numbers because a
+# single long ride or run is one session, not a farm: a cyclist covers 130 km
+# in one Sunday, so pricing that as repetition would be wrong.
+DEFAULT_CAP = 200
+WEEK_CAP = {          # key -> points of full-price work per week
+    'run':  500,      # 100 km
+    'walk': 250,      # 100 km
+    'bike': 300,      # 200 km
+}
+
 # --------------------------------------------------------------------- gym --
 # points/rep = k_pattern x R,  R = (load x equip) / bodyweight
 # Legs add the lifter's own mass above the bar: R = (load x equip + 0.85 BW) / BW

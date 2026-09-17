@@ -1,11 +1,11 @@
 # The browser tests
 
-Fifteen Playwright runs against the real `index.html` and `admin.html`, with
+Sixteen Playwright runs against the real `index.html` and `admin.html`, with
 Supabase replaced by `mock-supabase.js` — a hand-written stand-in that keeps a
 database in `localStorage` and answers the same RPCs the server does.
 
 ```bash
-node tools/test/run.js        # …through run15.js
+node tools/test/run.js        # …through run16.js
 ```
 
 Each file prints a list of PASS/FAIL lines, reports any JavaScript error the
@@ -35,6 +35,7 @@ them somewhere else.
 | `run13.js` | the catch-up day |
 | `run14.js` | the crowns tracker and the muscle figure |
 | `run15.js` | the clock: Paris, whatever the phone says |
+| `run16.js` | the weekly budget, shown before a set is committed |
 
 ## Before a release
 

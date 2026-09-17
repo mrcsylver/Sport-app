@@ -68,10 +68,18 @@ struct LogSheet: View {
     }
     private var unitLabel: String { session.profile?.usesPounds == true ? "LB" : "KG" }
 
-    private var preview: Double {
+    /// What the movement is worth, before this week's budget is considered.
+    private var rawPreview: Double {
         session.points(key: key, mode: mode, amount: amount,
                        bodyweightKg: bwKg, loadKg: loadKg)
     }
+    /// What this set will actually score. The two differ once a week's budget
+    /// is full, and the big number has to be the one that lands on the board.
+    private var preview: Double {
+        session.scoredDelta(key: key, raw: rawPreview)
+    }
+    private var weekCap: Double { exercise?.weekCap ?? Scoring.defaultCap }
+    private var weekUsed: Double { session.weekEx[key] ?? 0 }
 
     var body: some View {
         NavigationStack {
@@ -84,6 +92,7 @@ struct LogSheet: View {
                     stepper
                     quickRow
                     previewBar
+                    budgetBar
                     HeatButton(title: "ADD", systemImage: "plus.circle.fill") { add() }
                     if !added.isEmpty { sessionList }
                 }
@@ -275,6 +284,31 @@ struct LogSheet: View {
         }
     }
 
+    /// How full this movement's week is, drawn before anything is committed.
+    /// Worded as a week filling up rather than as points taken away: a rule
+    /// you only meet after the fact is indistinguishable from a bug.
+    private var budgetBar: some View {
+        let after = weekUsed + rawPreview
+        let tier = Scoring.tier(after: after, cap: weekCap)
+        let colour: Color = tier == .quarter ? Theme.flame
+                          : tier == .half ? Theme.gold : Theme.jade
+        return VStack(alignment: .leading, spacing: 6) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.hairline)
+                    Capsule().fill(colour)
+                        .frame(width: geo.size.width * min(1, after / weekCap))
+                }
+            }
+            .frame(height: 4)
+            Text(Scoring.budgetLine(name: exercise?.name ?? key, after: after,
+                                    cap: weekCap, movements: session.weekEx.count))
+                .font(.caption2.monospaced())
+                .foregroundStyle(tier == .full ? Theme.inkFaint : colour)
+        }
+        .animation(Motion.arrive, value: after)
+    }
+
     private var rateLabel: String {
         guard let m = exercise?.modes[mode] else { return "" }
         if m.isGym { return "from your bodyweight and the bar" }
@@ -330,11 +364,16 @@ struct LogSheet: View {
             return
         }
         let name = exercise?.name ?? key
-        let gained = preview
+        let gained = preview                  // what it scores, not what it is worth
+        let spent = weekUsed + rawPreview     // where the budget stands afterwards
         Task {
             let ok = await session.log(key: key, mode: mode, amount: amount,
                                        bodyweightKg: bwKg, loadKg: loadKg)
             if ok {
+                /* refresh() has already re-read the week, but the sheet stays
+                   open and the next set has to be priced against a budget that
+                   includes this one. */
+                session.weekEx[key, default: 0] = max(session.weekEx[key] ?? 0, spent)
                 withAnimation(Motion.arrive) {
                     added.append(Entry(name: name, points: gained))
                 }

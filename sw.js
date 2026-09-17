@@ -8,8 +8,8 @@
    with exactly the same stale bytes. Two things fix it — every shell request
    is made with cache:'reload' so the http cache cannot answer, and the assets
    carry ?v= so a new release is a different URL that nothing has cached. */
-var VERSION = '2.14.2';
-var CACHE = 'ironleague-v2.14.2';
+var VERSION = '2.15.0';
+var CACHE = 'ironleague-v2.15.0';
 var SHELL = [
   './', './index.html',
   './styles.css?v=' + VERSION, './app.js?v=' + VERSION,

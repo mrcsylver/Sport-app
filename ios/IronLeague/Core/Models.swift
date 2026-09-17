@@ -112,8 +112,14 @@ struct Exercise: Codable, Identifiable, Hashable {
     var aliases: String
     var sort: Int
     var modes: [String: Mode]
+    /// How many points of THIS movement one week pays in full before the
+    /// repetition discount starts. Optional so the app still decodes against
+    /// a server that has not run the migration yet; 200 is the default there
+    /// too, so the fallback is the real answer and not a guess.
+    var cap: Double?
 
     var id: String { key }
+    var weekCap: Double { max(cap ?? Scoring.defaultCap, 1) }
 
     struct Mode: Codable, Hashable {
         var rate: Double?
@@ -275,18 +281,26 @@ struct StatRow: Codable, Identifiable, Hashable {
     var category: String
     var mode: String
     var totalAmount: Double
+    /// What the work scored, after the repetition discount.
     var totalPoints: Double
     var entries: Int
     var activeDays: Int
+    /// What the movement is worth before the discount, and the budget it is
+    /// measured against. Both optional for an un-migrated server.
+    var rawPoints: Double?
+    var cap: Double?
 
     var id: String { "\(exerciseKey)-\(mode)" }
+    /// True only when this row actually met its budget. Most never will.
+    var wasDiscounted: Bool { (rawPoints ?? totalPoints) > totalPoints + 0.001 }
 
     enum CodingKeys: String, CodingKey {
         case exerciseKey = "exercise_key"
-        case category, mode, entries
+        case category, mode, entries, cap
         case totalAmount = "total_amount"
         case totalPoints = "total_points"
         case activeDays = "active_days"
+        case rawPoints = "raw_points"
     }
 }
 
