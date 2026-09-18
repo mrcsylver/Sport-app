@@ -126,8 +126,15 @@ struct Exercise: Codable, Identifiable, Hashable {
         var k: Double?
         var equip: Double?
         var legs: Bool?
+        /// How much of the lifter's own body this movement already carries
+        /// before a plate goes on: 0.85 on a standing leg lift, 1.0 on a dip
+        /// or a pull-up you hang from, 0 on a bench or a seated machine.
+        /// Optional, and falls back to the old `legs` flag, so the app still
+        /// scores correctly against a server that has not taken the new seed.
+        var own: Double?
         var pattern: String?
         var isGym: Bool { k != nil }
+        var bodyShare: Double { own ?? ((legs ?? false) ? 0.85 : 0) }
     }
 
     var isGym: Bool { cat == "GYM" }

@@ -5,8 +5,8 @@ RUN, and you have a working database. It drops everything first, so running it
 twice is a rebuild, not a mess — and running it on a live database wipes it.
 
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
-`body-and-crowns.sql` and `repetition-cap.sql` are migrations for a database
-that is already running. They only add; nothing logged is touched, and all of
+`body-and-crowns.sql`, `repetition-cap.sql` and `gym-lifts.sql` are migrations
+for a database that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -55,6 +55,29 @@ rows after it mis-scored, the order entries arrived in cannot change a week,
 and the migration rewrites no history. A lifetime total is the sum of its
 discounted weeks, never one giant pile run through the curve.
 
+`gym-lifts.sql` fixes the gym formula and adds the rest of the gym. A lift is
+priced by the fraction of bodyweight it moves — the same quantity that prices a
+push-up — and how much of that fraction the movement already carries used to be
+a yes/no: 0.85 for a standing leg lift, nothing for anything else. Right for a
+bench, wrong for anything you hang from, because the number typed into a
+weighted dip is what is on the *belt*. A 70 kg lifter with 20 kg round their
+waist scored 0.45 a rep against 1.50 for the same rep with no belt, and needed
+67 kg before the weighted version caught up. Adding weight made a movement worth
+less.
+
+It is now `R = own + (load × equip) / bodyweight`, and the belt lifts take their
+`own` from the anchors, so a weighted dip with an empty belt scores exactly what
+a dip scores. A standing leg lift keeps its 0.85 and a back squat is priced to
+the point as it was before; a bench is unchanged, which means at 70 kg
+bodyweight it still takes 45 kg to match your own push-up — 0.64 × 70, which is
+the model working, not a bug.
+
+Thirteen lifts come with it. Two of the fourteen regions on the figure had no
+gym lift that led with them, so a gym-only member could not fill forearms or
+lower back however hard they trained; the wrist curl and the back extension
+close both. Nothing logged changes, because points are stamped when a row is
+written.
+
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read
 rather than stored, anybody who had already finished the old one lost the
@@ -100,6 +123,7 @@ Do not hand-edit these:
 | `dashboard-points.sql` | `tools/build_dashboard.py` |
 | `body-and-crowns.sql` | `tools/build_body_migration.py` |
 | `repetition-cap.sql` | `tools/build_cap_migration.py` |
+| `gym-lifts.sql` | `tools/build_gym_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

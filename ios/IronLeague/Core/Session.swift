@@ -441,7 +441,8 @@ final class Session {
         if let k = m.k {
             guard let bw = bodyweightKg, bw >= 30, bw <= 250,
                   let load = loadKg, load >= 0, load <= 500 else { return 0 }
-            let r = (load * (m.equip ?? 1) + ((m.legs ?? false) ? 0.85 * bw : 0)) / bw
+            // R = own + load x equip / bodyweight
+            let r = m.bodyShare + (load * (m.equip ?? 1)) / bw
             return ((amount * k * r) * 100).rounded() / 100
         }
         return ((amount * (m.rate ?? 0)) * 100).rounded() / 100

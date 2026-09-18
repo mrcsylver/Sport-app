@@ -48,6 +48,10 @@ echo "· the control room's two totals"
 fresh irondash
 psql -d irondash -f "$HERE/dashboard.sql" 2>&1 | clean
 
+echo "· the gym formula"
+fresh irongym
+psql -d irongym -f "$HERE/gym.sql" 2>&1 | clean
+
 echo "· the repetition discount"
 fresh ironcap
 psql -d ironcap -f "$HERE/cap.sql" 2>&1 | clean
@@ -72,6 +76,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/dashboard-points.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/body-and-crowns.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/repetition-cap.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/gym-lifts.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -94,4 +99,9 @@ psql -tAd ironlive -c "select 'one movement pays in full up to '||cap||' points 
 psql -tAd ironlive -c "select case when tier_points(600) = 350
   then 'and the repetition discount survived the migration'
   else 'THE DISCOUNT DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select 'the gym holds '||count(*)||' lifts' from exercises where cat='GYM';"
+psql -tAd ironlive -c "select case
+  when calc_points('gymdip','reps',1,70,20) > calc_points('gymdip','reps',1,70,0)
+  then 'and a weighted dip is finally worth more than a plain one'
+  else 'THE BELT LIFTS ARE STILL INVERTED' end;"
 echo "· all clear"

@@ -64,13 +64,23 @@ for i, (key, name, rate, al) in enumerate(RECOVERY):
 
 # Gym carries k + equipment instead of a flat rate; points need bodyweight.
 for i, (key, name, pat, equip, al) in enumerate(GYM):
-    note = ('One side at a time — type the weight of the single dumbbell'
-            if key in ONE_ARM
-            else 'Type the total on the bar, not counting your own weight')
+    # A lift you hang from already moves your body, so the number typed in is
+    # what was ADDED — and zero is a perfectly good answer.
+    if GYM_OWN.get(key, 0) > 0 and pat != 'legs':
+        note = ('Extra weight only — leave it at 0 if you added none. '
+                'Your own bodyweight is counted for you.')
+    elif key in ONE_ARM:
+        note = 'One side at a time — type the weight of the single dumbbell'
+    else:
+        note = ('Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar '
+                'about 10. Your own bodyweight is counted for you.')
     r = ex.setdefault(key, {'key': key, 'name': name, 'cat': 'GYM', 'aliases': al,
                             'variants': note, 'sort': i, 'modes': {}})
+    # `own` replaces the old legs yes/no: how much of the lifter's own body the
+    # movement already carries before a plate goes on. See GYM_OWN in the bank.
+    own = GYM_OWN.get(key, GYM_OWN_BY_PATTERN.get(pat, 0))
     r['modes']['reps'] = {'k': round(K_GYM[pat], 6), 'equip': equip,
-                          'legs': pat == 'legs',
+                          'own': round(float(own), 4),
                           'pattern': 'legs' if pat.startswith('legs')
                                      else 'core' if pat == 'coreiso' else pat}
 
@@ -89,6 +99,20 @@ for k, m in REQUIRED:
 for k, v in ANCHOR.items():
     got = ex[k]['modes'].get('reps', {}).get('rate')
     assert got == v, f'anchor {k} drifted: {got} != {v}'
+
+# A weighted dip with an empty belt has to score exactly what a dip scores, or
+# there is a cheaper way to log the same rep — and, worse, adding weight to a
+# bodyweight movement could make it worth LESS, which is the bug this replaced.
+for gym_key, bw_key in (('gymdip', 'dips'), ('gymweightpull', 'pullups'),
+                        ('gymcalf', 'calves')):
+    m = ex[gym_key]['modes']['reps']
+    empty = round(m['k'] * m['own'], 4)
+    want = ex[bw_key]['modes']['reps']['rate']
+    assert abs(empty - want) < 0.005, (
+        f'{gym_key} with nothing on the belt scores {empty}, '
+        f'but {bw_key} scores {want}')
+    # and one kilo on the belt must be worth more than none, at any bodyweight
+    assert m['equip'] > 0, f'{gym_key} ignores the weight added to it'
 
 # ------------------------------------------------------------- muscles ----
 # Every exercise must say what it trains, the regions must be real ones, and
@@ -140,8 +164,7 @@ def jsmodes(m):
             rs = repr(round(r, 6)) if abs(r - round(r, 4)) < 1e-9 else repr(r)
             out.append(f'{mode}:{rs}')
         else:
-            out.append(f'{mode}:{{k:{d["k"]},equip:{d["equip"]},'
-                       f'legs:{"true" if d["legs"] else "false"}}}')
+            out.append(f'{mode}:{{k:{d["k"]},equip:{d["equip"]},own:{d["own"]}}}')
     return '{' + ','.join(out) + '}'
 
 def jsmuscles(m):
@@ -235,6 +258,14 @@ mock = ('  /* BANK BEGIN */\n'
                                      separators=(',', ':')) + ';\n'
         '  var CAPS = ' + json.dumps({r['key']: r['cap'] for r in rows},
                                      separators=(',', ':')) + ';\n'
+        # gym lifts are priced from bodyweight and load, so they carry k, the
+        # equipment factor and `own` instead of a flat rate
+        '  var GYMS = ' + json.dumps(
+            {r['key']: {'k': r['modes']['reps']['k'],
+                        'equip': r['modes']['reps']['equip'],
+                        'own': r['modes']['reps']['own']}
+             for r in rows if r['cat'] == 'GYM'},
+            separators=(',', ':')) + ';\n'
         '  var MUSCLE_OF = ' + json.dumps({r['key']: r['muscles'] for r in rows},
                                           separators=(',', ':')) + ';\n'
         '  var MUSCLE_META = ' + json.dumps(

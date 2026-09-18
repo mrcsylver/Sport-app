@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.15.0';
+  var APP_VERSION = '2.16.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -115,37 +115,50 @@
   ['badminton','Badminton','SPORT','badminton shuttle','Actual playing time, not time at the venue',{minutes:0.166667},{shoulders:0.2,forearms:0.15,obliques:0.15,quads:0.25,calves:0.25},200],
   ['tabletennis','Table Tennis','SPORT','ping pong','Actual playing time, not time at the venue',{minutes:0.166667},{shoulders:0.25,forearms:0.2,obliques:0.2,quads:0.2,calves:0.15},200],
   ['othersport','Other Sport','SPORT','other misc game match','Actual playing time, not time at the venue',{minutes:0.166667},{chest:0.075,shoulders:0.15,lats:0.075,abs:0.15,glutes:0.1,quads:0.2,hamstrings:0.1,calves:0.15},200],
-  ['gymbench','Bench Press','GYM','bench barbell chest press flat','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{chest:0.5,shoulders:0.2,triceps:0.3},200],
-  ['gymdbbench','Dumbbell Bench Press','GYM','dumbbell db incline chest','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{chest:0.5,shoulders:0.25,triceps:0.25},200],
-  ['gymohp','Overhead Press','GYM','ohp military shoulder press standing','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{shoulders:0.55,triceps:0.3,traps:0.15},200],
-  ['gymdip','Weighted Dips','GYM','weighted dip belt','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{chest:0.4,shoulders:0.2,triceps:0.4},200],
-  ['gymchestmach','Chest Press (Machine)','GYM','machine chest press pec','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:0.75,legs:false}},{chest:0.6,shoulders:0.15,triceps:0.25},200],
-  ['gymtricep','Tricep Pushdown','GYM','cable pushdown tricep rope','One side at a time — type the weight of the single dumbbell',{reps:{k:1.5625,equip:0.6,legs:false}},{triceps:1.0},200],
-  ['gymlatraise','Lateral Raise','GYM','side delt raise shoulder','One side at a time — type the weight of the single dumbbell',{reps:{k:1.5625,equip:1.0,legs:false}},{shoulders:0.85,traps:0.15},200],
-  ['gymdeadlift','Deadlift','GYM','deadlift conventional sumo barbell','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}},{forearms:0.1,traps:0.15,lowerback:0.25,glutes:0.25,hamstrings:0.25},200],
-  ['gymbarbellrow','Barbell Row','GYM','bent over row pendlay','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}},{biceps:0.2,forearms:0.1,traps:0.2,lats:0.4,lowerback:0.1},200],
-  ['gymdbrow','Dumbbell Row','GYM','one arm db row','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:1.0,legs:false}},{biceps:0.2,forearms:0.15,traps:0.2,lats:0.45},200],
-  ['gymlatpull','Lat Pulldown','GYM','pulldown machine lats','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:0.75,legs:false}},{biceps:0.3,forearms:0.15,lats:0.55},200],
-  ['gymcablerow','Seated Cable Row','GYM','cable row seated','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:0.6,legs:false}},{biceps:0.2,forearms:0.1,traps:0.25,lats:0.45},200],
-  ['gymweightpull','Weighted Pull-up','GYM','weighted pullup belt','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}},{biceps:0.25,forearms:0.15,traps:0.15,lats:0.45},200],
-  ['gymcurl','Bicep Curl','GYM','curl barbell dumbbell biceps','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:1.0,legs:false}},{biceps:0.8,forearms:0.2},200],
-  ['gymfacepull','Face Pull','GYM','cable rear delt','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:0.6,legs:false}},{shoulders:0.5,biceps:0.15,traps:0.35},200],
-  ['gymsquat','Back Squat','GYM','squat barbell back high bar','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}},{lowerback:0.1,glutes:0.3,quads:0.45,hamstrings:0.15},200],
-  ['gymfrontsquat','Front Squat','GYM','front squat clean grip','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}},{lowerback:0.1,abs:0.15,glutes:0.2,quads:0.55},200],
-  ['gymlegpress','Leg Press','GYM','leg press machine','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:true}},{glutes:0.3,quads:0.55,hamstrings:0.15},200],
-  ['gymrdl','Romanian Deadlift','GYM','rdl stiff leg hamstring','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}},{lowerback:0.25,glutes:0.3,hamstrings:0.45},200],
-  ['gymhipthrust','Hip Thrust','GYM','glute bridge barbell','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}},{lowerback:0.05,glutes:0.7,hamstrings:0.25},200],
-  ['gymlegcurl','Leg Curl','GYM','hamstring machine curl','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:false}},{hamstrings:0.9,calves:0.1},200],
-  ['gymlegext','Leg Extension','GYM','quad machine extension','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:false}},{quads:1.0},200],
-  ['gymlunge','Weighted Lunge','GYM','dumbbell lunge walking','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}},{glutes:0.35,quads:0.4,hamstrings:0.25},200],
-  ['gymcalf','Weighted Calf Raise','GYM','calf machine standing','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:0.75,legs:false}},{calves:1.0},200],
-  ['gymcablecrunch','Cable Crunch','GYM','cable crunch kneeling abs','Type the total on the bar, not counting your own weight',{reps:{k:1.0,equip:0.6,legs:false}},{abs:0.9,obliques:0.1},200],
-  ['gymwoodchop','Woodchoppers','GYM','woodchop cable oblique rotation','One side at a time — type the weight of the single dumbbell',{reps:{k:1.0,equip:0.6,legs:false}},{shoulders:0.1,abs:0.2,obliques:0.7},200],
-  ['gympullover','Dumbbell Pullover','GYM','pullover lats chest','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}},{chest:0.25,triceps:0.2,lats:0.55},200],
-  ['gymshrug','Shrug','GYM','shrug traps barbell','Type the total on the bar, not counting your own weight',{reps:{k:2.0,equip:1.0,legs:false}},{forearms:0.15,traps:0.85},200],
-  ['gymincline','Incline Bench Press','GYM','incline bench upper chest','Type the total on the bar, not counting your own weight',{reps:{k:1.5625,equip:1.0,legs:false}},{chest:0.45,shoulders:0.3,triceps:0.25},200],
-  ['gymgoblet','Goblet Squat','GYM','goblet kettlebell squat','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}},{abs:0.15,glutes:0.3,quads:0.45,hamstrings:0.1},200],
-  ['gymstepup','Weighted Step-up','GYM','step up box weighted','Type the total on the bar, not counting your own weight',{reps:{k:0.588,equip:1.0,legs:true}},{glutes:0.35,quads:0.4,hamstrings:0.15,calves:0.1},200],
+  ['gymbench','Bench Press','GYM','bench barbell chest press flat smith','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:1.0,own:0.0}},{chest:0.5,shoulders:0.2,triceps:0.3},200],
+  ['gymdbbench','Dumbbell Bench Press','GYM','dumbbell db incline chest','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:1.0,own:0.0}},{chest:0.5,shoulders:0.25,triceps:0.25},200],
+  ['gymohp','Overhead Press','GYM','ohp military shoulder press standing','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:1.0,own:0.0}},{shoulders:0.55,triceps:0.3,traps:0.15},200],
+  ['gymdip','Weighted Dips','GYM','weighted dip belt','Extra weight only — leave it at 0 if you added none. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:1.0,own:0.96}},{chest:0.4,shoulders:0.2,triceps:0.4},200],
+  ['gymchestmach','Chest Press (Machine)','GYM','machine chest press pec','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:0.75,own:0.0}},{chest:0.6,shoulders:0.15,triceps:0.25},200],
+  ['gymtricep','Tricep Pushdown','GYM','cable pushdown tricep rope','One side at a time — type the weight of the single dumbbell',{reps:{k:1.5625,equip:0.6,own:0.0}},{triceps:1.0},200],
+  ['gymlatraise','Lateral Raise','GYM','side delt raise shoulder','One side at a time — type the weight of the single dumbbell',{reps:{k:1.5625,equip:1.0,own:0.0}},{shoulders:0.85,traps:0.15},200],
+  ['gymdeadlift','Deadlift','GYM','deadlift conventional sumo barbell','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{forearms:0.1,traps:0.15,lowerback:0.25,glutes:0.25,hamstrings:0.25},200],
+  ['gymbarbellrow','Barbell Row','GYM','bent over row pendlay','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{biceps:0.2,forearms:0.1,traps:0.2,lats:0.4,lowerback:0.1},200],
+  ['gymdbrow','Dumbbell Row','GYM','one arm db row','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:1.0,own:0.0}},{biceps:0.2,forearms:0.15,traps:0.2,lats:0.45},200],
+  ['gymlatpull','Lat Pulldown','GYM','pulldown machine lats','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:0.75,own:0.0}},{biceps:0.3,forearms:0.15,lats:0.55},200],
+  ['gymcablerow','Seated Cable Row','GYM','cable row seated','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:0.6,own:0.0}},{biceps:0.2,forearms:0.1,traps:0.25,lats:0.45},200],
+  ['gymweightpull','Weighted Pull-up','GYM','weighted pullup belt','Extra weight only — leave it at 0 if you added none. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:1.0}},{biceps:0.25,forearms:0.15,traps:0.15,lats:0.45},200],
+  ['gymcurl','Bicep Curl','GYM','curl barbell dumbbell biceps','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:1.0,own:0.0}},{biceps:0.8,forearms:0.2},200],
+  ['gymfacepull','Face Pull','GYM','cable rear delt','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:0.6,own:0.0}},{shoulders:0.5,biceps:0.15,traps:0.35},200],
+  ['gymsquat','Back Squat','GYM','squat barbell back high bar smith','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.85}},{lowerback:0.1,glutes:0.3,quads:0.45,hamstrings:0.15},200],
+  ['gymfrontsquat','Front Squat','GYM','front squat clean grip','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.85}},{lowerback:0.1,abs:0.15,glutes:0.2,quads:0.55},200],
+  ['gymlegpress','Leg Press','GYM','leg press machine','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:0.75,own:0.85}},{glutes:0.3,quads:0.55,hamstrings:0.15},200],
+  ['gymrdl','Romanian Deadlift','GYM','rdl stiff leg hamstring','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.85}},{lowerback:0.25,glutes:0.3,hamstrings:0.45},200],
+  ['gymhipthrust','Hip Thrust','GYM','glute bridge barbell','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.85}},{lowerback:0.05,glutes:0.7,hamstrings:0.25},200],
+  ['gymlegcurl','Leg Curl','GYM','hamstring machine curl','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:0.75,own:0.0}},{hamstrings:0.9,calves:0.1},200],
+  ['gymlegext','Leg Extension','GYM','quad machine extension','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:0.75,own:0.0}},{quads:1.0},200],
+  ['gymlunge','Weighted Lunge','GYM','dumbbell lunge walking','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.85}},{glutes:0.35,quads:0.4,hamstrings:0.25},200],
+  ['gymcalf','Weighted Calf Raise','GYM','calf machine standing','Extra weight only — leave it at 0 if you added none. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:0.75,own:0.3401}},{calves:1.0},200],
+  ['gymcablecrunch','Cable Crunch','GYM','cable crunch kneeling abs','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.0,equip:0.6,own:0.0}},{abs:0.9,obliques:0.1},200],
+  ['gymwoodchop','Woodchoppers','GYM','woodchop cable oblique rotation','One side at a time — type the weight of the single dumbbell',{reps:{k:1.0,equip:0.6,own:0.0}},{shoulders:0.1,abs:0.2,obliques:0.7},200],
+  ['gympullover','Dumbbell Pullover','GYM','pullover lats chest','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{chest:0.25,triceps:0.2,lats:0.55},200],
+  ['gymshrug','Shrug','GYM','shrug traps barbell','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{forearms:0.15,traps:0.85},200],
+  ['gymincline','Incline Bench Press','GYM','incline bench upper chest','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:1.0,own:0.0}},{chest:0.45,shoulders:0.3,triceps:0.25},200],
+  ['gymgoblet','Goblet Squat','GYM','goblet kettlebell squat','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.85}},{abs:0.15,glutes:0.3,quads:0.45,hamstrings:0.1},200],
+  ['gymstepup','Weighted Step-up','GYM','step up box weighted','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.85}},{glutes:0.35,quads:0.4,hamstrings:0.15,calves:0.1},200],
+  ['gympecdeck','Chest Fly (Machine/Cable)','GYM','pec deck fly crossover cable','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:0.6,own:0.0}},{chest:0.8,shoulders:0.15,triceps:0.05},200],
+  ['gymshoulderm','Shoulder Press (Machine)','GYM','machine seated shoulder delt press','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:0.75,own:0.0}},{shoulders:0.6,triceps:0.3,traps:0.1},200],
+  ['gymskull','Skullcrusher / Overhead Ext.','GYM','skullcrusher french press tricep extension','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:1.5625,equip:1.0,own:0.0}},{shoulders:0.1,triceps:0.9},200],
+  ['gympreacher','Preacher Curl','GYM','preacher ez bar scott curl','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{biceps:0.75,forearms:0.25},200],
+  ['gymhammer','Hammer Curl','GYM','hammer neutral dumbbell curl','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:1.0,own:0.0}},{biceps:0.55,forearms:0.45},200],
+  ['gymreardelt','Rear Delt Fly','GYM','reverse pec deck rear delt fly','One side at a time — type the weight of the single dumbbell',{reps:{k:2.0,equip:0.6,own:0.0}},{shoulders:0.6,traps:0.3,lats:0.1},200],
+  ['gymtbar','T-Bar / Supported Row','GYM','tbar chest supported row machine','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{biceps:0.2,forearms:0.1,traps:0.25,lats:0.45},200],
+  ['gymtrapbar','Trap Bar Deadlift','GYM','trap hex bar deadlift','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{forearms:0.1,traps:0.15,lowerback:0.2,glutes:0.25,quads:0.2,hamstrings:0.1},200],
+  ['gymupright','Upright Row','GYM','upright row traps delts','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{shoulders:0.45,biceps:0.15,traps:0.4},200],
+  ['gymwristcurl','Wrist Curl','GYM','wrist curl forearm reverse grip','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:2.0,equip:1.0,own:0.0}},{forearms:1.0},200],
+  ['gymhack','Hack Squat','GYM','hack squat machine sled','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:0.75,own:0.85}},{glutes:0.25,quads:0.6,hamstrings:0.15},200],
+  ['gymabduct','Hip Abduction / Adduction','GYM','abductor adductor machine hip glute','Bar plus plates — an Olympic bar is 20 kg, a short or EZ bar about 10. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:0.75,own:0.0}},{glutes:0.8,quads:0.1,hamstrings:0.1},200],
+  ['gymbackext','Back Extension','GYM','hyperextension back extension roman chair good morning','Extra weight only — leave it at 0 if you added none. Your own bodyweight is counted for you.',{reps:{k:0.588,equip:1.0,own:0.45}},{lowerback:0.55,glutes:0.3,hamstrings:0.15},200],
   ['stretch','Stretching Session','RECOVERY','stretch mobility yoga flexibility','At least 10 minutes of stretching, mobility or yoga',{flat:5.0},{},200],
   ['sauna','Sauna / Cold Plunge','RECOVERY','sauna ice bath cold recovery','',{flat:3.0},{},200]
   ];
@@ -199,7 +212,9 @@
         rate: typeof v === 'object' ? 0 : v,
         k: typeof v === 'object' ? v.k : 0,
         equip: typeof v === 'object' ? v.equip : 0,
-        legs: typeof v === 'object' ? !!v.legs : false
+        /* a bank written before `own` existed only said legs yes/no */
+        own: typeof v === 'object'
+               ? (v.own != null ? v.own : (v.legs ? 0.85 : 0)) : 0
       };
       m.label = m.gym ? 'from your bodyweight and the bar'
                       : rateLabel(mode, m.rate, key);
@@ -659,7 +674,10 @@
     if (m.gym) {
       bw = Number(bw); load = Number(load);
       if (!(bw >= 30 && bw <= 250) || !(load >= 0 && load <= 500)) return 0;
-      var r = (load * m.equip + (m.legs ? 0.85 * bw : 0)) / bw;
+      /* R = own + load x equip / bodyweight. `own` is how much of your own
+         body the lift already carries before a plate goes on — 0.85 on a
+         squat, 1.0 on a dip or pull-up you hang from, 0 on a bench. */
+      var r = m.own + (load * m.equip) / bw;
       return Math.round(amount * m.k * r * 100) / 100;
     }
     return Math.round(amount * m.rate * 100) / 100;
@@ -3203,6 +3221,12 @@
       if (!$('#bwInput').value && state.profile && state.profile.bodyweight) {
         $('#bwInput').value = Math.round(fromKg(state.profile.bodyweight) * 10) / 10;
       }
+      /* A lift you hang from — a dip, a pull-up, a back extension — is real
+         work with nothing added, so it starts at zero rather than empty.
+         Leave a bench blank: at own = 0 an empty box previews 0 points and the
+         ADD button stays shut, which is the right answer for a bare bar. */
+      var m0 = ex.modes[0];
+      if (m0 && m0.own > 0 && !$('#loadInput').value) $('#loadInput').value = '0';
     }
     var row = $('#modeRow');
     if (ex.modes.length > 1) {

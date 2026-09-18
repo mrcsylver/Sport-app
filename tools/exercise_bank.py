@@ -17,9 +17,11 @@ A handful of lifts sit above the model on purpose - handstand push-ups,
 muscle-ups, pistols. Those are "can you even do one" skills and carry an
 explicit premium, which is exactly how they were priced originally.
 
-Gym lifts use the same quantity: R = (load x equip) / bodyweight is the very
-same "fraction of bodyweight moved" that L is, so a bench press at 64% of your
-weight scores like a push-up. Legs add the lifter's own mass to the bar.
+Gym lifts use the same quantity: R = own + (load x equip) / bodyweight is the
+very same "fraction of bodyweight moved" that L is, so a bench press at 64% of
+your weight scores like a push-up. `own` is the part of that fraction the lift
+already carries before a plate goes on - 0.85 on a standing leg lift, 1.0 on a
+dip or a pull-up you hang from, 0 on a bench or a seated machine.
 
 Run this to regenerate app.js's table and the SQL seed - never edit either by
 hand:  python3 tools/build_exercises.py
@@ -175,6 +177,32 @@ RECOVERY = [
     ('sauna',    'Sauna / Cold Plunge',3, 'sauna ice bath cold recovery'),
 ]
 
+# --------------------------------- the body you are already holding --
+# A gym lift moves the bar. Some of them move YOU as well, and the model used
+# to say so with a yes/no: a standing leg lift added 0.85 of bodyweight and
+# everything else added nothing. That was wrong in a way only a gym-goer would
+# ever hit — the weight typed into a weighted dip or a weighted pull-up is what
+# hangs from the BELT, so strapping on 20 kg scored a THIRD of what the same
+# rep pays with no belt at all. Adding weight made the movement worth less.
+#
+# `own` is that number written properly: the fraction of bodyweight a lift
+# already carries before a single plate goes on, so
+#
+#     R = own + load x equip / bodyweight
+#
+# The three bodyweight-plus-load lifts take theirs FROM THE ANCHORS, so a
+# weighted dip with an empty belt scores exactly what a dip scores and there is
+# no cheaper way to log the same rep. A standing leg lift keeps its 0.85, which
+# is what it always had. Everything else is zero.
+GYM_OWN = {}          # key -> fraction; filled in below, once K_GYM exists
+GYM_OWN_BY_PATTERN = {'legs': 0.85}    # and 0 for every other pattern
+
+
+def _own_from_anchor(key, k):
+    """Whatever bodyweight fraction reproduces the anchored rate exactly."""
+    return round(ANCHOR[key] / k, 4)
+
+
 # --------------------------------------------------------- weekly caps --
 # Points are linear in reps; effort is not. The ceiling on a hard movement is
 # what a body can do, the ceiling on an easy one is only boredom, so the
@@ -205,11 +233,12 @@ WEEK_CAP = {          # key -> points of full-price work per week
 # ONE_ARM lifts are done a side at a time, so the number typed in is the one
 # dumbbell — not the pair. Everything else is the total on the bar. Saying so
 # per exercise is the only way people enter it consistently.
-ONE_ARM = {'gymdbrow', 'gymtricep', 'gymcurl', 'gymlatraise', 'gymwoodchop'}
+ONE_ARM = {'gymdbrow', 'gymtricep', 'gymcurl', 'gymlatraise', 'gymwoodchop',
+           'gymhammer', 'gymreardelt'}
 
 GYM = [
     # key, name, pattern, equip, aliases
-    ('gymbench',     'Bench Press',           'push', 1.00, 'bench barbell chest press flat'),
+    ('gymbench',     'Bench Press',           'push', 1.00, 'bench barbell chest press flat smith'),
     ('gymdbbench',   'Dumbbell Bench Press',  'push', 1.00, 'dumbbell db incline chest'),
     ('gymohp',       'Overhead Press',        'push', 1.00, 'ohp military shoulder press standing'),
     ('gymdip',       'Weighted Dips',         'push', 1.00, 'weighted dip belt'),
@@ -224,7 +253,7 @@ GYM = [
     ('gymweightpull','Weighted Pull-up',      'pull', 1.00, 'weighted pullup belt'),
     ('gymcurl',      'Bicep Curl',            'pull', 1.00, 'curl barbell dumbbell biceps'),
     ('gymfacepull',  'Face Pull',             'pull', 0.60, 'cable rear delt'),
-    ('gymsquat',     'Back Squat',            'legs', 1.00, 'squat barbell back high bar'),
+    ('gymsquat',     'Back Squat',            'legs', 1.00, 'squat barbell back high bar smith'),
     ('gymfrontsquat','Front Squat',           'legs', 1.00, 'front squat clean grip'),
     ('gymlegpress',  'Leg Press',             'legs', 0.75, 'leg press machine'),
     ('gymrdl',       'Romanian Deadlift',     'legs', 1.00, 'rdl stiff leg hamstring'),
@@ -240,9 +269,35 @@ GYM = [
     ('gymincline',   'Incline Bench Press',   'push',    1.00, 'incline bench upper chest'),
     ('gymgoblet',    'Goblet Squat',          'legs',    1.00, 'goblet kettlebell squat'),
     ('gymstepup',    'Weighted Step-up',      'legs',    1.00, 'step up box weighted'),
+    # Added after a gym-goer pointed out how much of a commercial gym the list
+    # did not cover. Two of the fourteen regions had no lift that led with them
+    # at all: forearms and lower back.
+    ('gympecdeck',   'Chest Fly (Machine/Cable)','push', 0.60, 'pec deck fly crossover cable'),
+    ('gymshoulderm', 'Shoulder Press (Machine)','push',  0.75, 'machine seated shoulder delt press'),
+    ('gymskull',     'Skullcrusher / Overhead Ext.','push',1.00,'skullcrusher french press tricep extension'),
+    ('gympreacher',  'Preacher Curl',         'pull',    1.00, 'preacher ez bar scott curl'),
+    ('gymhammer',    'Hammer Curl',           'pull',    1.00, 'hammer neutral dumbbell curl'),
+    ('gymreardelt',  'Rear Delt Fly',         'pull',    0.60, 'reverse pec deck rear delt fly'),
+    ('gymtbar',      'T-Bar / Supported Row', 'pull',    1.00, 'tbar chest supported row machine'),
+    ('gymtrapbar',   'Trap Bar Deadlift',     'pull',    1.00, 'trap hex bar deadlift'),
+    ('gymupright',   'Upright Row',           'pull',    1.00, 'upright row traps delts'),
+    ('gymwristcurl', 'Wrist Curl',            'pull',    1.00, 'wrist curl forearm reverse grip'),
+    ('gymhack',      'Hack Squat',            'legs',    0.75, 'hack squat machine sled'),
+    ('gymabduct',    'Hip Abduction / Adduction','legsiso',0.75,'abductor adductor machine hip glute'),
+    ('gymbackext',   'Back Extension',        'legsiso', 1.00, 'hyperextension back extension roman chair good morning'),
 ]
 K_GYM = {'push': K_PUSH, 'pull': K_PULL, 'legs': K_LEGS, 'legsiso': K_LEGS,
          'coreiso': 1.0}   # core work is priced against the knee-raise anchor
+
+GYM_OWN.update({
+    # you hang from these, so your body is the load before the belt is
+    'gymdip':        _own_from_anchor('dips', K_PUSH),     # a dip with 0 kg IS a dip
+    'gymweightpull': _own_from_anchor('pullups', K_PULL),  # and likewise a pull-up
+    'gymcalf':       _own_from_anchor('calves', K_LEGS),   # you stand on the machine
+    # a 45 degree hyperextension raises the upper body and nothing else, which
+    # puts it beside supermans when no plate is held
+    'gymbackext':    0.45,
+})
 
 
 # ------------------------------------------------------------------ muscles --
@@ -441,6 +496,20 @@ MUSCLES = {
     'gymincline':    {'chest': .45, 'shoulders': .30, 'triceps': .25},
     'gymgoblet':     {'quads': .45, 'glutes': .30, 'abs': .15, 'hamstrings': .10},
     'gymstepup':     {'quads': .40, 'glutes': .35, 'hamstrings': .15, 'calves': .10},
+    'gympecdeck':    {'chest': .80, 'shoulders': .15, 'triceps': .05},
+    'gymshoulderm':  {'shoulders': .60, 'triceps': .30, 'traps': .10},
+    'gymskull':      {'triceps': .90, 'shoulders': .10},
+    'gympreacher':   {'biceps': .75, 'forearms': .25},
+    'gymhammer':     {'biceps': .55, 'forearms': .45},
+    'gymreardelt':   {'shoulders': .60, 'traps': .30, 'lats': .10},
+    'gymtbar':       {'lats': .45, 'traps': .25, 'biceps': .20, 'forearms': .10},
+    'gymtrapbar':    {'traps': .15, 'forearms': .10, 'lowerback': .20, 'glutes': .25,
+                      'quads': .20, 'hamstrings': .10},
+    'gymupright':    {'shoulders': .45, 'traps': .40, 'biceps': .15},
+    'gymwristcurl':  {'forearms': 1.0},
+    'gymhack':       {'quads': .60, 'glutes': .25, 'hamstrings': .15},
+    'gymabduct':     {'glutes': .80, 'quads': .10, 'hamstrings': .10},
+    'gymbackext':    {'lowerback': .55, 'glutes': .30, 'hamstrings': .15},
     # ---- recovery trains nothing; see the note above ----
     'stretch': {},
     'sauna':   {},
