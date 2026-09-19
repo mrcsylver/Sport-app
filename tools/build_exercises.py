@@ -29,8 +29,14 @@ VARIANTS = {
     # A skill is a staircase, so the note says which step this is and what the
     # next one looks like. Somebody who does not know the name of the rung
     # above theirs cannot climb to it.
-    'jumppull':      'Jump into the top, lower under control. The way to a first pull-up.',
-    'negativepull':  'Jump or step to the top, then take 3-5 seconds to come down',
+    # These two are one rung apart and were both described as "jump to the
+    # top", which is the negative. A jumping pull-up jumps THROUGH the pull.
+    'jumppull':      'Bar around head height — jump to help the pull, all the way up. '
+                     'Then step down and go again.',
+    'bandpullup':    'Band round the foot or knee, or the assisted machine. '
+                     'Thinner band as you get stronger.',
+    'negativepull':  'Get to the top any way you can, then take 3-5 seconds to lower. '
+                     'The slow way down is the whole rep.',
     'divebomber':    'Down and through in one arc, back out the way you came',
     'pikeelev':      'Feet on a box or a chair. Halfway to a handstand push-up.',
     'wallwalk':      'Feet up the wall, hands walking in. One rep is up and back down.',

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.17.0';
+  var APP_VERSION = '2.17.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -60,9 +60,9 @@
   ['fullplanche','Full Planche','PUSH','full planche straight body','Straight body, parallel to the floor',{seconds:1.0},{shoulders:0.35,triceps:0.15,forearms:0.1,lats:0.15,abs:0.25},200],
   ['rows','Inverted Rows','PULL','australian bodyweight row horizontal','',{reps:1.0},{biceps:0.25,forearms:0.15,traps:0.2,lats:0.4},200],
   ['scapulapull','Scapular Pull-up','PULL','scap shrug','',{reps:0.75},{forearms:0.2,traps:0.5,lats:0.3},200],
-  ['bandpullup','Assisted Pull-up','PULL','band assisted machine','',{reps:1.25},{biceps:0.3,forearms:0.15,traps:0.1,lats:0.45},200],
-  ['jumppull','Jumping Pull-up','PULL','jump assisted beginner first pullup','Jump into the top, lower under control. The way to a first pull-up.',{reps:1.0},{biceps:0.25,forearms:0.15,traps:0.1,lats:0.4,quads:0.1},200],
-  ['negativepull','Negative Pull-up','PULL','negative eccentric slow lower','Jump or step to the top, then take 3-5 seconds to come down',{reps:1.5},{biceps:0.25,forearms:0.15,traps:0.15,lats:0.45},200],
+  ['bandpullup','Assisted Pull-up','PULL','band assisted machine','Band round the foot or knee, or the assisted machine. Thinner band as you get stronger.',{reps:1.25},{biceps:0.3,forearms:0.15,traps:0.1,lats:0.45},200],
+  ['jumppull','Jumping Pull-up','PULL','jump assisted beginner first pullup','Bar around head height — jump to help the pull, all the way up. Then step down and go again.',{reps:1.0},{biceps:0.25,forearms:0.15,traps:0.1,lats:0.4,quads:0.1},200],
+  ['negativepull','Negative Pull-up','PULL','negative eccentric slow lower','Get to the top any way you can, then take 3-5 seconds to lower. The slow way down is the whole rep.',{reps:1.5},{biceps:0.25,forearms:0.15,traps:0.15,lats:0.45},200],
   ['chinups','Chin-ups','PULL','supinated underhand biceps','',{reps:2.0},{biceps:0.4,forearms:0.15,traps:0.1,lats:0.35},200],
   ['pullups','Pull-ups','PULL','pullup overhand lats','Overhand grip. Kipping counts, but be honest.',{reps:2.0},{biceps:0.25,forearms:0.15,traps:0.15,lats:0.45},200],
   ['widepullup','Wide-grip Pull-up','PULL','wide lats','',{reps:2.25},{biceps:0.15,forearms:0.15,traps:0.15,lats:0.55},200],
