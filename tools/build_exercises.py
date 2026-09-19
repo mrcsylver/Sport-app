@@ -26,6 +26,40 @@ VARIANTS = {
     'swim':      'Any stroke, active swim time',
     'walk':      'Hiking counts too',
     'bike':      'Road, trail or stationary',
+    # A skill is a staircase, so the note says which step this is and what the
+    # next one looks like. Somebody who does not know the name of the rung
+    # above theirs cannot climb to it.
+    'jumppull':      'Jump into the top, lower under control. The way to a first pull-up.',
+    'negativepull':  'Jump or step to the top, then take 3-5 seconds to come down',
+    'divebomber':    'Down and through in one arc, back out the way you came',
+    'pikeelev':      'Feet on a box or a chair. Halfway to a handstand push-up.',
+    'wallwalk':      'Feet up the wall, hands walking in. One rep is up and back down.',
+    'cossack':       'Wide stance, sink to one side with the other leg straight',
+    'boxpistol':     'One leg, sit to a chair or a box. Lower the box as you get stronger.',
+    'archersquat':   'Wide stance, one knee bends while the other leg stays straight',
+    'hollowrock':    'Lower back pinned to the floor, rock from the shoulders',
+    'windshield':    'Hanging or lying — legs together, sweep side to side',
+    'crow':          'Knees on the triceps, feet off the floor. Where every balance starts.',
+    'headstand':     'Tripod or forearms. Hold, do not kick about.',
+    'wallhandstand': 'Chest or back to the wall — the wall is allowed, it is a rung',
+    'forearmstand':  'Pincha. On the forearms, wall or free.',
+    'freehandstand': 'No wall, no spotter. Only the seconds you actually balance.',
+    'tuckplanche':   'Knees tucked to the chest, hips above the shoulders, feet off',
+    'straddleplanche': 'Legs wide and straight, body flat',
+    'fullplanche':   'Straight body, parallel to the floor',
+    'tucklsit':      'Knees tucked, hips off the ground. The first L-sit.',
+    'oneleglsit':    'One leg straight out, the other tucked',
+    'vsit':          'Legs above the hips, past an L',
+    'bridge':        'Full wheel — hands and feet down, hips high',
+    'tuckfl':        'Hanging, knees tucked, back flat and parallel to the floor',
+    'advtuckfl':     'Tuck front lever with the hips opened out',
+    'straddlefl':    'Legs wide and straight, body flat under the bar',
+    'tuckbl':        'Facing away, knees tucked, body flat',
+    'backlever':     'Facing away, straight body, parallel to the floor',
+    'onearmhang':    'One hand on the bar. Count each side separately.',
+    'tuckflag':      'Chamber hold — hips stacked, knees tucked, body off the pole',
+    'humanflag':     'Straight body, side on, horizontal',
+    'carry':         'Farmer, suitcase or front rack — the time you are actually walking',
 }
 ex = {}   # key -> record
 
@@ -87,6 +121,19 @@ for i, (key, name, pat, equip, al) in enumerate(GYM):
 # handstand and muscle-up keep their second unit from the original table.
 put('handstand', 'Handstand Push-up', 'PUSH', 'seconds', 1080/3600, 'hspu wall hold invert')
 put('muscleup', 'Muscle-up / Flag', 'PULL', 'seconds', 2, 'muscleup flag humanflag hold')
+
+# Two entries sharing a key merge into one silently — the second one's modes
+# land on the first one's row and its name and muscles are simply dropped. It
+# is the easiest mistake to make when adding a batch, and the hardest to see.
+_where = {}
+for _sec, _rows in (('PUSH', PUSH), ('PULL', PULL), ('LEGS', LEGS),
+                    ('CORE_REPS', CORE_REPS), ('CORE_HOLD', CORE_HOLD),
+                    ('CARDIO', CARDIO), ('SPORTS', SPORTS),
+                    ('RECOVERY', RECOVERY), ('GYM', GYM)):
+    for _row in _rows:
+        _where.setdefault(_row[0], []).append(_sec)
+_dupes = {k: v for k, v in _where.items() if len(v) > 1}
+assert not _dupes, f'the same key is in two lists, one will vanish: {_dupes}'
 
 # Every key+mode a bounty relies on must still exist, or quests break silently.
 REQUIRED = [('pushups','reps'),('dips','reps'),('handstand','seconds'),('handstand','reps'),

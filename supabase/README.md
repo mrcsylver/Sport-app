@@ -5,8 +5,8 @@ RUN, and you have a working database. It drops everything first, so running it
 twice is a rebuild, not a mess — and running it on a live database wipes it.
 
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
-`body-and-crowns.sql`, `repetition-cap.sql` and `gym-lifts.sql` are migrations
-for a database that is already running. They only add; nothing logged is touched, and all of
+`body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql` and
+`progressions.sql` are migrations for a database that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -78,6 +78,27 @@ lower back however hard they trained; the wrist curl and the back extension
 close both. Nothing logged changes, because points are stamped when a row is
 written.
 
+`progressions.sql` adds thirty-three exercises and changes no scoring code at
+all — the bank is data, so adding to it is an insert. The league was paying for
+the top of every skill ladder and nothing below it: you could log a front lever
+but not the tuck you spend three months on, an L-sit but not the tucked one, a
+pistol but not the box pistol on the way to it. The handstand, planche, L-sit,
+front lever, back lever and flag lines now have their rungs, along with jumping
+and negative pull-ups, dive bombers, wall walks, cossack / box pistol / archer
+squats, hollow rocks, windshield wipers, the full bridge, one-arm hangs, loaded
+carries, and two loaded-cardio entries (weighted run 6.5/km, rucking 3.5/km,
+both budgeted at 100 km like run and walk).
+
+The rates are set so an honest set at your own level is worth about the same at
+every rung — twenty seconds of crow pays 4.0, twenty seconds of a freestanding
+handstand 10.0, five seconds of a full planche 5.0. The rate climbs steeply with
+difficulty and the hold anybody can actually finish shrinks just as fast, so the
+two cancel. Nobody is punished for standing at the bottom of a ladder and nobody
+is paid twice for standing at the top. The same holds for the rep lines: a
+jumping pull-up is 1.0 against a pull-up's 2.0 and a box pistol 0.75 against a
+pistol's 2.0 — always worth logging, never worth more than the real thing, and
+never under a third of it.
+
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read
 rather than stored, anybody who had already finished the old one lost the
@@ -124,6 +145,7 @@ Do not hand-edit these:
 | `body-and-crowns.sql` | `tools/build_body_migration.py` |
 | `repetition-cap.sql` | `tools/build_cap_migration.py` |
 | `gym-lifts.sql` | `tools/build_gym_migration.py` |
+| `progressions.sql` | `tools/build_progression_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

@@ -61,12 +61,17 @@ PUSH = [
     ('ringdips',    'Ring Dips',               1.10, 1, 'rings unstable'),
     ('onearmpush',  'One-arm Push-up',         1.20, 1, 'single arm'),
     ('sphinxpush',  'Sphinx Push-up',          0.55, 1, 'sphinx forearm tricep'),
+    ('divebomber',  'Dive Bomber Push-up',     0.75, 1, 'dive bomber hindu dand'),
+    ('pikeelev',    'Elevated Pike Push-up',   0.95, 1, 'feet raised pike deficit shoulder'),
+    ('wallwalk',    'Wall Walk',               1.00, 1, 'wall walk handstand progression'),
     ('handstand',   'Handstand Push-up',       0.95, 1.7, 'hspu wall overhead invert'),
 ]
 PULL = [
     ('rows',         'Inverted Rows',      0.55, 1, 'australian bodyweight row horizontal'),
     ('scapulapull',  'Scapular Pull-up',   0.35, 1, 'scap shrug'),
     ('bandpullup',   'Assisted Pull-up',   0.60, 1, 'band assisted machine'),
+    ('jumppull',     'Jumping Pull-up',    0.50, 1, 'jump assisted beginner first pullup'),
+    ('negativepull', 'Negative Pull-up',   0.70, 1, 'negative eccentric slow lower'),
     ('chinups',      'Chin-ups',           0.95, 1, 'supinated underhand biceps'),
     ('pullups',      'Pull-ups',           1.00, 1, 'pullup overhand lats'),
     ('widepullup',   'Wide-grip Pull-up',  1.10, 1, 'wide lats'),
@@ -74,7 +79,7 @@ PULL = [
     ('lsitpullup',   'L-sit Pull-up',      1.25, 1, 'lsit legs out'),
     ('typewriter',   'Typewriter Pull-up', 1.25, 1, 'side to side'),
     ('archerpull',   'Archer Pull-up',     1.30, 1, 'one side unilateral'),
-    ('muscleup',     'Muscle-up / Flag',   1.00, 1.75, 'muscleup bar ring humanflag'),
+    ('muscleup',     'Muscle-up',          1.00, 1.75, 'muscleup bar ring transition'),
 ]
 LEGS = [
     ('calves',      'Calf Raises',          None, 1, 'calf standing seated'),  # anchored 0.2
@@ -86,6 +91,9 @@ LEGS = [
     ('gluteBridge', 'Glute Bridge',         0.50, 1, 'hip thrust glutes'),
     ('nordic',      'Nordic Curl',          1.60, 1, 'hamstring eccentric'),
     ('sissy',       'Sissy Squat',          1.10, 1, 'quads'),
+    ('cossack',     'Cossack Squat',        1.10, 1, 'cossack side lateral squat mobility'),
+    ('boxpistol',   'Box Pistol',           1.30, 1, 'box pistol to a seat assisted single leg'),
+    ('archersquat', 'Archer Squat',         1.45, 1.15, 'archer skater side single leg'),
     ('shrimp',      'Shrimp Squat',         1.50, 1, 'advanced single leg'),
     ('pistols',     'Pistol Squats',        1.70, 2, 'single leg one'),
 ]
@@ -109,6 +117,8 @@ CORE_REPS = [
     ('birddog',     'Bird Dog',            0.5,  'birddog stability back'),
     ('flutterkick', 'Flutter Kicks',       0.25, 'flutter scissor kicks'),
     ('mountainclimb','Mountain Climbers',  0.25, 'mountain climber cardio abs'),
+    ('hollowrock',  'Hollow Rocks',        0.50, 'hollow rock body rocking'),
+    ('windshield',  'Windshield Wipers',   1.50, 'windshield wiper oblique hanging'),
     ('rollout',     'Ab Wheel Rollout',    2.0,  'ab wheel rollout barbell'),
 ]
 # Holds are priced per MINUTE OF HOLD, not per minute of clock, because
@@ -129,6 +139,49 @@ CORE_HOLD = [   # key, name, cat, mode, points/hour, aliases
     ('wallsit',    'Wall Sit',        'LEGS', 'seconds',  540, 'isometric quads'),
     ('deadhang',   'Dead Hang',       'PULL', 'seconds',  720, 'hang grip forearm'),
     ('frontlever', 'Front Lever',     'PULL', 'seconds', 2700, 'lever static hold'),
+
+    # --- the skill ladders -------------------------------------------------
+    # A calisthenics skill is a staircase, and the league was only paying for
+    # the top step: you could log a front lever but not the tuck you spend
+    # three months on. Every rung is here now, and each is priced so that a
+    # HONEST SET AT YOUR OWN LEVEL is worth about the same — because the point
+    # is to make people climb, not to pay whoever is already at the top.
+    #
+    #   20 s crow             (a beginner's first balance)   4.0 pts
+    #   30 s wall handstand                                  7.5
+    #   20 s tucked L-sit                                    5.0
+    #   20 s tuck front lever                                6.7
+    #   20 s freestanding handstand                         10.0
+    #   10 s straddle front lever                            6.0
+    #    5 s full planche     (a few people on earth)         5.0
+    #
+    # The rate climbs steeply with difficulty and the hold you can actually
+    # finish shrinks just as fast, so the two cancel. Nobody is punished for
+    # being at the bottom of a ladder and nobody is paid twice for being at
+    # the top of one.
+    ('crow',        'Crow / Frog Stand',      'PUSH', 'seconds',  720, 'crow bakasana frog stand balance'),
+    ('headstand',   'Headstand',              'PUSH', 'minutes',  600, 'headstand tripod sirsasana'),
+    ('wallhandstand','Wall Handstand',        'PUSH', 'seconds',  900, 'wall handstand chest back to wall hold'),
+    ('forearmstand','Forearm Stand (Pincha)', 'PUSH', 'seconds', 1260, 'pincha forearm stand elbow handstand'),
+    ('freehandstand','Freestanding Handstand','PUSH', 'seconds', 1800, 'freestanding handstand balance no wall'),
+    ('tuckplanche', 'Tuck Planche',           'PUSH', 'seconds', 1620, 'tuck planche progression'),
+    ('straddleplanche','Straddle Planche',    'PUSH', 'seconds', 2880, 'straddle planche'),
+    ('fullplanche', 'Full Planche',           'PUSH', 'seconds', 3600, 'full planche straight body'),
+
+    ('tucklsit',    'Tucked L-sit',           'CORE', 'seconds',  900, 'tuck lsit knees tucked support hold'),
+    ('oneleglsit',  'One-leg L-sit',          'CORE', 'seconds', 1140, 'one leg lsit half lsit progression'),
+    ('vsit',        'V-sit',                  'CORE', 'seconds', 2160, 'vsit legs high advanced lsit'),
+    ('bridge',      'Full Bridge (Wheel)',    'CORE', 'seconds',  600, 'bridge wheel backbend urdhva'),
+
+    ('tuckfl',      'Tuck Front Lever',       'PULL', 'seconds', 1200, 'tuck front lever progression'),
+    ('advtuckfl',   'Adv. Tuck Front Lever',  'PULL', 'seconds', 1620, 'advanced tuck front lever open'),
+    ('straddlefl',  'Straddle Front Lever',   'PULL', 'seconds', 2160, 'straddle front lever one leg'),
+    ('tuckbl',      'Tuck Back Lever',        'PULL', 'seconds', 1080, 'tuck back lever progression'),
+    ('backlever',   'Back Lever',             'PULL', 'seconds', 2160, 'back lever straight'),
+    ('onearmhang',  'One-arm Hang',           'PULL', 'seconds', 1440, 'one arm hang single grip'),
+    ('tuckflag',    'Tuck / Chamber Flag',    'PULL', 'seconds', 1440, 'chamber flag tuck human flag progression'),
+    ('humanflag',   'Human Flag',             'PULL', 'seconds', 2880, 'human flag pole side lever'),
+    ('carry',       'Loaded Carry',           'PULL', 'minutes',  720, 'farmer walk suitcase carry grip traps'),
 ]
 
 # Distance entries are priced per kilometre; time entries per hour. The two
@@ -145,6 +198,12 @@ CARDIO = [   # (key, name, mode, rate, aliases, variants)
     ('bike',    'Biking',           'km',      1.5,    'cycling bicycle spin', 'Road / Trail / Stationary'),
     ('swim',    'Swim',             'minutes', 30/60,  'swimming pool crawl', 'Any stroke, active swim time'),
     ('walk',    'Walking',          'km',      2.5,    'walk hike hiking steps', 'Hiking counts too'),
+    # Carrying weight costs roughly in proportion to what you carry, so these
+    # sit above their unloaded twins by about what a 15-20% load adds.
+    ('weightrun','Weighted Run',    'km',      6.5,    'weighted run vest ruck run ankle weights',
+     'Vest, pack or ankle weights — log the distance, not the load'),
+    ('ruck',    'Rucking',          'km',      3.5,    'ruck rucking loaded march backpack hike',
+     'Walking with a loaded pack'),
     ('row',     'Rowing Machine',   'minutes', 30/60,  'erg ergometer concept2', 'Indoor erg'),
     ('jumprope','Jump Rope',        'minutes', 33/60,  'skipping rope', 'Skipping'),
     ('stairs',  'Stair Climbing',   'minutes', 30/60,  'stairmaster steps', 'Real stairs or machine'),
@@ -220,9 +279,11 @@ def _own_from_anchor(key, k):
 # in one Sunday, so pricing that as repetition would be wrong.
 DEFAULT_CAP = 200
 WEEK_CAP = {          # key -> points of full-price work per week
-    'run':  500,      # 100 km
-    'walk': 250,      # 100 km
-    'bike': 300,      # 200 km
+    'run':       500,   # 100 km
+    'weightrun': 650,   # 100 km, at the loaded rate
+    'walk':      250,   # 100 km
+    'ruck':      350,   # 100 km, at the loaded rate
+    'bike':      300,   # 200 km
 }
 
 # --------------------------------------------------------------------- gym --
@@ -496,6 +557,53 @@ MUSCLES = {
     'gymincline':    {'chest': .45, 'shoulders': .30, 'triceps': .25},
     'gymgoblet':     {'quads': .45, 'glutes': .30, 'abs': .15, 'hamstrings': .10},
     'gymstepup':     {'quads': .40, 'glutes': .35, 'hamstrings': .15, 'calves': .10},
+    # --- the new calisthenics rungs ---
+    'divebomber':    {'chest': .35, 'shoulders': .35, 'triceps': .25, 'abs': .05},
+    'pikeelev':      {'shoulders': .55, 'triceps': .30, 'traps': .10, 'abs': .05},
+    'wallwalk':      {'shoulders': .45, 'triceps': .25, 'abs': .20, 'chest': .10},
+    'jumppull':      {'lats': .40, 'biceps': .25, 'forearms': .15, 'traps': .10, 'quads': .10},
+    'negativepull':  {'lats': .45, 'biceps': .25, 'forearms': .15, 'traps': .15},
+    'cossack':       {'quads': .40, 'glutes': .30, 'hamstrings': .25, 'calves': .05},
+    'boxpistol':     {'quads': .45, 'glutes': .30, 'hamstrings': .15, 'calves': .10},
+    'archersquat':   {'quads': .45, 'glutes': .30, 'hamstrings': .20, 'calves': .05},
+    'hollowrock':    {'abs': .80, 'quads': .20},
+    'windshield':    {'obliques': .55, 'abs': .30, 'lats': .15},
+    'crow':          {'shoulders': .30, 'triceps': .20, 'forearms': .20, 'abs': .30},
+    'headstand':     {'shoulders': .30, 'traps': .25, 'abs': .35, 'forearms': .10},
+    'wallhandstand': {'shoulders': .50, 'triceps': .20, 'traps': .15, 'abs': .15},
+    'forearmstand':  {'shoulders': .45, 'triceps': .10, 'traps': .20, 'abs': .25},
+    'freehandstand': {'shoulders': .45, 'triceps': .15, 'traps': .15, 'abs': .15,
+                      'forearms': .10},
+    'tuckplanche':   {'shoulders': .35, 'triceps': .15, 'abs': .30, 'lats': .10,
+                      'forearms': .10},
+    'straddleplanche':{'shoulders': .35, 'triceps': .15, 'abs': .25, 'lats': .15,
+                      'forearms': .10},
+    'fullplanche':   {'shoulders': .35, 'triceps': .15, 'abs': .25, 'lats': .15,
+                      'forearms': .10},
+    'tucklsit':      {'abs': .60, 'triceps': .20, 'shoulders': .10, 'quads': .10},
+    'oneleglsit':    {'abs': .55, 'triceps': .18, 'shoulders': .10, 'quads': .17},
+    'vsit':          {'abs': .55, 'triceps': .15, 'quads': .20, 'shoulders': .10},
+    'bridge':        {'lowerback': .30, 'shoulders': .25, 'glutes': .25, 'quads': .10,
+                      'chest': .10},
+    'tuckfl':        {'lats': .35, 'abs': .30, 'lowerback': .15, 'forearms': .10,
+                      'biceps': .10},
+    'advtuckfl':     {'lats': .35, 'abs': .30, 'lowerback': .15, 'forearms': .10,
+                      'biceps': .10},
+    'straddlefl':    {'lats': .35, 'abs': .30, 'lowerback': .15, 'forearms': .10,
+                      'biceps': .10},
+    'tuckbl':        {'lats': .30, 'chest': .20, 'biceps': .20, 'shoulders': .15,
+                      'lowerback': .15},
+    'backlever':     {'lats': .30, 'chest': .20, 'biceps': .20, 'shoulders': .15,
+                      'lowerback': .15},
+    'onearmhang':    {'forearms': .60, 'lats': .20, 'traps': .20},
+    'tuckflag':      {'obliques': .40, 'lats': .25, 'shoulders': .20, 'abs': .15},
+    'humanflag':     {'obliques': .40, 'lats': .25, 'shoulders': .20, 'abs': .15},
+    'carry':         {'forearms': .40, 'traps': .30, 'abs': .15, 'quads': .15},
+    'weightrun':     {'quads': .30, 'hamstrings': .25, 'calves': .25, 'glutes': .15,
+                      'traps': .05},
+    'ruck':          {'quads': .28, 'hamstrings': .20, 'calves': .25, 'glutes': .17,
+                      'traps': .10},
+
     'gympecdeck':    {'chest': .80, 'shoulders': .15, 'triceps': .05},
     'gymshoulderm':  {'shoulders': .60, 'triceps': .30, 'traps': .10},
     'gymskull':      {'triceps': .90, 'shoulders': .10},

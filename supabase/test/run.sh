@@ -48,6 +48,10 @@ echo "· the control room's two totals"
 fresh irondash
 psql -d irondash -f "$HERE/dashboard.sql" 2>&1 | clean
 
+echo "· the skill ladders"
+fresh ironprog
+psql -d ironprog -f "$HERE/progressions.sql" 2>&1 | clean
+
 echo "· the gym formula"
 fresh irongym
 psql -d irongym -f "$HERE/gym.sql" 2>&1 | clean
@@ -77,6 +81,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/body-and-crowns.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/repetition-cap.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/gym-lifts.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/progressions.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
