@@ -283,6 +283,81 @@ struct HistoryRow: Codable, Identifiable, Hashable {
     }
 }
 
+/// One line of the season table. Every finished week pays by FINISHING PLACE
+/// — 5.00 for a win down to 0.10 for twentieth, nothing below that — and the
+/// season adds them up. It replaced a "first to five crowns" race whose fatal
+/// hole was that only a winner ever moved, so anybody who could not
+/// realistically top the board had nothing to chase.
+struct SeasonRow: Codable, Identifiable, Hashable {
+    let profileId: UUID
+    var displayName: String
+    var avatar: String?
+    var banner: String?
+    var nameColor: String?
+    var points: Double
+    var weeks: Int
+    var wins: Int
+    /// Best finish of the season, nil for somebody who has not finished a week.
+    var bestRank: Int?
+    /// Crowns follow the person across every season; `wins` is this one only.
+    var lifetimeWins: Int
+    var mine: Bool
+
+    var id: UUID { profileId }
+
+    enum CodingKeys: String, CodingKey {
+        case profileId = "profile_id"
+        case displayName = "display_name"
+        case avatar, banner, points, weeks, wins, mine
+        case nameColor = "name_color"
+        case bestRank = "best_rank"
+        case lifetimeWins = "lifetime_wins"
+    }
+}
+
+/// Where the season stands, so the header never does arithmetic.
+struct SeasonInfo: Codable, Hashable {
+    /// Zero-based: season 0 is the first one.
+    var season: Int
+    var seasons: Int
+    /// nil means one open season that never ends.
+    var seasonWeeks: Int?
+    var weeksDone: Int
+
+    var weeksLeft: Int? {
+        guard let total = seasonWeeks else { return nil }
+        return max(0, total - weeksDone)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case season, seasons
+        case seasonWeeks = "season_weeks"
+        case weeksDone = "weeks_done"
+    }
+}
+
+/// What each finishing place pays. Must agree with rank_points() in SQL and
+/// RANK_POINTS in app.js to the last decimal.
+enum RankPoints {
+    static let table: [Double] = [5.00, 3.60, 2.80, 2.30, 1.90, 1.60, 1.35, 1.15,
+                                  1.00, 0.85, 0.70, 0.60, 0.50, 0.40, 0.33, 0.27,
+                                  0.21, 0.16, 0.13, 0.10]
+    static func forPlace(_ place: Int) -> Double {
+        guard place >= 1, place <= table.count else { return 0 }
+        return table[place - 1]
+    }
+    static func ordinal(_ n: Int) -> String {
+        let last = n % 100
+        if (11...13).contains(last) { return "\(n)th" }
+        switch n % 10 {
+        case 1: return "\(n)st"
+        case 2: return "\(n)nd"
+        case 3: return "\(n)rd"
+        default: return "\(n)th"
+        }
+    }
+}
+
 struct StatRow: Codable, Identifiable, Hashable {
     let exerciseKey: String
     var category: String

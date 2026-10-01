@@ -5,8 +5,9 @@ RUN, and you have a working database. It drops everything first, so running it
 twice is a rebuild, not a mess — and running it on a live database wipes it.
 
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
-`body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql` and
-`progressions.sql` are migrations for a database that is already running. They only add; nothing logged is touched, and all of
+`body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
+`progressions.sql` and `season-table.sql` are migrations for a database that is
+already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -99,6 +100,43 @@ jumping pull-up is 1.0 against a pull-up's 2.0 and a box pistol 0.75 against a
 pistol's 2.0 — always worth logging, never worth more than the real thing, and
 never under a third of it.
 
+`season-table.sql` replaces the race to five crowns with a season table, and
+stores nothing to do it. People start and then fade: a week is a sprint and
+winning it is all-or-nothing, so anybody who cannot realistically top the board
+has no reason to care by Wednesday. The crowns race had the same hole — only a
+winner ever moved, so "first to five" was a contest between the same two or
+three people and wallpaper for everybody else.
+
+Every finished week now pays by finishing position, and the season adds it up:
+
+| | | | | | | | |
+|---|---|---|---|---|---|---|---|
+| 1st | 5.00 | 6th | 1.60 | 11th | 0.70 | 16th | 0.27 |
+| 2nd | 3.60 | 7th | 1.35 | 12th | 0.60 | 17th | 0.21 |
+| 3rd | 2.80 | 8th | 1.15 | 13th | 0.50 | 18th | 0.16 |
+| 4th | 2.30 | 9th | 1.00 | 14th | 0.40 | 19th | 0.13 |
+| 5th | 1.90 | 10th | 0.85 | 15th | 0.33 | 20th | 0.10 |
+
+21st and below score nothing. A win is worth 39% more than second — the gap
+motor racing uses — so the top of the board still means something, and below
+that it decays gently enough that climbing always pays: 16th to 11th more than
+doubles your week. Over 38 weeks a perfect run is 190 and a steady tenth is 32.
+
+`leagues.season_weeks` already existed and did nothing but print itself; it is
+the season length now, and its ceiling went from 26 to 52 so a real season fits
+(38 for a football year, 50 for a calendar one, null for one that never ends). A
+season is counted in **calendar** weeks from the Monday the league was created,
+so a quiet week still burns one — otherwise a league that went dead for a month
+would quietly extend its own season and the table would never close.
+
+Nothing is stored. `league_season()` derives the whole table from
+`weekly_history` on read, the way divisions, streaks and the repetition discount
+already do, so weeks already played land in season 1 with nothing to backfill
+and nothing to repair. Crowns still follow the person across every season.
+
+The TRIPLE CROWN, FIVE CROWNS and TEN CROWNS badges go with the race. CHAMPION
+— win a week — stays, because winning a week is still the thing.
+
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read
 rather than stored, anybody who had already finished the old one lost the
@@ -146,6 +184,7 @@ Do not hand-edit these:
 | `repetition-cap.sql` | `tools/build_cap_migration.py` |
 | `gym-lifts.sql` | `tools/build_gym_migration.py` |
 | `progressions.sql` | `tools/build_progression_migration.py` |
+| `season-table.sql` | `tools/build_season_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

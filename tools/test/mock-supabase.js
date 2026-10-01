@@ -121,6 +121,38 @@
      the lifter's own body the movement already carries — 0.85 on a standing
      leg lift, 1.0 on a dip or pull-up you hang from, 0 on a bench. Must agree
      with calc_points() in SQL and pointsFor() in app.js to the last decimal. */
+  /* Must match rank_points() in SQL. 1st pays 5.00, 20th pays 0.10, and
+     21st and below score nothing. */
+  var RANKPTS = [5.00, 3.60, 2.80, 2.30, 1.90, 1.60, 1.35, 1.15, 1.00, 0.85,
+                 0.70, 0.60, 0.50, 0.40, 0.33, 0.27, 0.21, 0.16, 0.13, 0.10];
+  function rankPoints(rk) { return RANKPTS[rk - 1] || 0; }
+  window.__rankPoints__ = rankPoints;
+
+  /* Every finished week, ranked, and tagged with the season it belongs to.
+     The season runs in CALENDAR weeks from the Monday the league was created,
+     so a quiet week still burns a week of it. */
+  async function seasonTagged(leagueId) {
+    var lg = DB.leagues.filter(function (l) { return l.id === leagueId; })[0] || {};
+    var len = lg.season_weeks == null ? null : Number(lg.season_weeks);
+    var hist = (await RPC.weekly_history({ p_league: leagueId })).data || [];
+    var byWeek = {};
+    hist.forEach(function (r) {
+      (byWeek[r.week_start] = byWeek[r.week_start] || []).push(r); });
+    var w0 = weekStart(lg.created_at ? new Date(lg.created_at) : new Date());
+    var weeks = Object.keys(byWeek).sort().map(function (wk) {
+      var n = Math.round((Date.parse(wk + 'T00:00:00Z')
+                        - Date.parse(w0 + 'T00:00:00Z')) / 604800000);
+      return {
+        week_start: wk,
+        season: len == null ? 0 : Math.max(0, Math.floor(n / len)),
+        ranked: byWeek[wk].slice().sort(function (x, y) {
+          return y.points - x.points ||
+                 (String(x.joined_at) < String(y.joined_at) ? -1 : 1); })
+      };
+    });
+    return { len: len, weeks: weeks };
+  }
+
   function calc(k, m, a, bw, load) {
     var g = GYMS[k];
     if (g) {
@@ -746,6 +778,59 @@
         return { week_start: wk, profile_id: top.profile_id,
                  display_name: p.display_name, avatar: p.avatar || null };
       }));
+    },
+    /* The season: every finished week pays by finishing PLACE, and the season
+       adds them up. Must agree with rank_points() and season_index() in SQL —
+       a mock that pays differently is a test that passes on a bug. */
+    league_season_info: async function (a) {
+      if (!isMember(a.p_league)) return ok([]);
+      var t = await seasonTagged(a.p_league);
+      var cur = t.weeks.length ? Math.max.apply(null, t.weeks.map(function (w) {
+        return w.season; })) : 0;
+      var here = t.weeks.filter(function (w) { return w.season === cur; });
+      var seasons = {};
+      t.weeks.forEach(function (w) { seasons[w.season] = 1; });
+      return ok([{ season: cur,
+        seasons: Math.max(Object.keys(seasons).length, 1),
+        season_weeks: t.len,
+        weeks_done: here.length,
+        first_week: here.length ? here[0].week_start : null,
+        last_week: here.length ? here[here.length - 1].week_start : null }]);
+    },
+    league_season: async function (a) {
+      if (!isMember(a.p_league)) return ok([]);
+      var t = await seasonTagged(a.p_league);
+      var cur = a.p_season != null ? Number(a.p_season)
+        : (t.weeks.length ? Math.max.apply(null, t.weeks.map(function (w) {
+            return w.season; })) : 0);
+      var acc = {}, life = {};
+      t.weeks.forEach(function (w) {
+        w.ranked.forEach(function (r, i) {
+          var rk = i + 1;
+          if (rk === 1) life[r.profile_id] = (life[r.profile_id] || 0) + 1;
+          if (w.season !== cur) return;
+          var o = acc[r.profile_id] = acc[r.profile_id] ||
+            { points: 0, weeks: 0, wins: 0, best: null };
+          o.points = Math.round((o.points + rankPoints(rk)) * 100) / 100;
+          o.weeks++;
+          if (rk === 1) o.wins++;
+          if (o.best == null || rk < o.best) o.best = rk;
+        });
+      });
+      var mine = me();
+      return ok(DB.members.filter(function (m) { return m.league_id === a.p_league; })
+        .map(function (m) {
+          var p = DB.profiles.filter(function (x) { return x.id === m.profile_id; })[0] || {};
+          var o = acc[m.profile_id] || { points: 0, weeks: 0, wins: 0, best: null };
+          return { profile_id: m.profile_id, display_name: p.display_name,
+                   avatar: p.avatar || null, banner: p.banner || null,
+                   pinned_badges: p.pinned_badges || [], name_color: p.name_color || null,
+                   points: o.points, weeks: o.weeks, wins: o.wins, best_rank: o.best,
+                   lifetime_wins: life[m.profile_id] || 0,
+                   mine: !!mine && mine.id === m.profile_id };
+        }).sort(function (x, y) {
+          return y.points - x.points || y.wins - x.wins ||
+                 ((x.best_rank || 99) - (y.best_rank || 99)); }));
     },
     my_muscles: function (a) {
       if (!isMember(a.p_league)) return ok([]);

@@ -23,6 +23,9 @@ final class Session {
     var badges: [BadgeRow] = []
     var exercises: [Exercise] = []
     var history: [HistoryRow] = []
+    /// The season table and where it stands — both the server's arithmetic.
+    var season: [SeasonRow] = []
+    var seasonInfo: SeasonInfo?
     var stats: [StatRow] = []
     var statsAllTime = false
     /// Raw points banked on each exercise THIS week, so the log sheet can draw
@@ -177,8 +180,12 @@ final class Session {
         guard let id = leagueId else { return }
         async let h = try? API.shared.weeklyHistory(id)
         async let s = try? API.shared.streaks(id)
+        async let t = try? API.shared.seasonTable(id)
+        async let i = try? API.shared.seasonInfo(id)
         history = await h ?? []
         if let v = await s { streaks = v }
+        if let v = await t { season = v }
+        seasonInfo = await i ?? nil
     }
 
     func loadStats() async {
@@ -224,6 +231,8 @@ final class Session {
         leagueId = id
         feeds.removeAll()
         history = []
+        season = []
+        seasonInfo = nil
         stats = []
         weekEx = [:]
         badges = []

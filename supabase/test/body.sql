@@ -186,13 +186,19 @@ select 'CHAMPION: ' || case when earned then 'earned' else 'not yet' end
 from public.my_badges('ffff0000-0000-0000-0000-000000000001') where key = 'week_win';
 select key || ': ' || progress || '/' || target
 from public.my_badges('ffff0000-0000-0000-0000-000000000001')
-where key in ('win3','win5','win10','balance40','balance60') order by key;
+where key in ('balance40','balance60') order by key;
 select case when (select progress from public.my_badges('ffff0000-0000-0000-0000-000000000001')
-                  where key = 'win5')
+                  where key = 'week_win')
           =  (select wins from public.league_wins('ffff0000-0000-0000-0000-000000000001')
               where mine)
        then 'the badge counts the same wins the tracker does'
        else 'THE BADGE AND THE TRACKER DISAGREE' end;
+-- the three/five/ten crown race is gone: it only ever moved for a winner, so
+-- anybody who could not realistically top the board had nothing to chase
+select case when (select count(*) from public.my_badges('ffff0000-0000-0000-0000-000000000001')
+                  where key in ('win3','win5','win10')) = 0
+       then 'and the crown race is gone, replaced by the season table'
+       else 'THE CROWN RACE IS STILL THERE' end;
 
 \echo '--- 12. a finished week is worth what the board said it was worth'
 select case when exists (

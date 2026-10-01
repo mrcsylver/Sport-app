@@ -95,6 +95,11 @@ drop function if exists public.muscle_charge(p_points numeric, p_target numeric)
 drop function if exists public.my_muscles(p_league uuid, p_all boolean) cascade;
 drop function if exists public.muscle_dose(p_profile uuid) cascade;
 drop function if exists public.league_wins(p_league uuid) cascade;
+drop function if exists public.league_season(p_league uuid, p_season int) cascade;
+drop function if exists public.league_season_info(p_league uuid) cascade;
+drop function if exists public.league_week0(p_league uuid) cascade;
+drop function if exists public.rank_points(p_rank int) cascade;
+drop function if exists public.season_index(p_league uuid, p_week date) cascade;
 drop function if exists public.league_champions(p_league uuid) cascade;
 drop function if exists public.set_banner(p_banner text) cascade;
 drop function if exists public.set_name_color(p_color text) cascade;
@@ -463,8 +468,14 @@ create table public.leagues (
   -- which weekdays this league rests on (ISO 1=Mon … 7=Sun); empty = never
   rest_dow    int[] not null default '{7}',
   -- how long a season runs; null means it just keeps going
-  season_weeks int constraint leagues_season_sane
-                 check (season_weeks is null or season_weeks between 1 and 26),
+  -- How many weeks a season runs before the table resets. 26 was the old
+  -- ceiling, from when this was a label and nothing read it; a football season
+  -- is 38 and a long one is 50, so both have to fit. null is one open season
+  -- that never ends.
+  -- 38 by default, because the season table is the long game now and an
+  -- open-ended one has no finish line to play for.
+  season_weeks int default 38 constraint leagues_season_sane
+                 check (season_weeks is null or season_weeks between 1 and 52),
   -- one day a week where being behind is worth something: everything logged
   -- that day is multiplied by how far off the lead you are. Null means the
   -- league does not have one, which is what every league is now.
@@ -994,9 +1005,6 @@ language sql stable security definer set search_path = public as $$
   ),
   b(key, name, descr, progress, target) as (values
     ('week_win','CHAMPION','Win a week in this league', (select n from wins), 1::numeric),
-    ('win3','TRIPLE CROWN','Win three weeks', (select n from wins), 3),
-    ('win5','FIVE CROWNS','Win five weeks', (select n from wins), 5),
-    ('win10','TEN CROWNS','Win ten weeks', (select n from wins), 10),
     ('balance40','NO WEAK LINK','Every muscle past 40% in one week',
       (select best from balbest), 40),
     ('balance100','FULLY FORGED','A full week on all fourteen at once',
@@ -1359,6 +1367,123 @@ language sql stable security definer set search_path = public as $$
   where public.is_member(p_league)
   order by m.sort, m.key
 $$;
+
+-- ---------------------------------------------------------------------
+-- 9c-2. The season table
+-- ---------------------------------------------------------------------
+-- People start and fade. A week is a sprint and winning it is all-or-nothing,
+-- so anybody who cannot realistically top the board has no reason to care by
+-- Wednesday — and the crowns race it replaced had the same hole, because only
+-- a winner moved.
+--
+-- So every finished week now pays out by FINISHING POSITION, the way a motor
+-- racing season does. Fifth place is worth something. Fifteenth is worth
+-- something. Nothing is worth as much as winning.
+--
+--      1st  5.00     6th  1.60     11th 0.70     16th 0.27
+--      2nd  3.60     7th  1.35     12th 0.60     17th 0.21
+--      3rd  2.80     8th  1.15     13th 0.50     18th 0.16
+--      4th  2.30     9th  1.00     14th 0.40     19th 0.13
+--      5th  1.90    10th  0.85     15th 0.33     20th 0.10
+--
+-- 21st and below score nothing, which is the one rung that has to hurt.
+--
+-- The shape is deliberate. A win is worth 39% more than second, the same gap
+-- motor racing uses, so the top of the board still means something. Below
+-- that it decays gently enough that climbing is always worth doing: going
+-- from 16th to 11th more than doubles your week, and tenth place is a fifth
+-- of a win rather than a rounding error. Over a 38 week season a perfect run
+-- is 190 and a steady tenth is 32 — far apart, but both are a season.
+create function public.rank_points(p_rank int) returns numeric
+language sql immutable set search_path = public as $$
+  select coalesce((array[
+    5.00, 3.60, 2.80, 2.30, 1.90, 1.60, 1.35, 1.15, 1.00, 0.85,
+    0.70, 0.60, 0.50, 0.40, 0.33, 0.27, 0.21, 0.16, 0.13, 0.10
+  ]::numeric[])[p_rank], 0)
+$$;
+
+-- A season is measured in CALENDAR weeks from the Monday the league was
+-- created, not in weeks that happened to have activity. A quiet week still
+-- burns a week of the season — otherwise a league that goes dead for a month
+-- would quietly extend its own season, and the table would never close.
+create function public.league_week0(p_league uuid) returns date
+language sql stable set search_path = public as $$
+  select date_trunc('week',
+           (l.created_at at time zone public.app_timezone()))::date
+  from public.leagues l where l.id = p_league
+$$;
+
+create function public.season_index(p_league uuid, p_week date) returns int
+language sql stable set search_path = public as $$
+  select case
+    when (select l.season_weeks from public.leagues l where l.id = p_league) is null
+      then 0                                 -- one season, never ending
+    else greatest(((p_week - public.league_week0(p_league)) / 7)
+                  / (select l.season_weeks from public.leagues l where l.id = p_league),
+                  0)::int
+  end
+$$;
+
+-- Where the season stands. Separate from the table itself so the header can
+-- say "season 2, week 7 of 38" without the client doing arithmetic.
+create function public.league_season_info(p_league uuid)
+returns table (season int, seasons int, season_weeks int, weeks_done int,
+               first_week date, last_week date)
+language sql stable security definer set search_path = public as $$
+  with wk as (
+    select distinct h.week_start,
+           public.season_index(p_league, h.week_start) as season
+    from public.weekly_history(p_league) h
+    where h.week_start < public.current_week_start()
+  ),
+  cur as (select coalesce(max(season), 0)::int as s from wk)
+  select (select s from cur),
+         greatest((select count(distinct season)::int from wk), 1),
+         (select l.season_weeks from public.leagues l where l.id = p_league),
+         (select count(*)::int from wk where season = (select s from cur)),
+         (select min(week_start) from wk where season = (select s from cur)),
+         (select max(week_start) from wk where season = (select s from cur))
+  where public.is_member(p_league)
+$$;
+
+-- The table. Every member appears, even on nothing, because a season table
+-- with only the scorers on it is a league with a closed door.
+create function public.league_season(p_league uuid, p_season int default null)
+returns table (profile_id uuid, display_name text, avatar text, banner text,
+               pinned_badges text[], name_color text, points numeric,
+               weeks int, wins int, best_rank int, lifetime_wins int,
+               mine boolean)
+language sql stable security definer set search_path = public as $$
+  with ranked as (
+    select h.week_start, h.profile_id,
+           row_number() over (partition by h.week_start
+                              order by h.points desc, h.joined_at asc)::int as rk,
+           public.season_index(p_league, h.week_start) as season
+    from public.weekly_history(p_league) h
+    where h.week_start < public.current_week_start()
+  ),
+  pick as (select coalesce(p_season, (select max(season) from ranked), 0)::int as s),
+  season_rows as (select * from ranked where season = (select s from pick)),
+  -- crowns follow the person across every season, so the row can still say
+  -- what somebody has done here in total
+  life as (select profile_id, count(*)::int n from ranked where rk = 1 group by 1)
+  select p.id, p.display_name, p.avatar, p.banner, p.pinned_badges, p.name_color,
+         coalesce(sum(public.rank_points(sr.rk)), 0)::numeric,
+         count(sr.week_start)::int,
+         (count(sr.week_start) filter (where sr.rk = 1))::int,
+         min(sr.rk),
+         coalesce(max(lf.n), 0)::int,
+         p.id = public.my_profile_id()
+  from public.league_members m
+  join public.profiles p on p.id = m.profile_id
+  left join season_rows sr on sr.profile_id = p.id
+  left join life lf on lf.profile_id = p.id
+  where m.league_id = p_league and public.is_member(p_league)
+  group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
+           p.name_color, m.joined_at
+  order by 7 desc, 9 desc, 10 asc nulls last, m.joined_at
+$$;
+
 
 -- Who won each finished week, oldest first. The crowns board needs the
 -- ORDER, not just the totals, because "first to five" is a race with a finish
@@ -2361,6 +2486,11 @@ grant execute on function public.muscle_charge(numeric,numeric) to authenticated
 grant execute on function public.my_muscles(uuid,boolean)      to authenticated;
 grant execute on function public.muscle_dose(uuid)             to authenticated;
 grant execute on function public.league_wins(uuid)             to authenticated;
+grant execute on function public.rank_points(int)              to authenticated;
+grant execute on function public.league_week0(uuid)            to authenticated;
+grant execute on function public.season_index(uuid,date)       to authenticated;
+grant execute on function public.league_season_info(uuid)      to authenticated;
+grant execute on function public.league_season(uuid,int)       to authenticated;
 grant select on public.muscles to authenticated;
 grant execute on function public.set_banner(text)              to authenticated;
 grant execute on function public.set_name_color(text)          to authenticated;

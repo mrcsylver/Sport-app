@@ -6,6 +6,8 @@ import SwiftUI
 struct HallView: View {
     @Environment(Session.self) private var session
     @State private var openWeek: String?
+    @State private var pastOpen = false
+    @State private var payoutOpen = false
 
     private struct Week: Identifiable {
         let id: String
@@ -22,32 +24,57 @@ struct HallView: View {
         }
     }
 
-    private struct Title: Identifiable {
-        let name: String
-        let wins: Int
-        var id: String { name }
-    }
-
-    /// Who has won the most weeks — the only all-time table worth having.
-    private var titles: [Title] {
-        var count: [String: Int] = [:]
-        for w in weeks { if let champ = w.rows.first { count[champ.displayName, default: 0] += 1 } }
-        return count
-            .sorted { $0.value > $1.value || ($0.value == $1.value && $0.key < $1.key) }
-            .map { Title(name: $0.key, wins: $0.value) }
-    }
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                SectionHead(title: "SEASON", trailing: seasonTrailing)
+                if session.season.isEmpty || session.seasonInfo?.weeksDone ?? 0 == 0 {
+                    EmptyHint(text: "The season opens with the first Sunday at 23:59. "
+                              + "Every finished week pays by where you came — 5.00 for "
+                              + "a win, down to 0.10 for twentieth.")
+                } else {
+                    seasonTable
+                }
+
                 SectionHead(title: "HALL OF FAME",
                             trailing: weeks.isEmpty ? nil : "\(weeks.count) WEEKS")
+                    .padding(.top, 10)
 
                 if weeks.isEmpty {
                     EmptyHint(text: "No week has finished yet. Sunday midnight is when this fills up.")
                 } else {
-                    if titles.count > 1 { titleBar }
-                    ForEach(weeks) { week in weekBlock(week) }
+                    // The newest week stays out in the open. This list only ever
+                    // grows, and the week people care about is the one that just
+                    // ended, so everything before it goes behind one tap.
+                    if let latest = weeks.first { weekBlock(latest) }
+                    if weeks.count > 1 {
+                        DisclosureGroup(isExpanded: $pastOpen) {
+                            VStack(spacing: 12) {
+                                ForEach(weeks.dropFirst()) { week in weekBlock(week) }
+                            }
+                            .padding(.top, 10)
+                        } label: {
+                            HStack {
+                                Text("EARLIER WEEKS")
+                                    .font(Theme.display(11, .heavy)).kerning(1.4)
+                                    .foregroundStyle(Theme.ink)
+                                Spacer()
+                                Text("\(weeks.count - 1)")
+                                    .font(Theme.mono(10, .bold))
+                                    .foregroundStyle(Theme.inkFaint)
+                            }
+                        }
+                        .tint(Theme.inkFaint)
+                        .padding(.horizontal, 14).padding(.vertical, 11)
+                        .background {
+                            RoundedRectangle(cornerRadius: Theme.cornerSmall, style: .continuous)
+                                .fill(Theme.surface)
+                                .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall,
+                                                          style: .continuous)
+                                    .strokeBorder(Theme.hairline))
+                        }
+                    }
                 }
 
                 SectionHead(title: "IRON WILL", trailing: "CONSISTENCY")
@@ -72,31 +99,145 @@ struct HallView: View {
         .refreshable { await session.loadHall() }
     }
 
-    private var titleBar: some View {
-        Panel(padding: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("WEEKS WON")
-                    .font(Theme.display(9, .heavy)).kerning(1.6)
+    /// "S2 · WEEK 7/38 · YOU 4th" — worth reading without opening anything.
+    private var seasonTrailing: String? {
+        guard let info = session.seasonInfo, info.weeksDone > 0 else { return nil }
+        var parts: [String] = []
+        if info.seasons > 1 { parts.append("S\(info.season + 1)") }
+        parts.append("WEEK \(info.weeksDone)"
+                     + (info.seasonWeeks.map { "/\($0)" } ?? ""))
+        if let i = session.season.firstIndex(where: { $0.mine }) {
+            parts.append("YOU " + RankPoints.ordinal(i + 1))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var seasonTable: some View {
+        let top = max(session.season.first?.points ?? 1, 0.01)
+        return VStack(spacing: 7) {
+            ForEach(Array(session.season.enumerated()), id: \.element.id) { pair in
+                let row = pair.element
+                let place = pair.offset + 1
+                seasonRow(row, place: place, share: row.points / top)
+            }
+            // Read once, then never again — so it is folded away.
+            DisclosureGroup(isExpanded: $payoutOpen) {
+                payoutGrid.padding(.top, 10)
+            } label: {
+                Text("WHAT EACH PLACE PAYS")
+                    .font(Theme.display(10, .heavy)).kerning(1.4)
                     .foregroundStyle(Theme.inkFaint)
-                HStack(spacing: 8) {
-                    ForEach(titles.prefix(4)) { title in
-                        HStack(spacing: 5) {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(Theme.gold)
-                            Text(title.name)
-                                .font(Theme.display(12, .heavy))
-                                .foregroundStyle(Theme.ink)
-                                .lineLimit(1)
-                            Text("×\(title.wins)")
-                                .font(Theme.mono(10, .bold))
-                                .foregroundStyle(Theme.gold)
+            }
+            .tint(Theme.inkFaint)
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.cornerSmall, style: .continuous)
+                    .fill(Theme.surface)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall,
+                                              style: .continuous)
+                        .strokeBorder(Theme.hairline))
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    @ViewBuilder
+    private func seasonRow(_ row: SeasonRow, place: Int, share: Double) -> some View {
+        let leading = place == 1 && row.points > 0
+        VStack(spacing: 6) {
+            HStack(spacing: 10) {
+                Text("\(place)")
+                    .font(Theme.mono(13, .bold))
+                    .foregroundStyle(leading ? Theme.gold : Theme.inkFaint)
+                    .frame(width: 20, alignment: .trailing)
+                    .monospacedDigit()
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(row.displayName)
+                            .font(Theme.display(14, .bold)).kerning(0.6)
+                            .foregroundStyle(Theme.ink)
+                            .lineLimit(1)
+                        if row.wins > 0 {
+                            HStack(spacing: 2) {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(Theme.gold)
+                                if row.wins > 1 {
+                                    Text("×\(row.wins)")
+                                        .font(Theme.mono(9, .bold))
+                                        .foregroundStyle(Theme.gold)
+                                }
+                            }
                         }
-                        .padding(.horizontal, 8).padding(.vertical, 6)
-                        .background(Capsule().fill(Theme.gold.opacity(0.12)))
+                    }
+                    Text(subtitle(row))
+                        .font(Theme.mono(9))
+                        .foregroundStyle(Theme.inkFaint)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                Text(row.points == row.points.rounded()
+                     ? String(Int(row.points)) : String(format: "%.1f", row.points))
+                    .font(Theme.display(20, .black))
+                    .foregroundStyle(Theme.gold)
+                    .monospacedDigit()
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.hairline)
+                    Capsule().fill(row.mine ? Theme.flame : Theme.gold)
+                        .frame(width: geo.size.width * min(1, max(row.points > 0 ? 0.03 : 0, share)))
+                }
+            }
+            .frame(height: 4)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.cornerSmall, style: .continuous)
+                .fill(Theme.surface)
+                .overlay(RoundedRectangle(cornerRadius: Theme.cornerSmall, style: .continuous)
+                    .strokeBorder(row.mine ? Theme.flame.opacity(0.4)
+                                  : leading ? Theme.gold.opacity(0.5) : Theme.hairline))
+        }
+    }
+
+    private func subtitle(_ row: SeasonRow) -> String {
+        guard row.weeks > 0 else { return "no finished week yet" }
+        var parts = ["\(row.weeks) week" + (row.weeks == 1 ? "" : "s")]
+        if let best = row.bestRank { parts.append("best " + RankPoints.ordinal(best)) }
+        if row.lifetimeWins > row.wins { parts.append("\(row.lifetimeWins) all time") }
+        return parts.joined(separator: " · ")
+    }
+
+    private var payoutGrid: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5),
+                                     count: 5), spacing: 5) {
+                ForEach(Array(RankPoints.table.enumerated()), id: \.offset) { pair in
+                    VStack(spacing: 2) {
+                        Text(RankPoints.ordinal(pair.offset + 1))
+                            .font(Theme.display(9, .heavy)).kerning(0.8)
+                            .foregroundStyle(Theme.inkFaint)
+                        Text(String(format: "%.2f", pair.element))
+                            .font(Theme.mono(12, .bold))
+                            .foregroundStyle(pair.offset == 0 ? Theme.gold : Theme.ink)
+                            .monospacedDigit()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background {
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Theme.raised)
+                            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .strokeBorder(pair.offset == 0 ? Theme.gold.opacity(0.5)
+                                              : Theme.hairline))
                     }
                 }
             }
+            Text("21st and below score nothing. A win is worth 39% more than "
+                 + "second, and climbing from 16th to 11th more than doubles your week.")
+                .font(.caption2)
+                .foregroundStyle(Theme.inkFaint)
         }
     }
 

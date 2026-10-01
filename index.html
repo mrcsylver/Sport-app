@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.17.1">
+  <link rel="stylesheet" href="./styles.css?v=2.18.0">
 </head>
 <body>
 
@@ -123,22 +123,32 @@
 
     <!-- HALL OF FAME -->
     <section id="view-hall" class="view" hidden>
-      <details class="sect" id="sectCrowns">
-        <summary><span>CROWNS</span><span class="tag-count" id="winsWeeks"></span></summary>
+      <!-- The season table replaced a "first to five crowns" race. The race
+           only ever moved for a winner, so anybody who could not realistically
+           top the board had nothing to chase by Wednesday — which is exactly
+           how people fade. Every finished week now pays by finishing place. -->
+      <details class="sect" id="sectSeason" open>
+        <summary><span>SEASON</span><span class="tag-count" id="seasonWhere"></span></summary>
         <div class="sect-b">
-          <p class="muted small">One crown for every week won. Set a target and the first
-            to reach it takes the run — the app keeps the count, you decide the prize.</p>
-          <div class="segmented tiny" id="winsRace">
-            <button type="button" data-race="3">FIRST TO 3</button>
-            <button type="button" data-race="5" class="on">FIRST TO 5</button>
-            <button type="button" data-race="10">FIRST TO 10</button>
-          </div>
-          <div id="wins" class="stack tight" style="margin-top:10px"></div>
+          <p class="muted small">Every finished week pays by where you came:
+            <b>5.0</b> for a win down to <b>0.1</b> for twentieth. It adds up all
+            season — the app keeps the table, you decide the prize.</p>
+          <div id="seasonTable" class="stack tight" style="margin-top:10px"></div>
+          <details class="sect sub" id="sectPayout" style="margin-top:12px">
+            <summary><span>WHAT EACH PLACE PAYS</span></summary>
+            <div class="sect-b"><div id="payout" class="payout"></div></div>
+          </details>
         </div>
       </details>
 
       <div class="section-head"><h2>HALL OF FAME</h2></div>
       <div id="hall"></div>
+      <!-- The list of past winners only grows. The latest week stays out in
+           the open; everything before it goes behind one tap. -->
+      <details class="sect" id="sectPastWeeks" style="margin-top:10px">
+        <summary><span>EARLIER WEEKS</span><span class="tag-count" id="pastCount"></span></summary>
+        <div class="sect-b"><div id="hallPast"></div></div>
+      </details>
 
       <details class="sect" id="sectStreaks" style="margin-top:20px">
         <summary><span>IRON WILL</span><span class="tag-count" id="streakCount">CONSECUTIVE DAYS</span></summary>
@@ -294,12 +304,17 @@
               anything. It cannot be a rest day.</p>
             <div class="dowrow" id="catchDows"></div>
             <label class="lbl" for="seasonWeeks" style="margin-top:12px">SEASON LENGTH</label>
+            <p class="muted small" style="margin:0 0 6px">How long the season table
+              runs before it resets and a new season starts. Counted in weeks from
+              the Monday the league was created, so a quiet week still burns one.</p>
             <select id="seasonWeeks" class="input select">
-              <option value="">No end — runs forever</option>
+              <option value="">No end — one season, runs forever</option>
               <option value="4">4 weeks</option>
               <option value="8">8 weeks</option>
               <option value="12">12 weeks (3 months)</option>
-              <option value="26">26 weeks (6 months, max)</option>
+              <option value="26">26 weeks (6 months)</option>
+              <option value="38">38 weeks (a football season)</option>
+              <option value="50">50 weeks (a year, max)</option>
             </select>
             <p class="rulestate" id="rulesState">Every change here saves itself.</p>
           </div>
@@ -579,8 +594,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.17.1"></script>
-<script src="./vendor/game-icons.js?v=2.17.1"></script>
-<script src="./app.js?v=2.17.1"></script>
+<script src="./vendor/supabase.js?v=2.18.0"></script>
+<script src="./vendor/game-icons.js?v=2.18.0"></script>
+<script src="./app.js?v=2.18.0"></script>
 </body>
 </html>

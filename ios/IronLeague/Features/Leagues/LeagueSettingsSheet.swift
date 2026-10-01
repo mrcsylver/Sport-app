@@ -9,7 +9,7 @@ struct LeagueSettingsSheet: View {
 
     @State private var rest: Set<Int> = [7]
     @State private var catchup: Int?
-    @State private var weeks: Double = 12
+    @State private var weeks: Double = 38
     @State private var endless = true
 
     /// ISO weekdays: 1 is Monday, 7 is Sunday, matching the server.
@@ -267,11 +267,14 @@ struct LeagueSettingsSheet: View {
                             .font(Theme.display(20, .black))
                             .foregroundStyle(Theme.ink)
                         Spacer()
-                        Text(weeks >= 26 ? "six months — the maximum"
-                                         : "about \(Int((weeks / 4.34).rounded())) months")
+                        Text(weeks >= 50 ? "a year — the maximum"
+                             : weeks == 38 ? "a football season"
+                             : "about \(Int((weeks / 4.34).rounded())) months")
                             .font(.caption).foregroundStyle(Theme.inkFaint)
                     }
-                    Slider(value: $weeks, in: 1...26, step: 1)
+                    // 26 was the old ceiling, from when this was a label nothing
+                    // read. A season table needs a real season: 38 or 50.
+                    Slider(value: $weeks, in: 1...50, step: 1)
                         .tint(Theme.flame)
                 }
 

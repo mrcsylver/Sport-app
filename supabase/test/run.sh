@@ -48,6 +48,10 @@ echo "· the control room's two totals"
 fresh irondash
 psql -d irondash -f "$HERE/dashboard.sql" 2>&1 | clean
 
+echo "· the season table"
+fresh ironseason
+psql -d ironseason -f "$HERE/season.sql" 2>&1 | clean
+
 echo "· the skill ladders"
 fresh ironprog
 psql -d ironprog -f "$HERE/progressions.sql" 2>&1 | clean
@@ -82,6 +86,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/repetition-cap.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/gym-lifts.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/progressions.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/season-table.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -109,4 +114,12 @@ psql -tAd ironlive -c "select case
   when calc_points('gymdip','reps',1,70,20) > calc_points('gymdip','reps',1,70,0)
   then 'and a weighted dip is finally worth more than a plain one'
   else 'THE BELT LIFTS ARE STILL INVERTED' end;"
+psql -tAd ironlive -c "select case when rank_points(1) = 5.00 and rank_points(20) = 0.10
+  then 'a weekly place is worth season points, 5.00 down to 0.10'
+  else 'THE SEASON TABLE DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select case when (select count(*) from pg_constraint
+    where conname = 'leagues_season_sane'
+      and pg_get_constraintdef(oid) like '%52%') = 1
+  then 'and a 38 or 50 week season fits where 26 was the ceiling'
+  else 'THE SEASON LENGTH IS STILL CAPPED AT 26' end;"
 echo "· all clear"

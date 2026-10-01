@@ -35,6 +35,7 @@ KNOWN = {
     # SwiftUI
     "View", "App", "Scene", "WindowGroup", "Text", "Image", "Button", "VStack",
     "HStack", "ZStack", "LazyVStack", "LazyVGrid", "LazyHStack", "GridItem",
+    "DisclosureGroup",
     "ScrollView", "ScrollViewReader", "List", "ForEach", "Spacer", "Divider",
     "Color", "Font", "Angle", "Path", "Shape", "InsettableShape", "Circle",
     "Capsule", "Rectangle", "RoundedRectangle", "Ellipse", "LinearGradient",

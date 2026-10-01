@@ -15,7 +15,8 @@ const srv=http.createServer((q,s)=>{let p=decodeURIComponent(q.url.split('?')[0]
    week so the figure has something lopsided to show. */
 const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  function back(n){var d=new Date(ws+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7*n);return d.toISOString().slice(0,10);}
- DB.leagues.push({id:'lg1',name:'IRON CIRCLE',code:'8FE7BB',owner_id:'p1',max_members:36,rest_dow:[7]});
+ function wk0(n){var d=new Date(ws+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7*n);return d.toISOString();}
+ DB.leagues.push({id:'lg1',name:'IRON CIRCLE',code:'8FE7BB',owner_id:'p1',max_members:36,rest_dow:[7],season_weeks:38,created_at:wk0(8)});
  DB.profiles.push({id:'p1',user_id:'u1',display_name:'MARCO',restore_code:'RC1',body_form:'neutral'});
  DB.profiles.push({id:'p2',user_id:'u2',display_name:'SARAH',restore_code:'RC2'});
  DB.members.push({league_id:'lg1',profile_id:'p1',joined_at:'2026-01-01'});
@@ -48,69 +49,81 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  await pg.waitForSelector('#view-live:not([hidden])',{timeout:9000});
  await pg.waitForTimeout(700);
 
- /* ---- crowns ---- */
+ /* ---- the season table ----
+    It replaced a "first to five crowns" race whose fatal hole was that only a
+    winner ever moved: anybody who could not realistically top the board had
+    nothing to chase by Wednesday, which is exactly how people fade. Two
+    members, one win each — so their season totals must come out IDENTICAL at
+    5.00 + 3.60, which is the cleanest proof that places are what pay. */
  await pg.click('.tab[data-view="hall"]'); await pg.waitForTimeout(700);
- T('crowns fold away so the hall is not buried',
-   await pg.$eval('#sectCrowns', e=>!e.open), 'shut by default');
- T('and say where you stand while shut',
-   /RUN \d+ · YOU \d+\/\d+/.test(await pg.textContent('#winsWeeks')),
-   await pg.textContent('#winsWeeks'));
- T('iron will folds away too', await pg.$eval('#sectStreaks', e=>!e.open), 'shut');
- await pg.$eval('#sectCrowns', e=>{e.open=true;}); await pg.waitForTimeout(300);
- const wins=await pg.$$eval('#wins .win', e=>e.map(x=>x.textContent.replace(/\s+/g,' ').trim()));
- T('every member has a crown row', wins.length===2, wins.length+' rows');
- /* Somebody who took a week in an earlier run has earned their place on the
-    board even while they are on zero in this one. With a target of one, each
-    week closes a run, so both are on zero and both must still be there. */
- T('a past winner stays listed even on zero for this run',
+ T('the season table is the first thing on the hall tab',
+   await pg.$eval('#sectSeason', e=>e.open), 'open by default');
+ T('and says where you stand on the tab itself',
+   /WEEK 2\/38 · YOU 1st/.test(await pg.textContent('#seasonWhere')),
+   await pg.textContent('#seasonWhere'));
+ T('iron will still folds away', await pg.$eval('#sectStreaks', e=>!e.open), 'shut');
+
+ const sea = await pg.$$eval('#seasonTable .sea', e=>e.map(x=>({
+   pos: x.querySelector('.sea-p').textContent.trim(),
+   who: x.querySelector('.sea-w b').textContent.trim(),
+   sub: x.querySelector('.sea-w i').textContent.replace(/\s+/g,' ').trim(),
+   pts: x.querySelector('.sea-n').textContent.trim()
+ })));
+ T('every member is on the table', sea.length===2, sea.length+' rows');
+ T('a win and a second is 5.00 + 3.60 = 8.6',
+   sea.every(r=>r.pts==='8.6'), sea.map(r=>r.who+' '+r.pts).join(', '));
+ T('positions are numbered down the table',
+   sea.map(r=>r.pos).join(',')==='1,2', sea.map(r=>r.pos).join(','));
+ T('the row says how many weeks, the crown, and the best place',
+   /2 weeks/.test(sea[0].sub) && /best 1st/.test(sea[0].sub), sea[0].sub);
+ T('a crown is drawn, not just counted',
+   (await pg.$$('#seasonTable .cr')).length===2, 'one each');
+ T('the header names the season and how far in it is',
+   /2 of 38/.test(await pg.textContent('.seahead')),
+   (await pg.textContent('.seahead')).replace(/\s+/g,' ').trim());
+
+ /* The payout table is behind one tap: read once, then never again. */
+ T('what each place pays is folded away',
+   await pg.$eval('#sectPayout', e=>!e.open), 'shut');
+ await pg.$eval('#sectPayout', e=>{e.open=true;}); await pg.waitForTimeout(250);
+ const pay = await pg.$$eval('#payout .pay', e=>e.map(x=>x.textContent.trim()));
+ T('twenty places are priced, 1st down to 20th',
+   pay.length===20 && pay[0].indexOf('1st')===0 && pay[19].indexOf('20th')===0,
+   pay.length+' places: '+pay[0]+' … '+pay[19]);
+ T('the client table matches the server to the decimal',
    await pg.evaluate(()=>{
-     const was = window.__state__.raceTo;
-     window.__state__.raceTo = 1;
-     window.__renderWins__();
-     const names = Array.from(document.querySelectorAll('#wins .win-w b'))
-       .map(e=>e.textContent).sort().join(',');
-     const zeros = Array.from(document.querySelectorAll('#wins .win-n'))
-       .every(e=>e.textContent.indexOf('0/') === 0);
-     window.__state__.raceTo = was; window.__renderWins__();
-     return names === 'MARCO,SARAH' && zeros;
-   }), 'both listed on 0/1');
- T('one crown each, one week apiece',
-   (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent.replace('/',' of ')))).join(',')==='1 of 5,1 of 5',
-   (await pg.$$eval('#wins .win-n', e=>e.map(x=>x.textContent))).join(','));
- T('a crown is drawn, not just counted', (await pg.$$('#wins .cr')).length===2, 'yes');
- T('the current run is named', (await pg.textContent('.runhead')).includes('RUN 1'),
-   (await pg.textContent('.runhead')).replace(/\s+/g,' '));
- T('nobody has taken a run yet', (await pg.$$('#wins .run')).length===0, 'none');
- await pg.click('#winsRace [data-race="3"]'); await pg.waitForTimeout(250);
- T('the race target changes the bars', (await pg.textContent('#wins')).includes('FIRST TO 3'),
-   'first to 3');
- const w3=await pg.$eval('#wins .win-bar span', e=>e.style.width);
- await pg.click('#winsRace [data-race="10"]'); await pg.waitForTimeout(250);
- const w10=await pg.$eval('#wins .win-bar span', e=>e.style.width);
- T('and a harder target is a shorter bar', parseFloat(w10)<parseFloat(w3), w3+' -> '+w10);
- /* a target somebody has already passed closes a run and opens the next */
- await pg.evaluate(()=>{ document.querySelector('#winsRace [data-race="3"]').click(); });
- await pg.waitForTimeout(200);
- T('a reachable target would close a run',
-   await pg.evaluate(()=>{
-     const champs=[{week_start:'w1',profile_id:'p1',display_name:'MARCO'},
-                   {week_start:'w2',profile_id:'p1',display_name:'MARCO'},
-                   {week_start:'w3',profile_id:'p2',display_name:'SARAH'},
-                   {week_start:'w4',profile_id:'p1',display_name:'MARCO'},
-                   {week_start:'w5',profile_id:'p2',display_name:'SARAH'},
-                   {week_start:'w6',profile_id:'p2',display_name:'SARAH'},
-                   {week_start:'w7',profile_id:'p2',display_name:'SARAH'}];
-     const r = window.__cutRuns__(champs, 3);
-     return r.done.length===2 && r.done[0].winner.profile_id==='p1'
-         && r.done[1].winner.profile_id==='p2' && r.n===3 && r.weeks===0;
-   }), 'run 1 MARCO, run 2 SARAH, run 3 open');
- await pg.click('#winsRace [data-race="10"]'); await pg.waitForTimeout(200);
- T('the choice survives a reload', await pg.evaluate(()=>
-   localStorage.getItem('ironleague.raceto')==='10'), 'stored');
- T('the hall of fame is still below it',
-   (await pg.textContent('#hall')).length>0 && (await pg.$$('#hall .week')).length===2,
-   (await pg.$$('#hall .week')).length+' weeks');
- await pg.screenshot({path:path.join(OUT,'70-crowns.png'),fullPage:false});
+     const p = window.__RANK_POINTS__;
+     return p.length===20 && p[0]===5 && p[19]===0.1
+       && p.every((v,i)=>i===0||v<p[i-1]);          // strictly decreasing
+   }), '5.00 down to 0.10, every step down');
+
+ /* The race is gone, and nothing that drove it is left behind. */
+ T('the crowns race is gone from the page',
+   await pg.evaluate(()=>!document.querySelector('#winsRace')
+     && !document.querySelector('#wins') && !document.querySelector('#sectCrowns')),
+   'no race switch, no run board');
+
+ /* ---- hall of fame: the newest week out in the open, the rest behind a tap */
+ T('only the latest week is out in the open',
+   (await pg.$$('#hall .week')).length===1, (await pg.$$('#hall .week')).length+' week');
+ T('and the earlier ones are behind one tap',
+   await pg.$eval('#sectPastWeeks', e=>!e.open && !e.hidden), 'shut but there');
+ T('the tab says how many are hidden',
+   (await pg.textContent('#pastCount')).trim()==='1 WEEK',
+   await pg.textContent('#pastCount'));
+ await pg.$eval('#sectPastWeeks', e=>{e.open=true;}); await pg.waitForTimeout(250);
+ T('opening it shows the rest', (await pg.$$('#hallPast .week')).length===1,
+   (await pg.$$('#hallPast .week')).length+' earlier week');
+ /* a week inside the dropdown still expands, which needs its own listener */
+ await pg.click('#hallPast [data-week]'); await pg.waitForTimeout(300);
+ T('and a hidden week still opens to its full table',
+   (await pg.$$('#hallPast .week-body .mini')).length===2,
+   (await pg.$$('#hallPast .week-body .mini')).length+' placings');
+ T('each placing shows what the season paid for it',
+   /\+5\.00/.test(await pg.textContent('#hallPast .week-body')) &&
+   /\+3\.60/.test(await pg.textContent('#hallPast .week-body')),
+   (await pg.textContent('#hallPast .week-body')).replace(/\s+/g,' ').trim());
+ await pg.screenshot({path:path.join(OUT,'70-season.png'),fullPage:false});
 
  /* ---- the figure ---- */
  await pg.click('.tab[data-view="stats"]'); await pg.waitForTimeout(800);

@@ -170,6 +170,18 @@ actor API {
     func badges(_ league: UUID) async throws -> [BadgeRow] {
         try await rpc("my_badges", ["p_league": .string(league.uuidString)])
     }
+    func seasonTable(_ league: UUID, season: Int? = nil) async throws -> [SeasonRow] {
+        try await rpc("league_season", [
+            "p_league": .string(league.uuidString),
+            // null means whichever season is running now
+            "p_season": season.map { .integer($0) } ?? .null
+        ])
+    }
+    func seasonInfo(_ league: UUID) async throws -> SeasonInfo? {
+        let rows: [SeasonInfo] = try await rpc("league_season_info",
+                                               ["p_league": .string(league.uuidString)])
+        return rows.first
+    }
     func weeklyHistory(_ league: UUID) async throws -> [HistoryRow] {
         try await rpc("weekly_history", ["p_league": .string(league.uuidString)])
     }

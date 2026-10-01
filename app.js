@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.17.1';
+  var APP_VERSION = '2.18.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -917,9 +917,10 @@
     pendingCode: null,
     view: 'live',
     statsRange: 'week',
-    wins: [],
-    champions: [],
-    raceTo: 5,            // the target a "first to N" run is counted against
+    // the season table and where it stands, both the server's work
+    season: [],
+    seasonInfo: null,
+    seasonPick: null,     // null = whichever season is running now
     muscles: [],
     bodyView: 'front',
     bodyPick: null,       // the region a thumb is currently holding
@@ -927,13 +928,8 @@
     restDone: false
   };
   var LS = {
-    league: 'ironleague.league',
-    race: 'ironleague.raceto'
+    league: 'ironleague.league'
   };
-  try {
-    var savedRace = Number(localStorage.getItem(LS.race));
-    if (savedRace === 3 || savedRace === 5 || savedRace === 10) state.raceTo = savedRace;
-  } catch (e) {}
 
   /* ===================================================================
      5. Boot
@@ -1543,117 +1539,125 @@
     state.history = r.data || [];
     renderHall();
 
-    var w = await sb.rpc('league_wins', { p_league: state.leagueId });
-    if (!w.error) state.wins = w.data || [];
-    var c = await sb.rpc('league_champions', { p_league: state.leagueId });
-    if (!c.error) state.champions = c.data || [];
-    renderWins();
+    var i = await sb.rpc('league_season_info', { p_league: state.leagueId });
+    if (!i.error) state.seasonInfo = (i.data && i.data[0]) || null;
+    var t = await sb.rpc('league_season', {
+      p_league: state.leagueId,
+      p_season: state.seasonPick == null ? null : state.seasonPick });
+    if (!t.error) state.season = t.data || [];
+    renderSeason();
   }
 
-  /* Cut the run of weekly champions into races to N.
-     Somebody reaching N ends that run there: the weeks after it belong to the
-     next one, and everybody starts the next one on zero. Doing it here rather
-     than in the database is what lets the target be a switch on the phone —
-     change it and every past run is re-cut on the spot, with nothing stored
-     and nothing to migrate. */
-  function cutRuns(champions, target) {
-    var runs = [], tally = {}, weeks = 0;
-    (champions || []).forEach(function (c) {
-      tally[c.profile_id] = (tally[c.profile_id] || 0) + 1;
-      weeks++;
-      if (tally[c.profile_id] >= target) {
-        runs.push({ winner: c, weeks: weeks, ended: c.week_start });
-        tally = {}; weeks = 0;
-      }
-    });
-    return { done: runs, tally: tally, weeks: weeks, n: runs.length + 1 };
+  /* ---------------------------------------------------------------- season
+     Every finished week pays by FINISHING PLACE, and the season adds them up.
+     This replaced a "first to five crowns" race, which had one fatal hole:
+     only a winner ever moved. Somebody who could not realistically top the
+     board had nothing to chase by Wednesday — which is exactly how people
+     start and then fade. Fifth place is worth something now. Fifteenth is
+     worth something. Nothing is worth as much as winning.
+
+     The table is the server's: season_index() decides which calendar weeks
+     belong to which season and rank_points() prices each place, so the phone
+     renders and never computes. The old race target was a local switch, and
+     that was the tell that it was decoration. */
+  var PLACE_LABEL = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th',
+                     '9th', '10th', '11th', '12th', '13th', '14th', '15th',
+                     '16th', '17th', '18th', '19th', '20th'];
+  /* Must match rank_points() in SQL. Only drawn — the server scores. */
+  var RANK_POINTS = [5.00, 3.60, 2.80, 2.30, 1.90, 1.60, 1.35, 1.15, 1.00, 0.85,
+                     0.70, 0.60, 0.50, 0.40, 0.33, 0.27, 0.21, 0.16, 0.13, 0.10];
+
+  function renderPayout() {
+    var box = $('#payout');
+    if (!box) return;
+    box.innerHTML = RANK_POINTS.map(function (v, i) {
+      return '<span class="pay' + (i === 0 ? ' first' : '') + '">' +
+        '<i>' + PLACE_LABEL[i] + '</i><b>' + v.toFixed(2) + '</b></span>';
+    }).join('') +
+      '<p class="muted small" style="grid-column:1/-1;margin:8px 0 0">' +
+      '21st and below score nothing. A win is worth 39% more than second, ' +
+      'and climbing from 16th to 11th more than doubles your week.</p>';
   }
 
-  /* Crowns. One per week won, counted from the same finished weeks the hall
-     below is built from, so the two can never tell different stories. The
-     race target is a local choice — nothing about "first to five" needs to be
-     agreed with the server, and making it a league setting would mean one
-     person deciding it for everybody. */
-  function renderWins() {
-    var box = $('#wins');
-    var rows = state.wins || [];
-    var weeks = rows.length ? Number(rows[0].weeks) : 0;
-    if (!weeks) {
-      $('#winsWeeks').textContent = 'NOT STARTED';
+  function renderSeason() {
+    var box = $('#seasonTable');
+    var rows = state.season || [];
+    var info = state.seasonInfo;
+    renderPayout();
+
+    if (!info || !Number(info.weeks_done)) {
+      $('#seasonWhere').textContent = 'NOT STARTED';
       box.innerHTML = '<div class="empty">No week has finished yet.<br>' +
-        'The first crown is handed out on Sunday at 23:59.</div>';
+        'The season opens with the first Sunday at 23:59.</div>';
       return;
     }
-    var target = state.raceTo;
-    var run = cutRuns(state.champions, target);
-    var lead = Math.max.apply(null, [0].concat(rows.map(function (r) {
-      return run.tally[r.profile_id] || 0; })));
 
-    /* A shut section still has to be worth reading, so the summary carries
-       the only two numbers that matter: which run, and where you are in it. */
+    var len = info.season_weeks == null ? null : Number(info.season_weeks);
+    var done = Number(info.weeks_done);
     var me = rows.filter(function (r) { return r.mine; })[0];
-    $('#winsWeeks').textContent = 'RUN ' + run.n + ' · YOU ' +
-      ((me && run.tally[me.profile_id]) || 0) + '/' + target;
+    var myPlace = me ? rows.indexOf(me) + 1 : 0;
 
-    /* Runs already taken, most recent first. This is the answer to "what
-       happens when somebody gets there": their name goes up here for good,
-       the board resets to zero, and the next run starts the following week. */
-    var past = run.done.length
-      ? '<div class="runs">' + run.done.slice().reverse().map(function (r, i) {
-          return '<span class="run"><i>RUN ' + (run.done.length - i) + '</i>' +
-            avatarHtml(r.winner.avatar, { name: r.winner.display_name, size: 'sm' }) +
-            '<b>' + esc(r.winner.display_name) + '</b>' +
-            '<em>' + r.weeks + (r.weeks === 1 ? ' week' : ' weeks') + '</em></span>';
-        }).join('') + '</div>'
-      : '';
+    /* Shut, the summary still has to be worth reading: which season, how far
+       in, and where you are in it. */
+    $('#seasonWhere').textContent =
+      (Number(info.seasons) > 1 ? 'S' + (Number(info.season) + 1) + ' · ' : '') +
+      'WEEK ' + done + (len ? '/' + len : '') +
+      (myPlace ? ' · YOU ' + ordinal(myPlace) : '');
 
-    box.innerHTML = past +
-      '<div class="runhead"><span>RUN ' + run.n + ' · FIRST TO ' + target + '</span>' +
-        '<i>' + (run.weeks
-          ? run.weeks + (run.weeks === 1 ? ' week in' : ' weeks in')
-          : 'starts with the next week') + '</i></div>' +
-      /* Everybody who has ever won a week, plus you. A league of thirty
-         renders twenty-eight rows of "0 / 5" if you list all of it, and the
-         names that matter get lost — but somebody who took a week in an
-         earlier run has earned their place on the board even while they are
-         on zero in this one. */
-      (function () {
-        var inIt = rows.filter(function (r) {
-          return (run.tally[r.profile_id] || 0) > 0 || Number(r.wins) > 0 || r.mine; });
-        var rest = rows.length - inIt.length;
-        return inIt.map(function (r) {
-          var here = run.tally[r.profile_id] || 0;
-          var life = Number(r.wins);
-          var pct = Math.min(100, here / target * 100);
-          return '<div class="win' + (r.mine ? ' me' : '') +
-              (here && here === lead ? ' lead' : '') + '">' +
-            '<span class="win-w">' + avatarHtml(r.avatar,
-                { name: r.display_name, size: 'sm' }) +
-              '<b>' + esc(r.display_name) + '</b>' +
-              '<i>' + (life ? crowns(life) + ' all time' : 'no crown yet') + '</i></span>' +
-            '<span class="win-n">' + here + '<em>/' + target + '</em></span>' +
-            '<span class="win-bar"><span style="width:' + pct.toFixed(1) + '%"></span></span>' +
-          '</div>';
-        }).join('') + (rest > 0
-          ? '<p class="restline">and ' + rest + ' others yet to win a week</p>'
-          : '');
-      })() +
-      '<p class="hint">' + (lead
-        ? (target - lead) + (target - lead === 1 ? ' week' : ' weeks') +
-          ' from the front. Reach ' + target + ' and the run is yours — the board ' +
-          'clears and run ' + (run.n + 1) + ' starts the Monday after.'
-        : 'Everyone starts on zero. First to ' + target + ' takes the run.') + '</p>';
+    var top = Number(rows.length ? rows[0].points : 0) || 1;
+    box.innerHTML =
+      '<div class="seahead"><span>' +
+        (Number(info.seasons) > 1 ? 'SEASON ' + (Number(info.season) + 1) : 'SEASON') +
+        '</span><i>' + done + (len
+          ? ' of ' + len + (len - done > 0
+              ? ' · ' + (len - done) + (len - done === 1 ? ' week left' : ' weeks left')
+              : ' · final week')
+          : ' weeks in · no end set') + '</i></div>' +
+      rows.map(function (r, i) {
+        var pts = Number(r.points);
+        var pct = Math.max(pts > 0 ? 3 : 0, pts / top * 100);
+        var life = Number(r.lifetime_wins);
+        var sub = Number(r.weeks)
+          ? Number(r.weeks) + (Number(r.weeks) === 1 ? ' week' : ' weeks') +
+            (Number(r.wins) ? ' · ' + crowns(Number(r.wins)) : '') +
+            (r.best_rank ? ' · best ' + ordinal(Number(r.best_rank)) : '')
+          : 'no finished week yet';
+        return '<div class="sea' + (r.mine ? ' me' : '') + (i === 0 && pts > 0 ? ' lead' : '') + '">' +
+          '<span class="sea-p">' + (i + 1) + '</span>' +
+          '<span class="sea-w">' + avatarHtml(r.avatar,
+              { name: r.display_name, size: 'sm' }) +
+            '<b>' + esc(r.display_name) + '</b>' +
+            '<i>' + sub + (life > Number(r.wins)
+              ? ' · ' + life + ' all time' : '') + '</i></span>' +
+          '<span class="sea-n">' + num(pts) + '</span>' +
+          '<span class="sea-bar"><span style="width:' + pct.toFixed(1) + '%"></span></span>' +
+        '</div>';
+      }).join('') +
+      '<p class="hint">' + (myPlace === 1
+        ? 'You are top of the table. ' + (len
+            ? (len - done) + ' weeks to hold it.' : 'Hold it.')
+        : myPlace
+          ? 'A win is worth ' + RANK_POINTS[0] + '. You are ' +
+            num(Number(rows[0].points) - Number(me.points)) + ' off the top.'
+          : 'Finish a week in the top twenty and you are on the table.') + '</p>';
   }
 
   /* Five crowns is a row of five; twelve is a crown and a number. Nobody can
      count fourteen little pictures anyway. */
   function crowns(n) {
     if (!n) return '';
-    if (n <= 4) return new Array(n + 1).join('<i class="cr">👑</i>');
-    return '<i class="cr">👑</i><b class="crx">x' + n + '</b>';
+    if (n <= 4) return new Array(n + 1).join('<i class="cr">\u{1F451}</i>');
+    return '<i class="cr">\u{1F451}</i><b class="crx">x' + n + '</b>';
   }
 
-  window.__cutRuns__ = cutRuns;   // the run maths, reachable from a test
+  function ordinal(n) {
+    n = Number(n) || 0;
+    var s = n % 100;
+    if (s >= 11 && s <= 13) return n + 'th';
+    return n + (['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  }
+
+  window.__RANK_POINTS__ = RANK_POINTS;   // reachable from a test
   /* The clock, so a test can prove it reads Paris and not the phone. */
   window.__clock__ = {
     tz: TZ, wallNow: wallNow, weekStart: currentWeekStart, isRestDay: isRestDay,
@@ -1661,19 +1665,9 @@
   };
   window.__state__ = state;
   window.__BODY__ = BODY;
-  window.__renderWins__ = renderWins;
+  window.__renderSeason__ = renderSeason;
   window.__fixFor__ = fixFor;
   window.__EXNAME__ = function (k) { var e = exercise(k); return e ? e.name : k; };
-
-  $('#winsRace').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-race]'); if (!b) return;
-    state.raceTo = Number(b.getAttribute('data-race'));
-    try { localStorage.setItem(LS.race, String(state.raceTo)); } catch (err) {}
-    Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) {
-      x.classList.toggle('on', x === b);
-    });
-    renderWins();
-  });
 
   function renderHall() {
     var box = $('#hall');
@@ -1687,7 +1681,10 @@
       if (!byWeek[r.week_start]) { byWeek[r.week_start] = []; weeks.push(r.week_start); }
       byWeek[r.week_start].push(r);
     });
-    box.innerHTML = weeks.map(function (wk, wi) {
+    /* The newest week stays out in the open; everything before it goes behind
+       one tap, because this list only ever grows and the week people care
+       about is the one that just ended. */
+    var html = weeks.map(function (wk, wi) {
       var rows = byWeek[wk].slice().sort(function (a, b) { return b.points - a.points; });
       var win = rows[0];
       var open = !!state.openWeeks[wk];
@@ -1724,20 +1721,33 @@
               esc(climber.row.display_name) + '</span>' +
             '<span class="cl-g">+' + num(climber.gain) + '</span></div>' : '') +
         (open ? '<div class="week-body">' + rows.map(function (r, i) {
+            /* the season points each place paid, so the hall and the season
+               table can never tell different stories about the same week */
+            var pay = RANK_POINTS[i];
             return '<div class="mini"><span class="mn">' + (i + 1) + '. ' + esc(r.display_name) +
-                   '</span><span class="mp">' + num(r.points) + ' pts · ' + r.entries + '</span></div>';
+                   '</span><span class="mp">' + num(r.points) + ' pts · ' + r.entries +
+                   (pay ? '<em class="mpay">+' + pay.toFixed(2) + '</em>' : '') +
+                   '</span></div>';
           }).join('') + '</div>' : '') +
       '</div>';
-    }).join('');
+    });
+    box.innerHTML = html[0] || '';
+    var past = $('#hallPast');
+    $('#sectPastWeeks').hidden = html.length < 2;
+    $('#pastCount').textContent = html.length < 2 ? ''
+      : (html.length - 1) + (html.length === 2 ? ' WEEK' : ' WEEKS');
+    past.innerHTML = html.slice(1).join('');
   }
 
-  $('#hall').addEventListener('click', function (e) {
+  function weekToggle(e) {
     var b = e.target.closest('[data-week]');
     if (!b) return;
     var wk = b.getAttribute('data-week');
     state.openWeeks[wk] = !state.openWeeks[wk];
     renderHall();
-  });
+  }
+  $('#hall').addEventListener('click', weekToggle);
+  $('#hallPast').addEventListener('click', weekToggle);
 
   /* ===================================================================
      11. Leagues / profile tab
