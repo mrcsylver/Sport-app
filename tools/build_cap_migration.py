@@ -105,9 +105,9 @@ set local check_function_bodies = off;
 -- capped it in a place nobody looks.
 alter table public.exercises
   add column if not exists cap numeric not null default 200;
-do $$ begin
+do $do$ begin
   alter table public.exercises add constraint exercises_cap_check check (cap > 0);
-exception when duplicate_object then null; end $$;
+exception when duplicate_object then null; end $do$;
 """
 
 TAIL = """

@@ -69,24 +69,24 @@ alter table public.leagues alter column season_weeks set default 38;
 
 -- ----------------------------------------------------------- rank_points ---
 create or replace function public.rank_points(p_rank int) returns numeric
-language sql immutable set search_path = public as $$
+language sql immutable set search_path = public as $fn$
   select coalesce((array[
     5.00, 3.60, 2.80, 2.30, 1.90, 1.60, 1.35, 1.15, 1.00, 0.85,
     0.70, 0.60, 0.50, 0.40, 0.33, 0.27, 0.21, 0.16, 0.13, 0.10
   ]::numeric[])[p_rank], 0)
-$$;
+$fn$;
 
 -- ---------------------------------------------------------- league_week0 ---
 create or replace function public.league_week0(p_league uuid) returns date
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   select date_trunc('week',
            (l.created_at at time zone public.app_timezone()))::date
   from public.leagues l where l.id = p_league
-$$;
+$fn$;
 
 -- ---------------------------------------------------------- season_index ---
 create or replace function public.season_index(p_league uuid, p_week date) returns int
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   select case
     when (select l.season_weeks from public.leagues l where l.id = p_league) is null
       then 0                                 -- one season, never ending
@@ -94,13 +94,13 @@ language sql stable set search_path = public as $$
                   / (select l.season_weeks from public.leagues l where l.id = p_league),
                   0)::int
   end
-$$;
+$fn$;
 
 -- ---------------------------------------------------- league_season_info ---
 create or replace function public.league_season_info(p_league uuid)
 returns table (season int, seasons int, season_weeks int, weeks_done int,
                first_week date, last_week date)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   with wk as (
     select distinct h.week_start,
            public.season_index(p_league, h.week_start) as season
@@ -115,7 +115,7 @@ language sql stable security definer set search_path = public as $$
          (select min(week_start) from wk where season = (select s from cur)),
          (select max(week_start) from wk where season = (select s from cur))
   where public.is_member(p_league)
-$$;
+$fn$;
 
 -- --------------------------------------------------------- league_season ---
 create or replace function public.league_season(p_league uuid, p_season int default null)
@@ -123,7 +123,7 @@ returns table (profile_id uuid, display_name text, avatar text, banner text,
                pinned_badges text[], name_color text, points numeric,
                weeks int, wins int, best_rank int, lifetime_wins int,
                mine boolean)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   with ranked as (
     select h.week_start, h.profile_id,
            row_number() over (partition by h.week_start
@@ -152,13 +152,13 @@ language sql stable security definer set search_path = public as $$
   group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
            p.name_color, m.joined_at
   order by 7 desc, 9 desc, 10 asc nulls last, m.joined_at
-$$;
+$fn$;
 
 -- ------------------------------------------------------------- my_badges ---
 create or replace function public.my_badges(p_league uuid)
 returns table (key text, name text, descr text, earned boolean,
                progress numeric, target numeric)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   with me as (select public.my_profile_id() as id),
   wins as (
     select count(*)::numeric n from (
@@ -241,7 +241,7 @@ language sql stable security definer set search_path = public as $$
   from b
   order by (coalesce(b.progress,0) >= b.target) desc,
            coalesce(b.progress,0) / nullif(b.target,0) desc
-$$;
+$fn$;
 
 -- -------------------------------------------------------- grants ---
 grant execute on function public.rank_points(int)              to authenticated;

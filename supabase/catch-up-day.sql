@@ -41,19 +41,19 @@ begin;
 -- ------------------------------------------------------- the new columns ---
 alter table public.leagues
   add column if not exists catchup_dow int;
-do $$ begin
+do $do$ begin
   alter table public.leagues add constraint leagues_catchup_sane
     check (catchup_dow is null or catchup_dow between 1 and 7);
 exception when duplicate_object then null;
-end $$;
+end $do$;
 
 alter table public.workouts
   add column if not exists boost numeric not null default 1;
-do $$ begin
+do $do$ begin
   alter table public.workouts add constraint workouts_boost_check
     check (boost between 1 and 3);
 exception when duplicate_object then null;
-end $$;
+end $do$;
 
 -- ----------------------------------------------------- six more places -----
 alter table public.leagues drop constraint if exists leagues_max_members_check;
@@ -70,34 +70,31 @@ drop function if exists public.set_league_settings(uuid, int[], int) cascade;
 
 -- --------------------------------------------------------- catchup_floor ---
 create or replace function public.catchup_floor()   returns numeric
-language sql immutable set search_path = public as $$ select 150::numeric $$;
+language sql immutable set search_path = public as $fn$ select 150::numeric $fn$;
 
 -- ------------------------------------------------------- catchup_ceiling ---
 create or replace function public.catchup_ceiling() returns numeric
-language sql immutable set search_path = public as $$ select 500::numeric $$;
+language sql immutable set search_path = public as $fn$ select 500::numeric $fn$;
 
 -- ----------------------------------------------------------- catchup_max ---
 create or replace function public.catchup_max()     returns numeric
-language sql immutable set search_path = public as $$ select 1.40::numeric $$;
+language sql immutable set search_path = public as $fn$ select 1.40::numeric $fn$;
 
 -- -------------------------------------------------------- is_catchup_day ---
 create or replace function public.is_catchup_day(p_league uuid) returns boolean
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   select coalesce(
     (select l.catchup_dow from public.leagues l where l.id = p_league)
       = extract(isodow from (now() at time zone public.app_timezone()))::int,
     false)
-$$;
+$fn$;
 
 -- ---------------------------------------------------- catchup_multiplier ---
 create or replace function public.catchup_multiplier(p_league uuid, p_profile uuid)
-returns numeric language sql stable set search_path = public as $$
+returns numeric language sql stable set search_path = public as $fn$
   with tot as (
-    select w.profile_id, coalesce(sum(w.points), 0) as p
-    from public.workouts w
-    where w.league_id = p_league
-      and w.week_start = public.current_week_start()
-    group by 1),
+    select s.profile_id, s.points as p
+    from public.week_scored(p_league, public.current_week_start()) s),
   best as (select coalesce(max(p), 0) as top from tot),
   mine as (select coalesce((select p from tot where profile_id = p_profile), 0) as p),
   gap  as (select greatest((select top from best) - (select p from mine), 0) as g)
@@ -106,11 +103,11 @@ returns numeric language sql stable set search_path = public as $$
         * least(greatest((select g from gap) - public.catchup_floor(), 0)
                 / (public.catchup_ceiling() - public.catchup_floor()), 1)
   , 2)
-$$;
+$fn$;
 
 -- -------------------------------------------------------- workouts_stamp ---
 create or replace function public.workouts_stamp() returns trigger
-language plpgsql set search_path = public as $$
+language plpgsql set search_path = public as $fn$
 begin
   new.created_at := now();
   new.week_start := public.current_week_start();
@@ -136,13 +133,13 @@ begin
     raise exception 'Unknown exercise or unit (% / %)', new.exercise_key, new.mode;
   end if;
   return new;
-end $$;
+end $fn$;
 
 -- --------------------------------------------------- set_league_settings ---
 create or replace function public.set_league_settings(
   p_league uuid, p_rest_dow int[], p_season_weeks int,
   p_catchup_dow int default null)
-returns public.leagues language plpgsql security definer set search_path = public as $$
+returns public.leagues language plpgsql security definer set search_path = public as $fn$
 declare me uuid := public.my_profile_id(); row public.leagues;
 begin
   if me is null then raise exception 'NO_PROFILE'; end if;
@@ -169,7 +166,7 @@ begin
          catchup_dow = p_catchup_dow
    where id = p_league returning * into row;
   return row;
-end $$;
+end $fn$;
 
 -- ------------------------------------------------------------ my_leagues ---
 create or replace function public.my_leagues()
@@ -177,7 +174,7 @@ returns table (id uuid, name text, code text, owner_id uuid, members int,
                max_members int, joined_at timestamptz,
                badge jsonb, rest_dow int[], season_weeks int, catchup_dow int,
                created_at timestamptz)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   select l.id, l.name, l.code, l.owner_id,
          (select count(*)::int from public.league_members m2 where m2.league_id = l.id),
          l.max_members, m.joined_at,
@@ -186,7 +183,7 @@ language sql stable security definer set search_path = public as $$
   join public.league_members m on m.league_id = l.id
   where m.profile_id = public.my_profile_id()
   order by m.joined_at
-$$;
+$fn$;
 
 -- the stamp trigger is recreated with the function it calls
 drop trigger if exists workouts_stamp_trg on public.workouts;

@@ -29,7 +29,7 @@ def lift(schema, kind, name):
         block = one_object(m.group(0), name)
         if not block.startswith("create or replace"):
             block = block.replace("create function", "create or replace function", 1)
-        return block
+        return retag(block, name)
 
     m = re.search(r"^create table public\.%s \(.*?^\);$" % re.escape(name),
                   schema, re.S | re.M)
@@ -47,6 +47,26 @@ def lift(schema, kind, name):
                  "\ncreate policy %s on public.%s\n%s;"
                  % (name, rls.group(1), name, rls.group(1), name, rls.group(2)))
     return body
+
+
+def retag(block, name):
+    """Give the function body a NAMED dollar tag instead of a bare $$.
+
+    A migration is pasted into a web SQL editor, and those split a script into
+    statements before sending it. Several of them special-case `$$` badly and
+    cut a long body in half, which arrives at the server as an unterminated
+    dollar-quoted string — the file is valid, psql runs it, and the editor
+    still refuses it. `$fn$` is unambiguous to a naive splitter, so the paste
+    survives.
+
+    A body that used $$ as its own delimiter cannot contain $$, so there are
+    exactly two of them. Anything else means the match ran on and the rename
+    would corrupt a nested tag.
+    """
+    n = block.count("$$")
+    if n != 2:
+        raise SystemExit("lifting %s found %d $$ markers, expected 2" % (name, n))
+    return block.replace("$$", "$fn$")
 
 
 def one_object(block, name):

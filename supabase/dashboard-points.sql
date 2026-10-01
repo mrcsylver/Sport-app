@@ -31,13 +31,18 @@ create or replace function public.admin_players()
 returns table (id uuid, display_name text, avatar text, restore_code text,
                leagues int, workouts bigint, lifetime numeric, week_points numeric,
                last_log timestamptz, created_at timestamptz, is_admin boolean)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   with wk as (select public.current_week_start() as w),
   lg as (select distinct league_id from public.league_members),
   base as (
-    select x.profile_id, x.league_id, sum(x.points) as pts
-    from public.workouts x
-    where x.week_start = (select w from wk)
+    select e.profile_id, e.league_id,
+           sum(public.tier_points(e.raw, e.cap)) as pts
+    from (select x.profile_id, x.league_id, x.exercise_key,
+                 sum(x.points) as raw, max(ex.cap) as cap
+          from public.workouts x
+          left join public.exercises ex on ex.key = x.exercise_key
+          where x.week_start = (select w from wk)
+          group by 1, 2, 3) e
     group by 1, 2),
   cb as (
     select l.league_id, c.profile_id, c.bonus
@@ -57,17 +62,15 @@ language sql stable security definer set search_path = public as $$
   select p.id, p.display_name, p.avatar, p.restore_code,
          (select count(*)::int from public.league_members m where m.profile_id = p.id),
          (select count(distinct w.group_id) from public.workouts w where w.profile_id = p.id),
-         coalesce((select sum(points) from (
-            select distinct on (group_id) group_id, points
-            from public.workouts where profile_id = p.id
-            order by group_id, league_id) x), 0),
+         coalesce((select lp.points from public.life_scored_all() lp
+                   where lp.profile_id = p.id), 0),
          coalesce((select total from board where board.profile_id = p.id), 0)::numeric,
          (select max(w.created_at) from public.workouts w where w.profile_id = p.id),
          p.created_at, p.is_admin
   from public.profiles p
   where public.is_admin()
   order by p.created_at
-$$;
+$fn$;
 
 -- -------------------------------------------------------- grants ---
 grant execute on function public.admin_players()               to authenticated;

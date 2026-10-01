@@ -119,11 +119,11 @@ alter table public.exercises
 
 alter table public.profiles
   add column if not exists body_form text not null default 'neutral';
-do $$ begin
+do $do$ begin
   alter table public.profiles add constraint profiles_body_form_check
     check (body_form in ('masc','fem','neutral'));
 exception when duplicate_object then null;
-end $$;
+end $do$;
 
 -- The rescore at the bottom multiplies by each row's catch-up multiplier, so
 -- the column has to be there. It will be on any database that has run

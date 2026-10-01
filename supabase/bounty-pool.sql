@@ -152,7 +152,7 @@ create policy bounty_schedule_read on public.bounty_schedule
 
 -- ------------------------------------------------------ bounty_open_to_all ---
 create or replace function public.bounty_open_to_all(p_key text) returns boolean
-language sql immutable set search_path = public as $$
+language sql immutable set search_path = public as $fn$
   select p_key = any (array[
     'airsquats',
     'benchdips',
@@ -202,34 +202,34 @@ language sql immutable set search_path = public as $$
     'widepullup',
     'widepush'
   ])
-$$;
+$fn$;
 
 -- -------------------------------------------------------- bounty_exercises ---
 create or replace function public.bounty_exercises()
 returns table (key text, name text, cat text, modes jsonb)
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   select e.key, e.name, e.cat, e.modes
   from public.exercises e
   where public.bounty_open_to_all(e.key)
   order by e.sort, e.name
-$$;
+$fn$;
 
 -- ------------------------------------------------------- bounty_cat_points ---
 create or replace function public.bounty_cat_points(
   p_profile uuid, p_league uuid, p_cat text, p_day date) returns numeric
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   select coalesce(sum(w.points), 0)
   from public.workouts w
   where w.profile_id = p_profile
     and w.league_id  = p_league
     and (w.created_at at time zone public.app_timezone())::date = p_day
     and public.exercise_category(w.exercise_key) = p_cat
-$$;
+$fn$;
 
 -- ------------------------------------------------------------- bounty_done ---
 create or replace function public.bounty_done(
   p_profile uuid, p_league uuid, p_spec jsonb, p_day date) returns boolean
-language plpgsql stable set search_path = public as $$
+language plpgsql stable set search_path = public as $fn$
 declare
   tz   text := public.app_timezone();
   kind text := coalesce(p_spec->>'kind', 'reqs');
@@ -347,11 +347,11 @@ begin
               group by w.profile_id) t);
   end if;
   return false;
-end $$;
+end $fn$;
 
 -- ------------------------------------------------------------ bounty_index ---
 create or replace function public.bounty_index(p_week date) returns int
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   with n as (select count(*)::int as total from public.bounties),
        y as (select extract(isoyear from p_week)::int as yr,
                     extract(week    from p_week)::int as wk),
@@ -362,24 +362,24 @@ language sql stable set search_path = public as $$
          from public.bounties b)
   select s.idx from shuffled s
   where s.slot = ((select wk from y) - 1) % greatest((select total from n), 1)
-$$;
+$fn$;
 
 -- ------------------------------------------------------------- bounty_pick ---
 create or replace function public.bounty_pick(p_week date) returns int
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   select coalesce((select bounty_idx from public.bounty_schedule
                    where week_start = p_week),
                   public.bounty_index(p_week))
-$$;
+$fn$;
 
 -- ---------------------------------------------------- builtin_bounty_count ---
 create or replace function public.builtin_bounty_count() returns int
-language sql immutable set search_path = public as $$ select 110 $$;
+language sql immutable set search_path = public as $fn$ select 110 $fn$;
 
 -- ------------------------------------------------------ week_bounty_points ---
 create or replace function public.week_bounty_points(p_league uuid, p_week date)
 returns table (profile_id uuid, bounty numeric)
-language sql stable set search_path = public as $$
+language sql stable set search_path = public as $fn$
   with b as (select * from public.bounties where idx = public.bounty_pick(p_week)),
        d as (select public.bounty_date(p_week) as day)
   select m.profile_id, (select points from b)::numeric
@@ -387,14 +387,14 @@ language sql stable set search_path = public as $$
   where m.league_id = p_league
     and (select count(*) from b) = 1
     and public.bounty_done(m.profile_id, p_league, (select spec from b), (select day from d))
-$$;
+$fn$;
 
 -- ---------------------------------------------------------- current_bounty ---
 create or replace function public.current_bounty(p_league uuid)
 returns table (idx int, name text, descr text, points numeric,
                on_date date, mine boolean, winners int, first_name text,
                first_avatar text)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   with wk as (select public.current_week_start() as w),
        b  as (select * from public.bounties where idx = public.bounty_pick((select w from wk))),
        d  as (select public.bounty_date((select w from wk)) as day),
@@ -413,13 +413,13 @@ language sql stable security definer set search_path = public as $$
          (select p.avatar from firsts f join public.profiles p on p.id = f.profile_id)
   from b
   where public.is_member(p_league)
-$$;
+$fn$;
 
 -- ---------------------------------------------------------- admin_schedule ---
 create or replace function public.admin_schedule()
 returns table (week_start date, bounty_idx int, name text, descr text,
                points numeric, pinned boolean, note text)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   with weeks as (
     select (public.current_week_start() + (n * 7))::date as w
     from generate_series(0, 25) n)
@@ -430,13 +430,13 @@ language sql stable security definer set search_path = public as $$
   join public.bounties b on b.idx = public.bounty_pick(k.w)
   where public.is_admin()
   order by k.w
-$$;
+$fn$;
 
 -- ---------------------------------------------------------- admin_bounties ---
 create or replace function public.admin_bounties()
 returns table (idx int, name text, descr text, points numeric, spec jsonb,
                runs_on date, custom boolean)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public as $fn$
   with weeks as (
     select (public.current_week_start() + (n * 7))::date as w
     from generate_series(0, 51) n),
@@ -447,11 +447,11 @@ language sql stable security definer set search_path = public as $$
   from public.bounties b
   where public.is_admin()
   order by b.idx
-$$;
+$fn$;
 
 -- -------------------------------------------------------- admin_pin_bounty ---
 create or replace function public.admin_pin_bounty(p_week date, p_idx int, p_note text default null)
-returns void language plpgsql security definer set search_path = public as $$
+returns void language plpgsql security definer set search_path = public as $fn$
 begin
   if not public.is_admin() then raise exception 'Not allowed'; end if;
   if p_week < public.current_week_start() then
@@ -467,22 +467,22 @@ begin
   values (p_week, p_idx, nullif(btrim(coalesce(p_note, '')), ''))
   on conflict (week_start) do update
     set bounty_idx = excluded.bounty_idx, note = excluded.note, set_at = now();
-end $$;
+end $fn$;
 
 -- ------------------------------------------------------ admin_unpin_bounty ---
 create or replace function public.admin_unpin_bounty(p_week date)
-returns void language plpgsql security definer set search_path = public as $$
+returns void language plpgsql security definer set search_path = public as $fn$
 begin
   if not public.is_admin() then raise exception 'Not allowed'; end if;
   delete from public.bounty_schedule where week_start = p_week;
-end $$;
+end $fn$;
 
 -- -------------------------------------------------------- admin_add_bounty ---
 create or replace function public.admin_add_bounty(
   p_name text, p_descr text, p_points numeric,
   p_ex text, p_mode text, p_min numeric,
   p_from_h int default null, p_to_h int default null)
-returns int language plpgsql security definer set search_path = public as $$
+returns int language plpgsql security definer set search_path = public as $fn$
 declare next_idx int; req jsonb;
 begin
   if not public.is_admin() then raise exception 'Not allowed'; end if;
@@ -516,18 +516,18 @@ begin
   values (next_idx, upper(btrim(p_name)), btrim(coalesce(p_descr, '')), p_points,
           jsonb_build_object('reqs', jsonb_build_array(req)));
   return next_idx;
-end $$;
+end $fn$;
 
 -- ----------------------------------------------------- admin_delete_bounty ---
 create or replace function public.admin_delete_bounty(p_idx int)
-returns void language plpgsql security definer set search_path = public as $$
+returns void language plpgsql security definer set search_path = public as $fn$
 begin
   if not public.is_admin() then raise exception 'Not allowed'; end if;
   if p_idx < public.builtin_bounty_count() then
     raise exception 'A built-in bounty cannot be deleted, only left unpinned';
   end if;
   delete from public.bounties where idx = p_idx;
-end $$;
+end $fn$;
 
 -- ------------------------------------------- the week already in progress ---
 -- Only pins a week somebody has actually logged in, so a fresh database is

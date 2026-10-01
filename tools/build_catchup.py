@@ -74,19 +74,19 @@ begin;
 -- ------------------------------------------------------- the new columns ---
 alter table public.leagues
   add column if not exists catchup_dow int;
-do $$ begin
+do $do$ begin
   alter table public.leagues add constraint leagues_catchup_sane
     check (catchup_dow is null or catchup_dow between 1 and 7);
 exception when duplicate_object then null;
-end $$;
+end $do$;
 
 alter table public.workouts
   add column if not exists boost numeric not null default 1;
-do $$ begin
+do $do$ begin
   alter table public.workouts add constraint workouts_boost_check
     check (boost between 1 and 3);
 exception when duplicate_object then null;
-end $$;
+end $do$;
 
 -- ----------------------------------------------------- six more places -----
 alter table public.leagues drop constraint if exists leagues_max_members_check;
