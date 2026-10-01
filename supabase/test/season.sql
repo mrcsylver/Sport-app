@@ -94,7 +94,7 @@ select case when public.season_index('5bbb0000-0000-0000-0000-000000000001',
 \echo '--- 4. where the season stands'
 select '  season ' || (season + 1) || ' of ' || seasons || ', week ' || weeks_done
        || ' of ' || season_weeks
-from public.league_season_info('5bbb0000-0000-0000-0000-000000000001');
+from public.league_season_state('5bbb0000-0000-0000-0000-000000000001');
 
 \echo '--- 5. season 1: ACE 3 wins + 1 second, STEADY the reverse'
 select '  ' || rpad(display_name, 8) || lpad(points::text, 7) || '  '
@@ -187,7 +187,7 @@ select case when (select count(distinct week_start) from public.weekly_history(
        else 'A BREAK WEEK VANISHED FROM THE HALL' end;
 select '  ' || case when on_break then 'on the break, next season opens '
                     else 'in season, next one opens ' end || next_start
-from public.league_season_info('5bbb0000-0000-0000-0000-000000000001');
+from public.league_season_state('5bbb0000-0000-0000-0000-000000000001');
 -- and an endless season never breaks, whatever the break is set to
 update public.leagues set season_weeks = null, season_break = 3
  where id = '5bbb0000-0000-0000-0000-000000000001';
@@ -215,6 +215,19 @@ select case when (select season_weeks from public.leagues
                   where id = '5bbb0000-0000-0000-0000-000000000001') = 50
        then 'a fifty week season saves, where the old ceiling was 26'
        else 'A LONG SEASON IS STILL REFUSED' end;
+
+\echo '--- 9b. the old six-column name still answers, for an app not yet updated'
+-- league_season_info is live in somebody's pocket. Dropping a function the
+-- hall tab polls would blank that tab until they reloaded, so the wider shape
+-- took a new name and the old one became a thin view onto it.
+select case when (select count(*) from public.league_season_info(
+                    '5bbb0000-0000-0000-0000-000000000001')) = 1
+         and (select season from public.league_season_info(
+                '5bbb0000-0000-0000-0000-000000000001'))
+           = (select season from public.league_season_state(
+                '5bbb0000-0000-0000-0000-000000000001'))
+       then 'the old name still works and agrees with the new one'
+       else 'AN OLD CLIENT WOULD BREAK' end;
 
 \echo '--- 10. and it is shut to somebody outside the league'
 set request.jwt.claim.sub = '53333333-3333-3333-3333-333333333333';

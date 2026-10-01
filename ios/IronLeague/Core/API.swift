@@ -178,7 +178,7 @@ actor API {
         ])
     }
     func seasonInfo(_ league: UUID) async throws -> SeasonInfo? {
-        let rows: [SeasonInfo] = try await rpc("league_season_info",
+        let rows: [SeasonInfo] = try await rpc("league_season_state",
                                                ["p_league": .string(league.uuidString)])
         return rows.first
     }

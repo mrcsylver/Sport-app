@@ -284,8 +284,7 @@
           members: DB.members.filter(function (x) { return x.league_id === l.id; }).length,
           joined_at: m.joined_at, badge: l.badge || null,
           rest_dow: l.rest_dow || [7], season_weeks: l.season_weeks || null,
-          catchup_dow: l.catchup_dow === undefined ? null : l.catchup_dow,
-          season_break: l.season_break == null ? 2 : Number(l.season_break) };
+          catchup_dow: l.catchup_dow === undefined ? null : l.catchup_dow };
       }));
     },
     my_combo_today: function (a) {
@@ -806,7 +805,7 @@
     /* The season: every finished week pays by finishing PLACE, and the season
        adds them up. Must agree with rank_points() and season_index() in SQL —
        a mock that pays differently is a test that passes on a bug. */
-    league_season_info: async function (a) {
+    league_season_state: async function (a) {
       if (!isMember(a.p_league)) return ok([]);
       var t = await seasonTagged(a.p_league);
       var cur = t.weeks.length ? Math.max.apply(null, t.weeks.map(function (w) {

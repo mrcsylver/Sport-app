@@ -88,8 +88,6 @@ alter table public.leagues add constraint leagues_break_sane
   check (season_break between 0 and 6);
 
 -- --------------------------------------- shapes that changed ---
-drop function if exists public.league_season_info(p_league uuid) cascade;
-drop function if exists public.my_leagues() cascade;
 drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int) cascade;
 
 -- ----------------------------------------------------------- rank_points ---
@@ -139,8 +137,8 @@ language sql stable set search_path = public as $fn$
   from l, w
 $fn$;
 
--- ---------------------------------------------------- league_season_info ---
-create or replace function public.league_season_info(p_league uuid)
+-- --------------------------------------------------- league_season_state ---
+create or replace function public.league_season_state(p_league uuid)
 returns table (season int, seasons int, season_weeks int, season_break int,
                weeks_done int, first_week date, last_week date,
                on_break boolean, next_start date)
@@ -167,6 +165,16 @@ language sql stable security definer set search_path = public as $fn$
          public.season_index(p_league, public.current_week_start()) is null,
          public.season_next_start(p_league, public.current_week_start())
   where public.is_member(p_league)
+$fn$;
+
+-- ---------------------------------------------------- league_season_info ---
+create or replace function public.league_season_info(p_league uuid)
+returns table (season int, seasons int, season_weeks int, weeks_done int,
+               first_week date, last_week date)
+language sql stable security definer set search_path = public as $fn$
+  select s.season, s.seasons, s.season_weeks, s.weeks_done,
+         s.first_week, s.last_week
+  from public.league_season_state(p_league) s
 $fn$;
 
 -- --------------------------------------------------------- league_season ---
@@ -298,24 +306,6 @@ language sql stable security definer set search_path = public as $fn$
            coalesce(b.progress,0) / nullif(b.target,0) desc
 $fn$;
 
--- ------------------------------------------------------------ my_leagues ---
-create or replace function public.my_leagues()
-returns table (id uuid, name text, code text, owner_id uuid, members int,
-               max_members int, joined_at timestamptz,
-               badge jsonb, rest_dow int[], season_weeks int, catchup_dow int,
-               season_break int, created_at timestamptz)
-language sql stable security definer set search_path = public as $fn$
-  select l.id, l.name, l.code, l.owner_id,
-         (select count(*)::int from public.league_members m2 where m2.league_id = l.id),
-         l.max_members, m.joined_at,
-         l.badge, l.rest_dow, l.season_weeks, l.catchup_dow, l.season_break,
-         l.created_at
-  from public.leagues l
-  join public.league_members m on m.league_id = l.id
-  where m.profile_id = public.my_profile_id()
-  order by m.joined_at
-$fn$;
-
 -- --------------------------------------------------- set_league_settings ---
 create or replace function public.set_league_settings(
   p_league uuid, p_rest_dow int[], p_season_weeks int,
@@ -354,13 +344,12 @@ begin
 end $fn$;
 
 -- -------------------------------------------------------- grants ---
-revoke all on function public.my_leagues()                  from public, anon;
-grant execute on function public.my_leagues()                  to authenticated;
 grant execute on function public.rank_points(int)              to authenticated;
 grant execute on function public.league_week0(uuid)            to authenticated;
 grant execute on function public.season_index(uuid,date)       to authenticated;
 grant execute on function public.season_next_start(uuid,date)  to authenticated;
 grant execute on function public.league_season_info(uuid)      to authenticated;
+grant execute on function public.league_season_state(uuid)     to authenticated;
 grant execute on function public.league_season(uuid,int)       to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;
 grant execute on function public.set_league_settings(uuid,int[],int,int,int) to authenticated;

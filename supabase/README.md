@@ -134,6 +134,18 @@ Nothing is stored. `league_season()` derives the whole table from
 already do, so weeks already played land in season 1 with nothing to backfill
 and nothing to repair. Crowns still follow the person across every season.
 
+Two functions here are named for a reason that is not obvious. `league_season_info`
+returns six columns and `league_season_state` returns nine — the same query,
+twice. The nine-column shape is the real one; the six-column name stayed because
+it is live, an app in somebody's pocket is still calling it, and `create or
+replace` cannot widen a function. Dropping one the hall tab polls would blank
+that tab for every member until they reloaded. `my_leagues` is the same story
+and is deliberately NOT carrying `season_break` for it; the off-season setting is
+read off `league_season_state()` instead. `set_league_settings` gained its fifth
+parameter as an overload for the same reason — PostgREST resolves by argument
+name, so an app that has not updated keeps hitting the four-argument version
+until the migration's drop runs, and nothing breaks either way.
+
 `season_break` is how many weeks of off-season sit between one season and the
 next — 0 to 6, two by default. A cycle is `season_weeks` of play then
 `season_break` of rest, and it repeats. A break week belongs to no season:

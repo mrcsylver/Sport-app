@@ -97,6 +97,7 @@ drop function if exists public.muscle_dose(p_profile uuid) cascade;
 drop function if exists public.league_wins(p_league uuid) cascade;
 drop function if exists public.league_season(p_league uuid, p_season int) cascade;
 drop function if exists public.league_season_info(p_league uuid) cascade;
+drop function if exists public.league_season_state(p_league uuid) cascade;
 drop function if exists public.league_week0(p_league uuid) cascade;
 drop function if exists public.rank_points(p_rank int) cascade;
 drop function if exists public.season_index(p_league uuid, p_week date) cascade;
@@ -881,17 +882,19 @@ begin
   delete from public.league_members where league_id = p_league and profile_id = me;
 end $$;
 
+-- Deliberately NOT carrying season_break. Widening this would mean dropping
+-- it, and it is polled on every boot by every client — the off-season setting
+-- is read off league_season_state() instead, which the hall tab loads anyway.
 create function public.my_leagues()
 returns table (id uuid, name text, code text, owner_id uuid, members int,
                max_members int, joined_at timestamptz,
                badge jsonb, rest_dow int[], season_weeks int, catchup_dow int,
-               season_break int, created_at timestamptz)
+               created_at timestamptz)
 language sql stable security definer set search_path = public as $$
   select l.id, l.name, l.code, l.owner_id,
          (select count(*)::int from public.league_members m2 where m2.league_id = l.id),
          l.max_members, m.joined_at,
-         l.badge, l.rest_dow, l.season_weeks, l.catchup_dow, l.season_break,
-         l.created_at
+         l.badge, l.rest_dow, l.season_weeks, l.catchup_dow, l.created_at
   from public.leagues l
   join public.league_members m on m.league_id = l.id
   where m.profile_id = public.my_profile_id()
@@ -1457,7 +1460,13 @@ $$;
 
 -- Where the season stands. Separate from the table itself so the header can
 -- say "season 2, week 7 of 38" without the client doing arithmetic.
-create function public.league_season_info(p_league uuid)
+-- Named apart from the six-column league_season_info it grew out of, because
+-- that one is live and an app in somebody's pocket is still calling it. A
+-- `create or replace` cannot widen a function, and dropping one the app polls
+-- would blank the hall tab for every member until they reloaded. So the new
+-- shape gets a new name, the old name stays as a thin view onto it, and
+-- nothing is ever dropped from under a running client.
+create function public.league_season_state(p_league uuid)
 returns table (season int, seasons int, season_weeks int, season_break int,
                weeks_done int, first_week date, last_week date,
                on_break boolean, next_start date)
@@ -1484,6 +1493,17 @@ language sql stable security definer set search_path = public as $$
          public.season_index(p_league, public.current_week_start()) is null,
          public.season_next_start(p_league, public.current_week_start())
   where public.is_member(p_league)
+$$;
+
+-- What league_season_info has always returned, so a client that has not been
+-- updated yet keeps working. One implementation, two shapes.
+create function public.league_season_info(p_league uuid)
+returns table (season int, seasons int, season_weeks int, weeks_done int,
+               first_week date, last_week date)
+language sql stable security definer set search_path = public as $$
+  select s.season, s.seasons, s.season_weeks, s.weeks_done,
+         s.first_week, s.last_week
+  from public.league_season_state(p_league) s
 $$;
 
 -- The table. Every member appears, even on nothing, because a season table
@@ -2538,6 +2558,7 @@ grant execute on function public.league_week0(uuid)            to authenticated;
 grant execute on function public.season_index(uuid,date)       to authenticated;
 grant execute on function public.season_next_start(uuid,date)  to authenticated;
 grant execute on function public.league_season_info(uuid)      to authenticated;
+grant execute on function public.league_season_state(uuid)     to authenticated;
 grant execute on function public.league_season(uuid,int)       to authenticated;
 grant select on public.muscles to authenticated;
 grant execute on function public.set_banner(text)              to authenticated;

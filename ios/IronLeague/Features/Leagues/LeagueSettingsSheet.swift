@@ -63,7 +63,8 @@ struct LeagueSettingsSheet: View {
             } else {
                 endless = true
             }
-            brk = Double(league?.seasonBreak ?? 2)
+            // off the season state, not the league row — see my_leagues() in schema.sql
+            brk = Double(session.seasonInfo?.seasonBreak ?? 2)
         }
     }
 

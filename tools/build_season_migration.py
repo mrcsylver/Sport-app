@@ -30,20 +30,37 @@ OUT = os.path.join(ROOT, "supabase", "season-table.sql")
 # gained season_break, and set_league_settings gained a fifth parameter — which
 # would otherwise sit alongside the four-argument version as an overload and
 # make every call ambiguous.
+# league_season_info is NOT in here. It is live, an app in somebody's pocket is
+# still calling it, and dropping a function the hall tab polls would blank that
+# tab for every member until they reloaded. The nine-column shape went to a new
+# name instead, and the old name became a thin view onto it — so this migration
+# only ever creates.
+#
+# my_leagues and set_league_settings do have to be reshaped: one gained a
+# column, the other a fifth parameter that would otherwise sit beside the
+# four-argument version as an overload and make every call ambiguous. Both are
+# called once, on a screen nobody is looking at mid-save.
+# Only set_league_settings, and only because a fifth parameter with a default
+# would otherwise sit beside the four-argument version and make a positional
+# call ambiguous. PostgREST picks by argument NAME, so an app that has not been
+# updated keeps resolving to the old one until this drop runs — which means the
+# drop can wait for a quiet moment and nothing breaks either way.
+#
+# my_leagues is not in here on purpose. Widening it would mean dropping a
+# function every client polls on boot; the off-season setting is read off
+# league_season_state() instead.
 RESHAPED = [
-    ("league_season_info", "p_league uuid"),
-    ("my_leagues", ""),
     ("set_league_settings",
      "p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int"),
 ]
 
 OBJECTS = ["rank_points", "league_week0", "season_index", "season_next_start",
-           "league_season_info", "league_season", "my_badges", "my_leagues",
-           "set_league_settings"]
+           "league_season_state", "league_season_info", "league_season",
+           "my_badges", "set_league_settings"]
 
 WANTED = ("rank_points", "league_week0", "season_index", "season_next_start",
-          "league_season_info", "league_season", "my_badges", "my_leagues",
-          "set_league_settings")
+          "league_season_state", "league_season_info", "league_season",
+          "my_badges", "set_league_settings")
 
 HEAD = """-- ======================================================================
 --  IRON LEAGUE — a season table instead of a race to five crowns

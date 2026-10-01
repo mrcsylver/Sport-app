@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.19.0';
+  var APP_VERSION = '2.19.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1554,7 +1554,7 @@
     state.history = r.data || [];
     renderHall();
 
-    var i = await sb.rpc('league_season_info', { p_league: state.leagueId });
+    var i = await sb.rpc('league_season_state', { p_league: state.leagueId });
     if (!i.error) state.seasonInfo = (i.data && i.data[0]) || null;
     var t = await sb.rpc('league_season', {
       p_league: state.leagueId,
@@ -3035,7 +3035,11 @@
              d[1] + '</button>';
     }).join('');
     $('#seasonWeeks').value = l.season_weeks == null ? '' : String(l.season_weeks);
-    $('#seasonBreak').value = String(l.season_break == null ? 2 : l.season_break);
+    /* season_break rides on league_season_state, not on the league row:
+       widening my_leagues would have meant dropping a function every client
+       polls on boot. */
+    var brk = state.seasonInfo && state.seasonInfo.season_break;
+    $('#seasonBreak').value = String(brk == null ? 2 : brk);
     if (mine) ruleState(rulesSummary());
     $('#leaveNote').textContent = mine
       ? 'Leaving keeps the league alive for everyone else. Deleting removes it for everybody.'
