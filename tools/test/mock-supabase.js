@@ -138,19 +138,36 @@
     var byWeek = {};
     hist.forEach(function (r) {
       (byWeek[r.week_start] = byWeek[r.week_start] || []).push(r); });
+    var brk = lg.season_break == null ? 2 : Number(lg.season_break);
     var w0 = weekStart(lg.created_at ? new Date(lg.created_at) : new Date());
+    /* A cycle is `len` weeks of play then `brk` of rest, and it repeats. A
+       break week belongs to NO season, so it pays nobody season points. */
+    function seasonOf(wk) {
+      if (len == null) return 0;
+      var n = Math.max(0, Math.round((Date.parse(wk + 'T00:00:00Z')
+                                    - Date.parse(w0 + 'T00:00:00Z')) / 604800000));
+      return (n % (len + brk)) < len ? Math.floor(n / (len + brk)) : null;
+    }
+    function nextStart(wk) {
+      if (len == null) return null;
+      var n = Math.max(0, Math.round((Date.parse(wk + 'T00:00:00Z')
+                                    - Date.parse(w0 + 'T00:00:00Z')) / 604800000));
+      var d = new Date(Date.parse(w0 + 'T00:00:00Z'));
+      d.setUTCDate(d.getUTCDate() + (Math.floor(n / (len + brk)) + 1) * (len + brk) * 7);
+      return d.toISOString().slice(0, 10);
+    }
     var weeks = Object.keys(byWeek).sort().map(function (wk) {
-      var n = Math.round((Date.parse(wk + 'T00:00:00Z')
-                        - Date.parse(w0 + 'T00:00:00Z')) / 604800000);
       return {
         week_start: wk,
-        season: len == null ? 0 : Math.max(0, Math.floor(n / len)),
+        season: seasonOf(wk),
         ranked: byWeek[wk].slice().sort(function (x, y) {
           return y.points - x.points ||
                  (String(x.joined_at) < String(y.joined_at) ? -1 : 1); })
       };
-    });
-    return { len: len, weeks: weeks };
+    }).filter(function (w) { return w.season !== null; });
+    var now = weekStart();
+    return { len: len, brk: brk, weeks: weeks,
+             onBreak: seasonOf(now) === null, nextStart: nextStart(now) };
   }
 
   function calc(k, m, a, bw, load) {
@@ -267,7 +284,8 @@
           members: DB.members.filter(function (x) { return x.league_id === l.id; }).length,
           joined_at: m.joined_at, badge: l.badge || null,
           rest_dow: l.rest_dow || [7], season_weeks: l.season_weeks || null,
-          catchup_dow: l.catchup_dow === undefined ? null : l.catchup_dow };
+          catchup_dow: l.catchup_dow === undefined ? null : l.catchup_dow,
+          season_break: l.season_break == null ? 2 : Number(l.season_break) };
       }));
     },
     my_combo_today: function (a) {
@@ -580,6 +598,12 @@
         return bad('The catch-up day cannot also be a rest day');
       }
       l.catchup_dow = a.p_catchup_dow == null ? null : a.p_catchup_dow;
+      if (a.p_season_break != null) {
+        if (a.p_season_break < 0 || a.p_season_break > 6) {
+          return bad('An off-season is 0 to 6 weeks');
+        }
+        l.season_break = Number(a.p_season_break);
+      }
       save(); return ok(l);
     },
     my_stats: function (a) {
@@ -793,9 +817,12 @@
       return ok([{ season: cur,
         seasons: Math.max(Object.keys(seasons).length, 1),
         season_weeks: t.len,
+        season_break: t.brk,
         weeks_done: here.length,
         first_week: here.length ? here[0].week_start : null,
-        last_week: here.length ? here[here.length - 1].week_start : null }]);
+        last_week: here.length ? here[here.length - 1].week_start : null,
+        on_break: t.onBreak,
+        next_start: t.nextStart }]);
     },
     league_season: async function (a) {
       if (!isMember(a.p_league)) return ok([]);

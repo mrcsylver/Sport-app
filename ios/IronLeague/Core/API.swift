@@ -219,14 +219,16 @@ actor API {
     // MARK: - Owning a league
 
     /// `seasonWeeks` is nil for a league that just keeps going — the column
-    /// only accepts null or 1…26, so a zero would be rejected by the check.
+    /// only accepts null or 1…52, so a zero would be rejected by the check.
+    /// `seasonBreak` is weeks of off-season between seasons, 0…6.
     func setLeagueSettings(_ id: UUID, restDow: [Int], seasonWeeks: Int?,
-                           catchupDow: Int?) async throws -> League {
+                           catchupDow: Int?, seasonBreak: Int?) async throws -> League {
         try await rpc("set_league_settings", [
             "p_league": .string(id.uuidString),
             "p_rest_dow": .array(restDow.map { .integer($0) }),
             "p_season_weeks": seasonWeeks.map { .integer($0) } ?? .null,
-            "p_catchup_dow": catchupDow.map { .integer($0) } ?? .null
+            "p_catchup_dow": catchupDow.map { .integer($0) } ?? .null,
+            "p_season_break": seasonBreak.map { .integer($0) } ?? .null
         ])
     }
     func setLeagueBadge(_ id: UUID, badge: League.Badge) async throws -> League {

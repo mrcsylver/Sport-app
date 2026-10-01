@@ -42,6 +42,8 @@ struct League: Codable, Identifiable, Hashable {
     /// The weekday, 1 = Monday, where being behind is worth a multiplier.
     /// Nil means the league does not have one.
     var catchupDow: Int?
+    /// Weeks of off-season between one season and the next.
+    var seasonBreak: Int?
     enum CodingKeys: String, CodingKey {
         case id, name, code, badge
         case ownerId = "owner_id"
@@ -50,6 +52,7 @@ struct League: Codable, Identifiable, Hashable {
         case restDow = "rest_dow"
         case seasonWeeks = "season_weeks"
         case catchupDow = "catchup_dow"
+        case seasonBreak = "season_break"
     }
 
     /// `my_leagues()` counts the members for us; the functions that return a
@@ -68,6 +71,7 @@ struct League: Codable, Identifiable, Hashable {
         restDow     = try c.decodeIfPresent([Int].self, forKey: .restDow)
         seasonWeeks = try c.decodeIfPresent(Int.self, forKey: .seasonWeeks)
         catchupDow  = try c.decodeIfPresent(Int.self, forKey: .catchupDow)
+        seasonBreak = try c.decodeIfPresent(Int.self, forKey: .seasonBreak)
     }
 
     struct Badge: Codable, Hashable {
@@ -322,17 +326,28 @@ struct SeasonInfo: Codable, Hashable {
     var seasons: Int
     /// nil means one open season that never ends.
     var seasonWeeks: Int?
+    /// Weeks of rest between one season and the next.
+    var seasonBreak: Int?
     var weeksDone: Int
+    /// True while the league sits in the off-season. The table then shows the
+    /// final standings of the season that just ended.
+    var onBreak: Bool?
+    /// The Monday the next season opens.
+    var nextStart: String?
 
     var weeksLeft: Int? {
         guard let total = seasonWeeks else { return nil }
         return max(0, total - weeksDone)
     }
+    var resting: Bool { onBreak == true }
 
     enum CodingKeys: String, CodingKey {
         case season, seasons
         case seasonWeeks = "season_weeks"
+        case seasonBreak = "season_break"
         case weeksDone = "weeks_done"
+        case onBreak = "on_break"
+        case nextStart = "next_start"
     }
 }
 

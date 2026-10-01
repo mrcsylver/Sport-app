@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.18.1">
+  <link rel="stylesheet" href="./styles.css?v=2.19.0">
 </head>
 <body>
 
@@ -316,6 +316,17 @@
               <option value="38">38 weeks (a football season)</option>
               <option value="50">50 weeks (a year, max)</option>
             </select>
+            <label class="lbl" for="seasonBreak" style="margin-top:12px">OFF SEASON</label>
+            <p class="muted small" style="margin:0 0 6px">A breather between one
+              season and the next. The league stays open and a week still counts
+              for the hall of fame — it just pays no season points.</p>
+            <select id="seasonBreak" class="input select">
+              <option value="0">None — straight into the next season</option>
+              <option value="1">1 week</option>
+              <option value="2">2 weeks</option>
+              <option value="3">3 weeks</option>
+              <option value="4">4 weeks</option>
+            </select>
             <p class="rulestate" id="rulesState">Every change here saves itself.</p>
           </div>
 
@@ -594,8 +605,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.18.1"></script>
-<script src="./vendor/game-icons.js?v=2.18.1"></script>
-<script src="./app.js?v=2.18.1"></script>
+<script src="./vendor/supabase.js?v=2.19.0"></script>
+<script src="./vendor/game-icons.js?v=2.19.0"></script>
+<script src="./app.js?v=2.19.0"></script>
 </body>
 </html>

@@ -169,10 +169,32 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  /* ---- milestones ---- */
  await pg.click('.tab[data-view="stats"]'); await pg.waitForTimeout(900);
  T('rank shown up front', (await pg.textContent('.ms-id b')).length>2, await pg.textContent('.ms-id b'));
- T('ladder runs to 50,000', (await pg.$$('.ms-pip')).length>=25, (await pg.$$('.ms-pip')).length+' grades');
- T('top grade is 50,000',
-   (await pg.$$eval('.ms-pip i', e=>e.map(x=>x.textContent))).includes('50000'),
+ T('the ladder has all 25 rungs', (await pg.$$('.ms-pip')).length>=25,
+   (await pg.$$('.ms-pip')).length+' grades');
+ /* 300,000, not the old 50,000: the league's best player reached that ceiling
+    in eleven months, and a lifetime ladder you finish inside a year has
+    nothing at the top of it. */
+ T('and tops out at 300,000',
+   (await pg.$$eval('.ms-pip i', e=>e.map(x=>x.textContent))).includes('300000'),
    (await pg.$$eval('.ms-pip i', e=>e[e.length-1].textContent)));
+ /* The ladder has a deliberate shape: the first four steps are big, so a
+    newcomer climbs three grades in their first week or two, and everything
+    after that settles into 25-40% — close enough that the next rung is always
+    worth wanting, far enough that it is not free. A step outside that band in
+    the settled part is a cliff people will stall against. */
+ const ladder = await pg.evaluate(()=>{
+   const v = window.__MILESTONES__.map(m=>m.at);
+   return { v: v, r: v.slice(1).map((x,i)=>x/v[i]) };
+ });
+ T('every rung is above the one below it', ladder.v.every((x,i)=>i===0||x>ladder.v[i-1]),
+   ladder.v[0]+' … '+ladder.v[ladder.v.length-1]);
+ T('the first four steps are the fast ones, so week one climbs grades',
+   ladder.r.slice(0,4).every(x=>x>1.45),
+   ladder.r.slice(0,4).map(x=>x.toFixed(2)).join(', '));
+ T('and every step after that is 25-40%, with no cliff',
+   ladder.r.slice(4).every(x=>x>=1.2 && x<=1.45),
+   'min '+Math.min(...ladder.r.slice(4)).toFixed(2)+
+   ', max '+Math.max(...ladder.r.slice(4)).toFixed(2));
  T('some already earned', (await pg.$$('.ms-pip.on')).length>0, (await pg.$$('.ms-pip.on')).length+' earned');
  T('next grade announced', (await pg.textContent('.ms-next')).length>2, await pg.textContent('.ms-next'));
  T('nearby grades surfaced', (await pg.$$('.ms-step')).length>=3, (await pg.$$('.ms-step')).length+' steps');

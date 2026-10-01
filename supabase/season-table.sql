@@ -48,6 +48,16 @@
 --  because the table is derived from weekly_history on read rather than
 --  stored. Crowns still follow the person across every season.
 --
+--  THE OFF-SEASON
+--  season_break is how many weeks of rest sit between one season and the
+--  next, 0 to 6, two by default. A cycle is season_weeks of play then
+--  season_break of rest, and it repeats. A break week belongs to no season:
+--  season_index() returns null for it, so it pays nobody season points and
+--  the table a break shows is the final standings of the season that just
+--  ended. The league stays open through it and the week still scores for the
+--  hall of fame — it is a breather, not a shutdown. An endless season
+--  (season_weeks null) never breaks, whatever the break is set to.
+--
 --  WHAT GOES
 --  The TRIPLE CROWN, FIVE CROWNS and TEN CROWNS badges. CHAMPION — win a
 --  week — stays, because winning a week is still the thing.
@@ -66,6 +76,21 @@ alter table public.leagues add constraint leagues_season_sane
 -- open-ended season has no finish line to play for, which is the whole point
 -- of the table. Existing leagues keep whatever they already have.
 alter table public.leagues alter column season_weeks set default 38;
+
+-- ------------------------------------------- and an off-season after it ---
+-- A 38 week table with nothing between one season and the next is a
+-- treadmill. The league stays open through the break and a week still scores
+-- for the hall of fame; it just pays no season points.
+alter table public.leagues
+  add column if not exists season_break int not null default 2;
+alter table public.leagues drop constraint if exists leagues_break_sane;
+alter table public.leagues add constraint leagues_break_sane
+  check (season_break between 0 and 6);
+
+-- --------------------------------------- shapes that changed ---
+drop function if exists public.league_season_info(p_league uuid) cascade;
+drop function if exists public.my_leagues() cascade;
+drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int) cascade;
 
 -- ----------------------------------------------------------- rank_points ---
 create or replace function public.rank_points(p_rank int) returns numeric
@@ -87,33 +112,60 @@ $fn$;
 -- ---------------------------------------------------------- season_index ---
 create or replace function public.season_index(p_league uuid, p_week date) returns int
 language sql stable set search_path = public as $fn$
+  with l as (select season_weeks as n, coalesce(season_break, 0) as b
+             from public.leagues where id = p_league),
+  w as (select greatest(((p_week - public.league_week0(p_league)) / 7), 0) as i)
   select case
-    when (select l.season_weeks from public.leagues l where l.id = p_league) is null
-      then 0                                 -- one season, never ending
-    else greatest(((p_week - public.league_week0(p_league)) / 7)
-                  / (select l.season_weeks from public.leagues l where l.id = p_league),
-                  0)::int
+    when (select n from l) is null then 0     -- one season, never ending
+    when (select i from w) % ((select n from l) + (select b from l))
+         < (select n from l)
+      then ((select i from w) / ((select n from l) + (select b from l)))::int
+    else null                                 -- an off-season week scores no season points
   end
+  from l, w
+$fn$;
+
+-- ----------------------------------------------------- season_next_start ---
+create or replace function public.season_next_start(p_league uuid, p_week date) returns date
+language sql stable set search_path = public as $fn$
+  with l as (select season_weeks as n, coalesce(season_break, 0) as b
+             from public.leagues where id = p_league),
+  w as (select greatest(((p_week - public.league_week0(p_league)) / 7), 0) as i)
+  select case when (select n from l) is null then null
+         else public.league_week0(p_league)
+              + (((select i from w) / ((select n from l) + (select b from l))) + 1)
+                * ((select n from l) + (select b from l)) * 7
+         end
+  from l, w
 $fn$;
 
 -- ---------------------------------------------------- league_season_info ---
 create or replace function public.league_season_info(p_league uuid)
-returns table (season int, seasons int, season_weeks int, weeks_done int,
-               first_week date, last_week date)
+returns table (season int, seasons int, season_weeks int, season_break int,
+               weeks_done int, first_week date, last_week date,
+               on_break boolean, next_start date)
 language sql stable security definer set search_path = public as $fn$
   with wk as (
+    -- an off-season week is tagged null and drops out here, so the table a
+    -- break shows is the standings of the season that just ended
     select distinct h.week_start,
            public.season_index(p_league, h.week_start) as season
     from public.weekly_history(p_league) h
     where h.week_start < public.current_week_start()
   ),
-  cur as (select coalesce(max(season), 0)::int as s from wk)
+  played as (select * from wk where season is not null),
+  cur as (select coalesce(max(season), 0)::int as s from played),
+  lg as (select season_weeks as n, coalesce(season_break, 0) as b
+         from public.leagues where id = p_league)
   select (select s from cur),
-         greatest((select count(distinct season)::int from wk), 1),
-         (select l.season_weeks from public.leagues l where l.id = p_league),
-         (select count(*)::int from wk where season = (select s from cur)),
-         (select min(week_start) from wk where season = (select s from cur)),
-         (select max(week_start) from wk where season = (select s from cur))
+         greatest((select count(distinct season)::int from played), 1),
+         (select n from lg),
+         (select b from lg),
+         (select count(*)::int from played where season = (select s from cur)),
+         (select min(week_start) from played where season = (select s from cur)),
+         (select max(week_start) from played where season = (select s from cur)),
+         public.season_index(p_league, public.current_week_start()) is null,
+         public.season_next_start(p_league, public.current_week_start())
   where public.is_member(p_league)
 $fn$;
 
@@ -132,8 +184,11 @@ language sql stable security definer set search_path = public as $fn$
     from public.weekly_history(p_league) h
     where h.week_start < public.current_week_start()
   ),
-  pick as (select coalesce(p_season, (select max(season) from ranked), 0)::int as s),
-  season_rows as (select * from ranked where season = (select s from pick)),
+  -- an off-season week is tagged null by season_index and never joins a table
+  pick as (select coalesce(p_season,
+                  (select max(season) from ranked where season is not null), 0)::int as s),
+  season_rows as (select * from ranked
+                  where season is not null and season = (select s from pick)),
   -- crowns follow the person across every season, so the row can still say
   -- what somebody has done here in total
   life as (select profile_id, count(*)::int n from ranked where rk = 1 group by 1)
@@ -243,13 +298,72 @@ language sql stable security definer set search_path = public as $fn$
            coalesce(b.progress,0) / nullif(b.target,0) desc
 $fn$;
 
+-- ------------------------------------------------------------ my_leagues ---
+create or replace function public.my_leagues()
+returns table (id uuid, name text, code text, owner_id uuid, members int,
+               max_members int, joined_at timestamptz,
+               badge jsonb, rest_dow int[], season_weeks int, catchup_dow int,
+               season_break int, created_at timestamptz)
+language sql stable security definer set search_path = public as $fn$
+  select l.id, l.name, l.code, l.owner_id,
+         (select count(*)::int from public.league_members m2 where m2.league_id = l.id),
+         l.max_members, m.joined_at,
+         l.badge, l.rest_dow, l.season_weeks, l.catchup_dow, l.season_break,
+         l.created_at
+  from public.leagues l
+  join public.league_members m on m.league_id = l.id
+  where m.profile_id = public.my_profile_id()
+  order by m.joined_at
+$fn$;
+
+-- --------------------------------------------------- set_league_settings ---
+create or replace function public.set_league_settings(
+  p_league uuid, p_rest_dow int[], p_season_weeks int,
+  p_catchup_dow int default null, p_season_break int default null)
+returns public.leagues language plpgsql security definer set search_path = public as $fn$
+declare me uuid := public.my_profile_id(); row public.leagues;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  if not exists (select 1 from public.leagues where id = p_league and owner_id = me) then
+    raise exception 'Only the person who created a league can change its settings';
+  end if;
+  if p_rest_dow is not null and exists (
+      select 1 from unnest(p_rest_dow) d where d < 1 or d > 7) then
+    raise exception 'Rest days must be weekday numbers 1 to 7';
+  end if;
+  if array_length(p_rest_dow, 1) > 3 then
+    raise exception 'At most three rest days a week';
+  end if;
+  if p_catchup_dow is not null and (p_catchup_dow < 1 or p_catchup_dow > 7) then
+    raise exception 'A catch-up day is a weekday number 1 to 7';
+  end if;
+  -- A rest day closes the league, so it cannot also be the day being behind
+  -- is worth something. One or the other.
+  if p_catchup_dow is not null and p_catchup_dow = any (coalesce(p_rest_dow, '{}'::int[])) then
+    raise exception 'The catch-up day cannot also be a rest day';
+  end if;
+  if p_season_break is not null and (p_season_break < 0 or p_season_break > 6) then
+    raise exception 'An off-season is 0 to 6 weeks';
+  end if;
+  update public.leagues
+     set rest_dow = coalesce(p_rest_dow, rest_dow), season_weeks = p_season_weeks,
+         catchup_dow = p_catchup_dow,
+         season_break = coalesce(p_season_break, season_break)
+   where id = p_league returning * into row;
+  return row;
+end $fn$;
+
 -- -------------------------------------------------------- grants ---
+revoke all on function public.my_leagues()                  from public, anon;
+grant execute on function public.my_leagues()                  to authenticated;
 grant execute on function public.rank_points(int)              to authenticated;
 grant execute on function public.league_week0(uuid)            to authenticated;
 grant execute on function public.season_index(uuid,date)       to authenticated;
+grant execute on function public.season_next_start(uuid,date)  to authenticated;
 grant execute on function public.league_season_info(uuid)      to authenticated;
 grant execute on function public.league_season(uuid,int)       to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;
+grant execute on function public.set_league_settings(uuid,int[],int,int,int) to authenticated;
 
 commit;
 

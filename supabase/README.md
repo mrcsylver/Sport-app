@@ -134,8 +134,26 @@ Nothing is stored. `league_season()` derives the whole table from
 already do, so weeks already played land in season 1 with nothing to backfill
 and nothing to repair. Crowns still follow the person across every season.
 
+`season_break` is how many weeks of off-season sit between one season and the
+next — 0 to 6, two by default. A cycle is `season_weeks` of play then
+`season_break` of rest, and it repeats. A break week belongs to no season:
+`season_index()` returns null for it, so it pays nobody season points and the
+table a break shows is the final standings of the season that just ended. The
+league stays open through it and the week still scores for the hall of fame — a
+breather, not a shutdown. An endless season never breaks, whatever the break is
+set to.
+
 The TRIPLE CROWN, FIVE CROWNS and TEN CROWNS badges go with the race. CHAMPION
 — win a week — stays, because winning a week is still the thing.
+
+The rank ladder is client-side only, so it is not in here, but it moved at the
+same time: it used to top out at 50,000 lifetime points, which the league's best
+player — measured at 1,082 points a week on real data — reached in eleven
+months. A lifetime ladder you finish inside a year has nothing at the top of it.
+ETERNAL is 300,000 now, which is 5.5 years at that rate and 8.6 at a strong but
+not top 700 a week. The eleven grades, their numerals and the 25-40% step
+between rungs are untouched; only the scale moved, so SPARK is still the first
+session.
 
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read

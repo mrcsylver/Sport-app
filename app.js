@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.18.1';
+  var APP_VERSION = '2.19.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -318,22 +318,37 @@
   /* Below this many people a division is just the table with headings in it. */
   var TIER_MINIMUM = 10;
 
-  /* The rank ladder, all the way to 50,000 lifetime points. Named grades with
+  /* The rank ladder, all the way to 300,000 lifetime points. Named grades with
      numerals inside them, so there is always a next step close enough to want.
-     `tier` is the banner colour a grade flies on the board. */
+     `tier` is the banner colour a grade flies on the board.
+
+     It used to top out at 50,000, which the league's best player reached in
+     ELEVEN MONTHS — a lifetime ladder you finish in under a year is a ladder
+     with nothing at the top of it. Measured on real data, that player scores
+     1,082 points a week, so the ceiling is six times higher now:
+
+         ETERNAL at 300,000   5.5 years at 1,082 a week  (the league's best)
+                              8.6 years at   700 a week  (strong, not top)
+                             never, really, at 400
+
+     The grades, their numerals and the shape of the climb are untouched — each
+     step is still 25-40% above the one below it, so the next rung is always
+     close enough to want. Only the scale moved. SPARK is still the first
+     session and GRINDER is still the first fortnight; it is the far end that
+     has somewhere to go now. */
   var MILESTONES = (function () {
     var GRADES = [
-      ['SPARK',     'i',   [25]],
-      ['ROOKIE',    'i',   [50]],
-      ['REGULAR',   'ii',  [100]],
-      ['GRINDER',   'ii',  [200, 350, 550]],
-      ['MACHINE',   'iii', [800, 1100, 1500]],
-      ['BEAST',     'iii', [2000, 2600, 3300]],
-      ['WARLORD',   'iv',  [4200, 5300, 6600]],
-      ['TITAN',     'iv',  [8200, 10000, 12500]],
-      ['IMMORTAL',  'v',   [15500, 19000, 23000]],
-      ['ASCENDANT', 'v',   [28000, 34000, 41000]],
-      ['ETERNAL',   'vi',  [50000]]
+      ['SPARK',     'i',   [100]],
+      ['ROOKIE',    'i',   [250]],
+      ['REGULAR',   'ii',  [500]],
+      ['GRINDER',   'ii',  [900, 1400, 2000]],
+      ['MACHINE',   'iii', [2800, 3800, 5200]],
+      ['BEAST',     'iii', [7000, 9500, 12500]],
+      ['WARLORD',   'iv',  [16500, 21500, 28000]],
+      ['TITAN',     'iv',  [36000, 46000, 58000]],
+      ['IMMORTAL',  'v',   [74000, 93000, 117000]],
+      ['ASCENDANT', 'v',   [147000, 184000, 230000]],
+      ['ETERNAL',   'vi',  [300000]]
     ];
     var ROMAN = ['I', 'II', 'III'], out = [];
     GRADES.forEach(function (g) {
@@ -1599,20 +1614,27 @@
 
     /* Shut, the summary still has to be worth reading: which season, how far
        in, and where you are in it. */
-    $('#seasonWhere').textContent =
-      (Number(info.seasons) > 1 ? 'S' + (Number(info.season) + 1) + ' · ' : '') +
-      'WEEK ' + done + (len ? '/' + len : '') +
-      (myPlace ? ' · YOU ' + ordinal(myPlace) : '');
+    var onBreak = !!info.on_break;
+    $('#seasonWhere').textContent = onBreak
+      ? 'OFF SEASON' + (myPlace ? ' · YOU FINISHED ' + ordinal(myPlace) : '')
+      : (Number(info.seasons) > 1 ? 'S' + (Number(info.season) + 1) + ' · ' : '') +
+        'WEEK ' + done + (len ? '/' + len : '') +
+        (myPlace ? ' · YOU ' + ordinal(myPlace) : '');
 
     var top = Number(rows.length ? rows[0].points : 0) || 1;
     box.innerHTML =
-      '<div class="seahead"><span>' +
-        (Number(info.seasons) > 1 ? 'SEASON ' + (Number(info.season) + 1) : 'SEASON') +
-        '</span><i>' + done + (len
-          ? ' of ' + len + (len - done > 0
-              ? ' · ' + (len - done) + (len - done === 1 ? ' week left' : ' weeks left')
-              : ' · final week')
-          : ' weeks in · no end set') + '</i></div>' +
+      '<div class="seahead' + (onBreak ? ' off' : '') + '"><span>' +
+        (onBreak ? 'SEASON ' + (Number(info.season) + 1) + ' — FINAL'
+                 : Number(info.seasons) > 1
+                     ? 'SEASON ' + (Number(info.season) + 1) : 'SEASON') +
+        '</span><i>' + (onBreak
+          ? 'off season · season ' + (Number(info.season) + 2) + ' opens ' +
+            weekRangeLabel(info.next_start).split('\u2013')[0].trim()
+          : done + (len
+              ? ' of ' + len + (len - done > 0
+                  ? ' · ' + (len - done) + (len - done === 1 ? ' week left' : ' weeks left')
+                  : ' · final week')
+              : ' weeks in · no end set')) + '</i></div>' +
       rows.map(function (r, i) {
         var pts = Number(r.points);
         var pct = Math.max(pts > 0 ? 3 : 0, pts / top * 100);
@@ -1633,13 +1655,17 @@
           '<span class="sea-bar"><span style="width:' + pct.toFixed(1) + '%"></span></span>' +
         '</div>';
       }).join('') +
-      '<p class="hint">' + (myPlace === 1
-        ? 'You are top of the table. ' + (len
-            ? (len - done) + ' weeks to hold it.' : 'Hold it.')
-        : myPlace
-          ? 'A win is worth ' + RANK_POINTS[0] + '. You are ' +
-            num(Number(rows[0].points) - Number(me.points)) + ' off the top.'
-          : 'Finish a week in the top twenty and you are on the table.') + '</p>';
+      '<p class="hint">' + (onBreak
+        ? 'The season is over — this is the final table. Nothing scores towards ' +
+          'a season until season ' + (Number(info.season) + 2) + ' opens, but the ' +
+          'league is open and every week still counts for the hall of fame.'
+        : myPlace === 1
+          ? 'You are top of the table. ' + (len
+              ? (len - done) + ' weeks to hold it.' : 'Hold it.')
+          : myPlace
+            ? 'A win is worth ' + RANK_POINTS[0] + '. You are ' +
+              num(Number(rows[0].points) - Number(me.points)) + ' off the top.'
+            : 'Finish a week in the top twenty and you are on the table.') + '</p>';
   }
 
   /* Five crowns is a row of five; twelve is a crown and a number. Nobody can
@@ -1658,6 +1684,7 @@
   }
 
   window.__RANK_POINTS__ = RANK_POINTS;   // reachable from a test
+  window.__MILESTONES__ = MILESTONES;
   /* The clock, so a test can prove it reads Paris and not the phone. */
   window.__clock__ = {
     tz: TZ, wallNow: wallNow, weekStart: currentWeekStart, isRestDay: isRestDay,
@@ -3008,6 +3035,7 @@
              d[1] + '</button>';
     }).join('');
     $('#seasonWeeks').value = l.season_weeks == null ? '' : String(l.season_weeks);
+    $('#seasonBreak').value = String(l.season_break == null ? 2 : l.season_break);
     if (mine) ruleState(rulesSummary());
     $('#leaveNote').textContent = mine
       ? 'Leaving keeps the league alive for everyone else. Deleting removes it for everybody.'
@@ -3073,7 +3101,8 @@
         var r = await sb.rpc('set_league_settings', {
           p_league: state.leagueId, p_rest_dow: dows,
           p_catchup_dow: picked ? Number(picked.getAttribute('data-catch')) : null,
-          p_season_weeks: wk === '' ? null : Number(wk)
+          p_season_weeks: wk === '' ? null : Number(wk),
+          p_season_break: Number($('#seasonBreak').value || 0)
         });
         if (r.error) throw r.error;
         await loadLeagues();
@@ -3097,10 +3126,14 @@
     var rest = (l.rest_dow || []).map(name);
     return 'Saved · rest ' + (rest.length ? rest.join(' + ') : 'none') +
       ' · catch-up ' + (l.catchup_dow ? name(l.catchup_dow) : 'none') +
-      ' · season ' + (l.season_weeks ? l.season_weeks + ' weeks' : 'no end');
+      ' · season ' + (l.season_weeks
+        ? l.season_weeks + ' weeks' +
+          (Number(l.season_break) ? ' + ' + l.season_break + ' off' : '')
+        : 'no end');
   }
 
   $('#seasonWeeks').addEventListener('change', saveRules);
+  $('#seasonBreak').addEventListener('change', saveRules);
 
   $('#leaveBtn').addEventListener('click', async function () {
     var l = league(); if (!l) return;

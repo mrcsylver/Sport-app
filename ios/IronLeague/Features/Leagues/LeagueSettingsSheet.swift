@@ -10,6 +10,7 @@ struct LeagueSettingsSheet: View {
     @State private var rest: Set<Int> = [7]
     @State private var catchup: Int?
     @State private var weeks: Double = 38
+    @State private var brk: Double = 2
     @State private var endless = true
 
     /// ISO weekdays: 1 is Monday, 7 is Sunday, matching the server.
@@ -62,6 +63,7 @@ struct LeagueSettingsSheet: View {
             } else {
                 endless = true
             }
+            brk = Double(league?.seasonBreak ?? 2)
         }
     }
 
@@ -276,6 +278,26 @@ struct LeagueSettingsSheet: View {
                     // read. A season table needs a real season: 38 or 50.
                     Slider(value: $weeks, in: 1...50, step: 1)
                         .tint(Theme.flame)
+
+                    // A 38 week table with nothing between one season and the
+                    // next is a treadmill. The league stays open through the
+                    // break and a week still counts for the hall of fame; it
+                    // just pays no season points.
+                    if !endless {
+                        HStack {
+                            Text("OFF SEASON AFTER IT")
+                                .font(Theme.display(10, .heavy)).kerning(1.2)
+                                .foregroundStyle(Theme.inkFaint)
+                            Spacer()
+                            Text(brk == 0 ? "none"
+                                 : "\(Int(brk)) week" + (brk == 1 ? "" : "s"))
+                                .font(Theme.mono(11, .bold))
+                                .foregroundStyle(Theme.ink)
+                        }
+                        .padding(.top, 6)
+                        Slider(value: $brk, in: 0...6, step: 1)
+                            .tint(Theme.flame)
+                    }
                 }
 
                 HeatButton(title: "SAVE SETTINGS", systemImage: "checkmark") {
@@ -283,7 +305,8 @@ struct LeagueSettingsSheet: View {
                         await session.saveLeagueSettings(
                             restDow: rest.sorted(),
                             seasonWeeks: endless ? nil : Int(weeks),
-                            catchupDow: catchup)
+                            catchupDow: catchup,
+                            seasonBreak: endless ? nil : Int(brk))
                     }
                 }
             }

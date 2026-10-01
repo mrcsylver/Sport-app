@@ -1088,6 +1088,9 @@ p.ms-next b{color:var(--txt);font-weight:800}
   padding:2px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:2px}
 .seahead span{font:800 12px/1 var(--display);letter-spacing:.16em;color:var(--txt)}
 .seahead i{font:400 10px/1 var(--mono);color:var(--muted);font-style:normal}
+/* the off-season reads as a closed book, not a live table */
+.seahead.off span{color:var(--gold)}
+.seahead.off i{color:var(--gold)}
 
 /* what each place pays, folded away — read once, then never again */
 .payout{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:5px}

@@ -43,12 +43,15 @@ insert into public.profiles (id, user_id, display_name, restore_code) values
   ('5aaa0000-0000-0000-0000-000000000001','51111111-1111-1111-1111-111111111111','ACE','SN1'),
   ('5aaa0000-0000-0000-0000-000000000002','52222222-2222-2222-2222-222222222222','STEADY','SN2'),
   ('5aaa0000-0000-0000-0000-000000000003','53333333-3333-3333-3333-333333333333','GHOST','SN3');
--- a four week season, created five weeks ago, so week 5 opens season 2
-insert into public.leagues (id, name, code, owner_id, rest_dow, season_weeks, created_at)
+-- A four week season with no off-season, created five weeks ago, so week 5
+-- opens season 2. The break gets its own section further down, and starting
+-- at zero keeps the boundary arithmetic here readable.
+insert into public.leagues (id, name, code, owner_id, rest_dow, season_weeks,
+                            season_break, created_at)
 values ('5bbb0000-0000-0000-0000-000000000001','IRON','SEA001',
         '5aaa0000-0000-0000-0000-000000000001',
         array[(extract(isodow from (now() at time zone public.app_timezone()))::int % 7) + 1],
-        4, now() - interval '35 days');
+        4, 0, now() - interval '35 days');
 insert into public.league_members (league_id, profile_id) values
   ('5bbb0000-0000-0000-0000-000000000001','5aaa0000-0000-0000-0000-000000000001'),
   ('5bbb0000-0000-0000-0000-000000000001','5aaa0000-0000-0000-0000-000000000002'),
@@ -152,13 +155,62 @@ select case when (select points from public.league_season(
 update public.leagues set season_weeks = 38
  where id = '5bbb0000-0000-0000-0000-000000000001';
 
+\echo '--- 8b. an off-season between two seasons'
+-- A 38 week table with no end is a treadmill. Two weeks of break means the
+-- cycle is six weeks on this fixture: four played, two off.
+update public.leagues set season_weeks = 4, season_break = 2
+ where id = '5bbb0000-0000-0000-0000-000000000001';
+select '  week ' || w || ': ' || coalesce(public.season_index(
+         '5bbb0000-0000-0000-0000-000000000001',
+         public.league_week0('5bbb0000-0000-0000-0000-000000000001') + (w*7))::text,
+       'off season')
+from generate_series(0, 7) w;
+select case when (select count(*) from generate_series(0,3) w
+                  where public.season_index('5bbb0000-0000-0000-0000-000000000001',
+                    public.league_week0('5bbb0000-0000-0000-0000-000000000001')+(w*7)) = 0) = 4
+         and (select count(*) from generate_series(4,5) w
+              where public.season_index('5bbb0000-0000-0000-0000-000000000001',
+                public.league_week0('5bbb0000-0000-0000-0000-000000000001')+(w*7)) is null) = 2
+         and public.season_index('5bbb0000-0000-0000-0000-000000000001',
+               public.league_week0('5bbb0000-0000-0000-0000-000000000001')+(6*7)) = 1
+       then 'four weeks on, two off, then season 2 — and the cycle repeats'
+       else 'THE OFF-SEASON IS IN THE WRONG PLACE' end;
+-- the whole point: a break week pays nobody any season points
+select case when (select coalesce(sum(points), -1) from public.league_season(
+                    '5bbb0000-0000-0000-0000-000000000001', 1)) = 0
+       then 'and the season after the break starts everybody on zero'
+       else 'A BREAK WEEK PAID SEASON POINTS' end;
+-- but the week still happened, so the hall of fame keeps it
+select case when (select count(distinct week_start) from public.weekly_history(
+                    '5bbb0000-0000-0000-0000-000000000001')) = 5
+       then 'the hall of fame still holds every week, break or not'
+       else 'A BREAK WEEK VANISHED FROM THE HALL' end;
+select '  ' || case when on_break then 'on the break, next season opens '
+                    else 'in season, next one opens ' end || next_start
+from public.league_season_info('5bbb0000-0000-0000-0000-000000000001');
+-- and an endless season never breaks, whatever the break is set to
+update public.leagues set season_weeks = null, season_break = 3
+ where id = '5bbb0000-0000-0000-0000-000000000001';
+select case when (select count(*) from generate_series(0,60) w
+                  where public.season_index('5bbb0000-0000-0000-0000-000000000001',
+                    public.league_week0('5bbb0000-0000-0000-0000-000000000001')+(w*7))
+                    is distinct from 0) = 0
+       then 'a season with no end never takes a break either'
+       else 'AN ENDLESS SEASON TOOK A BREAK' end;
+update public.leagues set season_weeks = 38, season_break = 2
+ where id = '5bbb0000-0000-0000-0000-000000000001';
+
 \echo '--- 9. a real season length is allowed'
 select '  38 and 50 week seasons both fit: ' ||
        (select season_weeks::text from public.leagues
         where id = '5bbb0000-0000-0000-0000-000000000001');
 -- the owner setting it, through the same call the app uses
 select '' from public.set_league_settings('5bbb0000-0000-0000-0000-000000000001',
-         array[7], 50, null);
+         array[7], 50, null, 3);
+select case when (select season_break from public.leagues
+                  where id = '5bbb0000-0000-0000-0000-000000000001') = 3
+       then 'and the owner sets the off-season through the same call'
+       else 'THE OFF-SEASON DID NOT SAVE' end;
 select case when (select season_weeks from public.leagues
                   where id = '5bbb0000-0000-0000-0000-000000000001') = 50
        then 'a fifty week season saves, where the old ceiling was 26'

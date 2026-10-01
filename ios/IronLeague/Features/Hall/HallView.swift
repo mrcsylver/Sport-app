@@ -100,16 +100,31 @@ struct HallView: View {
     }
 
     /// "S2 · WEEK 7/38 · YOU 4th" — worth reading without opening anything.
+    /// During the off-season it says so instead, because the table underneath
+    /// is then a finished one.
     private var seasonTrailing: String? {
         guard let info = session.seasonInfo, info.weeksDone > 0 else { return nil }
+        let mine = session.season.firstIndex(where: { $0.mine }).map { $0 + 1 }
+        if info.resting {
+            return "OFF SEASON"
+                + (mine.map { " · YOU FINISHED " + RankPoints.ordinal($0) } ?? "")
+        }
         var parts: [String] = []
         if info.seasons > 1 { parts.append("S\(info.season + 1)") }
         parts.append("WEEK \(info.weeksDone)"
                      + (info.seasonWeeks.map { "/\($0)" } ?? ""))
-        if let i = session.season.firstIndex(where: { $0.mine }) {
-            parts.append("YOU " + RankPoints.ordinal(i + 1))
-        }
+        if let i = mine { parts.append("YOU " + RankPoints.ordinal(i)) }
         return parts.joined(separator: " · ")
+    }
+
+    /// One line under the table saying what the break means, so nobody reads a
+    /// frozen table as a broken one.
+    private var seasonFootnote: String? {
+        guard let info = session.seasonInfo, info.resting else { return nil }
+        let opens = info.nextStart.map { " Season \(info.season + 2) opens \($0)." } ?? ""
+        return "The season is over — this is the final table." + opens
+            + " Nothing scores towards a season until then, but the league is open"
+            + " and every week still counts for the hall of fame."
     }
 
     private var seasonTable: some View {
@@ -119,6 +134,12 @@ struct HallView: View {
                 let row = pair.element
                 let place = pair.offset + 1
                 seasonRow(row, place: place, share: row.points / top)
+            }
+            if let note = seasonFootnote {
+                Text(note)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.gold)
+                    .padding(.horizontal, 2).padding(.top, 2)
             }
             // Read once, then never again — so it is folded away.
             DisclosureGroup(isExpanded: $payoutOpen) {

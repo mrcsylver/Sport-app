@@ -334,12 +334,13 @@ final class Session {
     }
 
     func saveLeagueSettings(restDow: [Int], seasonWeeks: Int?,
-                            catchupDow: Int?) async {
+                            catchupDow: Int?, seasonBreak: Int?) async {
         guard let id = leagueId else { return }
         do {
             _ = try await API.shared.setLeagueSettings(id, restDow: restDow,
                                                        seasonWeeks: seasonWeeks,
-                                                       catchupDow: catchupDow)
+                                                       catchupDow: catchupDow,
+                                                       seasonBreak: seasonBreak)
             leagues = try await API.shared.myLeagues()
             show("League settings saved.")
             Haptic.win()
@@ -485,12 +486,18 @@ struct Grade: Identifiable {
     var id: String { name }
 
     static let ladder: [Grade] = {
+        // 300,000 at the top, not 50,000 — the league's best player reached
+        // the old ceiling in eleven months, and a lifetime ladder you finish
+        // inside a year has nothing at the top of it. Same grades, same
+        // numerals, same 25-40% step; six times the scale. Must match
+        // MILESTONES in app.js.
         let spec: [(String, Int, [Double])] = [
-            ("SPARK", 0, [25]), ("ROOKIE", 0, [50]), ("REGULAR", 1, [100]),
-            ("GRINDER", 1, [200, 350, 550]), ("MACHINE", 2, [800, 1100, 1500]),
-            ("BEAST", 2, [2000, 2600, 3300]), ("WARLORD", 3, [4200, 5300, 6600]),
-            ("TITAN", 3, [8200, 10000, 12500]), ("IMMORTAL", 4, [15500, 19000, 23000]),
-            ("ASCENDANT", 4, [28000, 34000, 41000]), ("ETERNAL", 5, [50000])
+            ("SPARK", 0, [100]), ("ROOKIE", 0, [250]), ("REGULAR", 1, [500]),
+            ("GRINDER", 1, [900, 1400, 2000]), ("MACHINE", 2, [2800, 3800, 5200]),
+            ("BEAST", 2, [7000, 9500, 12500]), ("WARLORD", 3, [16500, 21500, 28000]),
+            ("TITAN", 3, [36000, 46000, 58000]),
+            ("IMMORTAL", 4, [74000, 93000, 117000]),
+            ("ASCENDANT", 4, [147000, 184000, 230000]), ("ETERNAL", 5, [300000])
         ]
         let roman = ["I", "II", "III"]
         return spec.flatMap { name, tier, marks in

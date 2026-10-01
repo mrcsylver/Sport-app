@@ -25,13 +25,25 @@ from sqllift import lift, grants                                   # noqa: E402
 SCHEMA = os.path.join(ROOT, "supabase", "schema.sql")
 OUT = os.path.join(ROOT, "supabase", "season-table.sql")
 
-# my_badges loses three rows, which does not change its shape, so it is a
-# plain replace. Nothing else here existed before.
-OBJECTS = ["rank_points", "league_week0", "season_index",
-           "league_season_info", "league_season", "my_badges"]
+# create-or-replace cannot change what a function returns, and three of these
+# changed shape: league_season_info gained the off-season columns, my_leagues
+# gained season_break, and set_league_settings gained a fifth parameter — which
+# would otherwise sit alongside the four-argument version as an overload and
+# make every call ambiguous.
+RESHAPED = [
+    ("league_season_info", "p_league uuid"),
+    ("my_leagues", ""),
+    ("set_league_settings",
+     "p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int"),
+]
 
-WANTED = ("rank_points", "league_week0", "season_index",
-          "league_season_info", "league_season", "my_badges")
+OBJECTS = ["rank_points", "league_week0", "season_index", "season_next_start",
+           "league_season_info", "league_season", "my_badges", "my_leagues",
+           "set_league_settings"]
+
+WANTED = ("rank_points", "league_week0", "season_index", "season_next_start",
+          "league_season_info", "league_season", "my_badges", "my_leagues",
+          "set_league_settings")
 
 HEAD = """-- ======================================================================
 --  IRON LEAGUE — a season table instead of a race to five crowns
@@ -83,6 +95,16 @@ HEAD = """-- ===================================================================
 --  because the table is derived from weekly_history on read rather than
 --  stored. Crowns still follow the person across every season.
 --
+--  THE OFF-SEASON
+--  season_break is how many weeks of rest sit between one season and the
+--  next, 0 to 6, two by default. A cycle is season_weeks of play then
+--  season_break of rest, and it repeats. A break week belongs to no season:
+--  season_index() returns null for it, so it pays nobody season points and
+--  the table a break shows is the final standings of the season that just
+--  ended. The league stays open through it and the week still scores for the
+--  hall of fame — it is a breather, not a shutdown. An endless season
+--  (season_weeks null) never breaks, whatever the break is set to.
+--
 --  WHAT GOES
 --  The TRIPLE CROWN, FIVE CROWNS and TEN CROWNS badges. CHAMPION — win a
 --  week — stays, because winning a week is still the thing.
@@ -101,6 +123,16 @@ alter table public.leagues add constraint leagues_season_sane
 -- open-ended season has no finish line to play for, which is the whole point
 -- of the table. Existing leagues keep whatever they already have.
 alter table public.leagues alter column season_weeks set default 38;
+
+-- ------------------------------------------- and an off-season after it ---
+-- A 38 week table with nothing between one season and the next is a
+-- treadmill. The league stays open through the break and a week still scores
+-- for the hall of fame; it just pays no season points.
+alter table public.leagues
+  add column if not exists season_break int not null default 2;
+alter table public.leagues drop constraint if exists leagues_break_sane;
+alter table public.leagues add constraint leagues_break_sane
+  check (season_break between 0 and 6);
 """
 
 TAIL = """
@@ -111,6 +143,10 @@ commit;
 def main():
     schema = open(SCHEMA, encoding="utf-8").read()
     parts = [HEAD]
+    parts.append("-- --------------------------------------- shapes that changed ---")
+    for name, args in RESHAPED:
+        parts.append("drop function if exists public.%s(%s) cascade;" % (name, args))
+    parts.append("")
     for name in OBJECTS:
         parts.append("-- " + ("-" * (70 - len(name))) + " " + name + " ---")
         parts.append(lift(schema, "function", name) + "\n")
