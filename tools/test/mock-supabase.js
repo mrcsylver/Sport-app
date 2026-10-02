@@ -610,7 +610,8 @@
       var cur = weekStart(), agg = {};
       var mine = DB.workouts.filter(function (w) {
         return w.league_id === a.p_league && w.profile_id === p.id &&
-               (a.p_all || w.week_start === cur); });
+               (a.p_all || w.week_start === cur) &&
+               (a.p_from == null || w.week_start >= a.p_from); });
       /* the budget belongs to the exercise, not the unit it is logged in, so
          a movement's discount is worked out once and then shared between its
          rows in proportion to what each earned */
@@ -864,7 +865,8 @@
       var cur = weekStart();
       var mine = DB.workouts.filter(function (w) {
         return w.league_id === a.p_league && w.profile_id === p.id &&
-               (a.p_all || w.week_start === cur); });
+               (a.p_all || w.week_start === cur) &&
+               (a.p_from == null || w.week_start >= a.p_from); });
       var weeks = Math.max(1, Object.keys(mine.reduce(function (o, w) {
         o[w.week_start] = 1; return o; }, {})).length);
       /* the same dose the server works out: a grade floor from lifetime, and

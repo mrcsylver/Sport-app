@@ -185,9 +185,14 @@ actor API {
     func weeklyHistory(_ league: UUID) async throws -> [HistoryRow] {
         try await rpc("weekly_history", ["p_league": .string(league.uuidString)])
     }
-    func myStats(_ league: UUID, allTime: Bool) async throws -> [StatRow] {
+    /// `from` bounds the range below, so a season is "everything since the
+    /// Monday it opened". A third parameter rather than a range word, because
+    /// replacing `p_all` would mean dropping a function the stats tab polls.
+    func myStats(_ league: UUID, allTime: Bool,
+                 from: String? = nil) async throws -> [StatRow] {
         try await rpc("my_stats", ["p_league": .string(league.uuidString),
-                                   "p_all": .bool(allTime)])
+                                   "p_all": .bool(allTime),
+                                   "p_from": from.map { .string($0) } ?? .null])
     }
 
     // MARK: - Duels

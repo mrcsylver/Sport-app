@@ -194,7 +194,8 @@ returns numeric language sql stable set search_path = public as $fn$
 $fn$;
 
 -- ------------------------------------------------------------ my_muscles ---
-create or replace function public.my_muscles(p_league uuid, p_all boolean default false)
+create or replace function public.my_muscles(p_league uuid, p_all boolean default false,
+                                  p_from date default null)
 returns table (key text, name text, view text, points numeric,
                pct numeric, target numeric, weeks int)
 language sql stable security definer set search_path = public as $fn$
@@ -204,12 +205,14 @@ language sql stable security definer set search_path = public as $fn$
     from public.workouts w
     where w.league_id = p_league and w.profile_id = (select id from me)
       and (p_all or w.week_start = public.current_week_start())
+      and (p_from is null or w.week_start >= p_from)
   ),
   wk as (
     select greatest(count(distinct w.week_start), 1)::int as n
     from public.workouts w
     where w.league_id = p_league and w.profile_id = (select id from me)
       and (p_all or w.week_start = public.current_week_start())
+      and (p_from is null or w.week_start >= p_from)
   ),
   dose as (select public.muscle_dose((select id from me)) as f),
   spread as (
@@ -421,14 +424,14 @@ create trigger workouts_update_guard_trg
 revoke all on function public.weekly_history(uuid)          from public, anon;
 revoke all on function public.set_body_form(text)           from public, anon;
 revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
-revoke all on function public.my_muscles(uuid,boolean)      from public, anon;
+revoke all on function public.my_muscles(uuid,boolean,date)  from public, anon;
 revoke all on function public.muscle_dose(uuid)             from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
 revoke all on function public.league_champions(uuid)        from public, anon;
 grant execute on function public.weekly_history(uuid)          to authenticated;
 grant execute on function public.set_body_form(text)           to authenticated;
 grant execute on function public.muscle_charge(numeric,numeric) to authenticated;
-grant execute on function public.my_muscles(uuid,boolean)      to authenticated;
+grant execute on function public.my_muscles(uuid,boolean,date) to authenticated;
 grant execute on function public.muscle_dose(uuid)             to authenticated;
 grant execute on function public.league_wins(uuid)             to authenticated;
 grant select on public.muscles to authenticated;

@@ -87,6 +87,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/gym-lifts.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/progressions.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/season-table.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/season-stats.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -122,4 +123,33 @@ psql -tAd ironlive -c "select case when (select count(*) from pg_constraint
       and pg_get_constraintdef(oid) like '%52%') = 1
   then 'and a 38 or 50 week season fits where 26 was the ceiling'
   else 'THE SEASON LENGTH IS STILL CAPPED AT 26' end;"
+# The stats tab's season range. A defaulted third parameter is only safe if the
+# two-argument version has stopped being visible: PostgREST resolves by argument
+# name, so two overloads that both take p_league and p_all are ambiguous and an
+# app that has not updated gets an error instead of the old answer.
+psql -tAd ironlive -c "select case when count(*) = 1
+  then 'exactly one my_stats is callable, so an old app is not ambiguous'
+  else 'MY_STATS IS AMBIGUOUS — '||count(*)||' OVERLOADS IN public' end
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'my_stats';"
+psql -tAd ironlive -c "select case when count(*) = 1
+  then 'and exactly one my_muscles'
+  else 'MY_MUSCLES IS AMBIGUOUS — '||count(*)||' OVERLOADS IN public' end
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'my_muscles';"
+psql -tAd ironlive -c "select case when count(*) >= 2
+  then 'the old shapes are parked in retired, recoverable with one ALTER'
+  else 'THE OLD SHAPES WERE NOT PARKED — '||count(*)||' IN retired' end
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'retired'
+    and (p.proname like 'my\\_stats%' or p.proname like 'my\\_muscles%');"
+psql -tAd ironlive -c "select case when has_schema_privilege('authenticated', 'retired', 'usage')
+  then 'BUT retired IS REACHABLE BY AN APP'
+  else 'and nothing an app signs in as can reach that schema' end;"
+psql -tAd ironlive -c "set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+  select case when (select count(*) from my_stats(
+      p_league => (select id from leagues order by created_at limit 1),
+      p_all => true)) >= 0
+  then 'a two-argument call by name still answers'
+  else 'AN OLD APP WOULD BREAK ON THE STATS TAB' end;"
 echo "· all clear"

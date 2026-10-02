@@ -295,6 +295,58 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  await pg.waitForTimeout(200);
  await pg.screenshot({path:path.join(OUT,'73-body-fem.png'),fullPage:false});
 
+ /* ---- the stats tab's third range ----
+    WEEK and ALL TIME left the season — the unit the league actually plays in —
+    with no tab of its own, so "how is my season going" could only be answered
+    from the hall table, which shows placings rather than what you lifted.
+    The season is bounded BELOW by the Monday it opened, which means the test
+    needs a league whose season has already turned over once: a five week
+    season and a log older than the current one, so the three ranges have to
+    come out different. */
+ await pg.evaluate(()=>{
+   const DB = window.__DB__, ws = window.__weekStart__();
+   const back = n => { const d = new Date(ws+'T00:00:00Z');
+     d.setUTCDate(d.getUTCDate()-7*n); return d.toISOString().slice(0,10); };
+   const lg = DB.leagues.find(l=>l.id==='lg1');
+   lg.season_weeks = 5; lg.season_break = 0;
+   DB.workouts.push({id:'wold',group_id:'gold',league_id:'lg1',profile_id:'p1',
+     exercise_key:'pushups',mode:'reps',amount:100,
+     points:window.__calc__('pushups','reps',100),week_start:back(5),
+     created_at:back(5)+'T09:00:00.000Z',boost:1});
+   window.__save__();
+ });
+ await pg.reload(); await pg.waitForSelector('#view-live:not([hidden])',{timeout:9000});
+ await pg.click('.tab[data-view="stats"]'); await pg.waitForTimeout(800);
+ T('the stats tab offers three ranges, not two',
+   (await pg.$$('#statsRange [data-range]')).length===3,
+   (await pg.$$eval('#statsRange [data-range]', e=>e.map(x=>x.textContent))).join('/'));
+ const total = async () => Number((await pg.textContent('#statPoints')).replace(/[^\d.]/g,''));
+ const week = await total();
+ await pg.click('#statsRange [data-range="all"]'); await pg.waitForTimeout(700);
+ const all = await total();
+ await pg.click('#statsRange [data-range="season"]'); await pg.waitForTimeout(700);
+ const season = await total();
+ T('a season is more than a week and less than a lifetime',
+   week < season && season < all, week+' < '+season+' < '+all);
+ T('and it is bounded by the Monday the season opened',
+   await pg.evaluate(()=>{
+     const r = window.__statsRange__();
+     return r.p_all === true &&
+            r.p_from === window.__state__.seasonInfo.first_week;
+   }), 'p_from = first_week');
+ T('the figure is held to the same weeks as the table',
+   /\d+ \/ 14 FILLED · \d+W/.test(await pg.textContent('#bodyWeeks')),
+   await pg.textContent('#bodyWeeks'));
+ /* The rank ladder is a lifetime thing whatever the tab is showing. A season
+    tab that reset somebody's rank would read as the app losing their work. */
+ T('but the rank ladder still counts a whole lifetime',
+   await pg.evaluate(a=>{
+     const pips = Array.from(document.querySelectorAll('.ms-pip'));
+     const lit = pips.filter(p=>p.classList.contains('on')).length;
+     return lit >= 1 && a > 0;
+   }, all), 'lifetime, not the season');
+ await pg.screenshot({path:path.join(OUT,'74-stats-season.png'),fullPage:false});
+
  await ctx.close(); await b.close(); srv.close();
  let bad=0; res.forEach(([n,ok,g])=>{if(!ok)bad++;console.log((ok?'  PASS  ':'> FAIL <')+' '+n+'   ['+g+']');});
  console.log('\nJS errors: '+(errs.length?'\n  '+errs.join('\n  '):'none'));

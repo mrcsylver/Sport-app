@@ -6,8 +6,8 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
-`progressions.sql` and `season-table.sql` are migrations for a database that is
-already running. They only add; nothing logged is touched, and all of
+`progressions.sql`, `season-table.sql` and `season-stats.sql` are migrations for
+a database that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -141,10 +141,64 @@ it is live, an app in somebody's pocket is still calling it, and `create or
 replace` cannot widen a function. Dropping one the hall tab polls would blank
 that tab for every member until they reloaded. `my_leagues` is the same story
 and is deliberately NOT carrying `season_break` for it; the off-season setting is
-read off `league_season_state()` instead. `set_league_settings` gained its fifth
-parameter as an overload for the same reason — PostgREST resolves by argument
-name, so an app that has not updated keeps hitting the four-argument version
-until the migration's drop runs, and nothing breaks either way.
+read off `league_season_state()` instead.
+
+### An overload is not a compatibility shim
+
+`set_league_settings` gained its fifth parameter as an overload on the reasoning
+that PostgREST resolves by argument name, so an app that had not updated would
+keep hitting the four-argument version. **That is wrong, and it broke the live
+database for a day.** PostgREST does resolve by name, but a call naming four
+arguments matches BOTH a four-argument function and a five-argument one whose
+fifth has a default, and Postgres does not prefer the exact arity — it refuses
+the call:
+
+```
+function public.set_league_settings(p_league => uuid, p_rest_dow => integer[],
+  p_season_weeks => integer, p_catchup_dow => integer) is not unique
+```
+
+So a defaulted parameter is only backwards compatible if the old shape stops
+being visible. Two ways out are closed here and worth writing down so nobody
+spends an afternoon rediscovering them:
+
+* `create or replace` **cannot** remove a default — *"cannot remove parameter
+  defaults from existing function"* — so the tie cannot be broken by taking the
+  default off the wider function.
+* the migration channel this project applies through **refuses every DROP**. It
+  does not error, it hangs: `drop function if exists` on a function that has
+  never existed times out after sixty seconds. That was the probe that settled
+  it.
+
+What does work is `alter function … set schema`, which is not a drop. The old
+shape moves into a schema called `retired`, which PostgREST does not serve and
+which grants nothing to anybody, so exactly one candidate is left in `public`
+and a call naming the old arguments resolves to the new function and its
+defaults. It is reversible with one more `ALTER`, which a drop is not.
+`supabase/season-stats.sql` does this for the two functions below, in the same
+transaction that creates them, so there is no instant where both are callable.
+`supabase/test/run.sh` asserts the count afterwards — one `my_stats`, one
+`my_muscles`, both old shapes parked — because the failure mode is silent until
+somebody on an old build opens a tab.
+
+### A season on the stats tab
+
+The tab had `THIS WEEK` and `ALL TIME`. The season is the unit the league plays
+in and had no tab, so "how is my season going" could only be answered from the
+hall table, which shows placings rather than what you lifted. `my_stats()` and
+`my_muscles()` take a third argument, `p_from`, which bounds the range below:
+
+| tab | `p_all` | `p_from` |
+|---|---|---|
+| week | false | null |
+| season | true | `league_season_state().first_week` |
+| all time | true | null |
+
+The bound is a date rather than a season number so nothing has to be stored, and
+an off-season shows the season that just closed instead of an empty tab. The
+rank ladder stays lifetime whatever the tab shows: a season view that reset
+somebody's rank would read as the app losing their work, so it asks for the
+unbounded range separately.
 
 `season_break` is how many weeks of off-season sit between one season and the
 next — 0 to 6, two by default. A cycle is `season_weeks` of play then
@@ -215,6 +269,7 @@ Do not hand-edit these:
 | `gym-lifts.sql` | `tools/build_gym_migration.py` |
 | `progressions.sql` | `tools/build_progression_migration.py` |
 | `season-table.sql` | `tools/build_season_migration.py` |
+| `season-stats.sql` | `tools/build_stats_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

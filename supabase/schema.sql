@@ -84,6 +84,7 @@ drop function if exists public.my_combo_today(p_league uuid) cascade;
 drop function if exists public.my_leagues() cascade;
 drop function if exists public.my_profile_id() cascade;
 drop function if exists public.my_stats(p_league uuid, p_all boolean) cascade;
+drop function if exists public.my_stats(p_league uuid, p_all boolean, p_from date) cascade;
 drop function if exists public.rename_profile(p_name text) cascade;
 drop function if exists public.rest_day_check(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 drop function if exists public.restore_profile(p_code text) cascade;
@@ -93,6 +94,7 @@ drop function if exists public.set_units(p_units text) cascade;
 drop function if exists public.set_body_form(p_form text) cascade;
 drop function if exists public.muscle_charge(p_points numeric, p_target numeric) cascade;
 drop function if exists public.my_muscles(p_league uuid, p_all boolean) cascade;
+drop function if exists public.my_muscles(p_league uuid, p_all boolean, p_from date) cascade;
 drop function if exists public.muscle_dose(p_profile uuid) cascade;
 drop function if exists public.league_wins(p_league uuid) cascade;
 drop function if exists public.league_season(p_league uuid, p_season int) cascade;
@@ -1344,7 +1346,10 @@ $$;
 -- region would read 99 by the second month and the figure would stop saying
 -- anything. It is scaled by the weeks somebody actually logged in, not by the
 -- weeks on the calendar, so a fortnight off does not punish the reading.
-create function public.my_muscles(p_league uuid, p_all boolean default false)
+-- `p_from` bounds the range below, the same defaulted third parameter my_stats()
+-- took and for the same reason: a season view without dropping a live function.
+create function public.my_muscles(p_league uuid, p_all boolean default false,
+                                  p_from date default null)
 returns table (key text, name text, view text, points numeric,
                pct numeric, target numeric, weeks int)
 language sql stable security definer set search_path = public as $$
@@ -1354,12 +1359,14 @@ language sql stable security definer set search_path = public as $$
     from public.workouts w
     where w.league_id = p_league and w.profile_id = (select id from me)
       and (p_all or w.week_start = public.current_week_start())
+      and (p_from is null or w.week_start >= p_from)
   ),
   wk as (
     select greatest(count(distinct w.week_start), 1)::int as n
     from public.workouts w
     where w.league_id = p_league and w.profile_id = (select id from me)
       and (p_all or w.week_start = public.current_week_start())
+      and (p_from is null or w.week_start >= p_from)
   ),
   dose as (select public.muscle_dose((select id from me)) as f),
   spread as (
@@ -1872,7 +1879,18 @@ $$;
 -- it a week pays in full. The stats tab shows all three, and the log sheet
 -- reads this to draw the budget BEFORE anyone commits a set — a discount
 -- discovered afterwards reads as a broken app, not as a rule.
-create function public.my_stats(p_league uuid, p_all boolean default false)
+-- `p_from` bounds the range below, so the stats tab can show a SEASON as well
+-- as a week and a lifetime. It arrives as a third DEFAULTED parameter rather
+-- than replacing p_all with a range word, so that an app which has not updated
+-- keeps calling with two named arguments and still works.
+-- The catch, learned the hard way: PostgREST resolves by argument NAME, and two
+-- overloads that both accept the same two names are ambiguous — the older app
+-- gets an error, not the old behaviour. So a live database cannot keep both.
+-- supabase/season-stats.sql creates this one and moves the two-argument version
+-- into a `retired` schema in the same transaction, which leaves exactly one
+-- candidate without dropping anything.
+create function public.my_stats(p_league uuid, p_all boolean default false,
+                                p_from date default null)
 returns table (exercise_key text, category text, mode text,
                total_amount numeric, total_points numeric, entries bigint,
                active_days bigint, raw_points numeric, cap numeric)
@@ -1884,6 +1902,7 @@ language sql stable security definer set search_path = public as $$
     where w.league_id  = p_league
       and w.profile_id = public.my_profile_id()
       and (p_all or w.week_start = public.current_week_start())
+      and (p_from is null or w.week_start >= p_from)
       and public.is_member(p_league)),
   -- the discount is per week, so a lifetime view sums its weeks rather than
   -- running one enormous pile through the curve
@@ -2493,13 +2512,13 @@ revoke all on function public.leave_league(uuid)            from public, anon;
 revoke all on function public.my_leagues()                  from public, anon;
 revoke all on function public.league_leaderboard(uuid,date) from public, anon;
 revoke all on function public.weekly_history(uuid)          from public, anon;
-revoke all on function public.my_stats(uuid, boolean)       from public, anon;
+revoke all on function public.my_stats(uuid,boolean,date)    from public, anon;
 revoke all on function public.set_avatar(text)              from public, anon;
 revoke all on function public.my_combo_today(uuid)          from public, anon;
 revoke all on function public.week_combo_bonus(uuid, date)  from public, anon;
 revoke all on function public.set_body_form(text)           from public, anon;
 revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
-revoke all on function public.my_muscles(uuid,boolean)      from public, anon;
+revoke all on function public.my_muscles(uuid,boolean,date)  from public, anon;
 revoke all on function public.muscle_dose(uuid)             from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
 revoke all on function public.league_champions(uuid)        from public, anon;
@@ -2544,13 +2563,16 @@ grant execute on function public.leave_league(uuid)            to authenticated;
 grant execute on function public.my_leagues()                  to authenticated;
 grant execute on function public.league_leaderboard(uuid,date) to authenticated;
 grant execute on function public.weekly_history(uuid)          to authenticated;
-grant execute on function public.my_stats(uuid, boolean)       to authenticated;
 grant execute on function public.set_avatar(text)              to authenticated;
 grant execute on function public.set_bodyweight(numeric)       to authenticated;
 grant execute on function public.set_units(text)               to authenticated;
 grant execute on function public.set_body_form(text)           to authenticated;
 grant execute on function public.muscle_charge(numeric,numeric) to authenticated;
-grant execute on function public.my_muscles(uuid,boolean)      to authenticated;
+-- Only the three-argument forms. A fresh build has no two-argument version, and
+-- a live database had its own moved into the `retired` schema in the same
+-- transaction that created these — see supabase/season-stats.sql for why.
+grant execute on function public.my_muscles(uuid,boolean,date) to authenticated;
+grant execute on function public.my_stats(uuid,boolean,date)   to authenticated;
 grant execute on function public.muscle_dose(uuid)             to authenticated;
 grant execute on function public.league_wins(uuid)             to authenticated;
 grant execute on function public.rank_points(int)              to authenticated;

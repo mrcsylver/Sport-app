@@ -54,7 +54,7 @@ struct StatsView: View {
                         exerciseFolder(row.name)
                     }
                 } else {
-                    EmptyHint(text: session.statsAllTime
+                    EmptyHint(text: session.statsRange != .week
                               ? "Nothing logged in this league yet."
                               : "Nothing logged this week yet.")
                 }
@@ -157,26 +157,27 @@ struct StatsView: View {
     // MARK: scope
 
     private var scopeToggle: some View {
-        HStack(spacing: 8) {
-            scopeTab("THIS WEEK", false)
-            scopeTab("ALL TIME", true)
+        HStack(spacing: 6) {
+            scopeTab("WEEK", .week)
+            scopeTab("SEASON", .season)
+            scopeTab("ALL TIME", .all)
         }
     }
 
-    private func scopeTab(_ title: String, _ all: Bool) -> some View {
-        Button {
+    private func scopeTab(_ title: String, _ range: Session.StatsRange) -> some View {
+        let on = session.statsRange == range
+        return Button {
             Haptic.tap()
-            session.statsAllTime = all
+            session.statsRange = range
             Task { await session.loadStats() }
         } label: {
             Text(title)
-                .font(Theme.display(12, .black)).kerning(1)
-                .foregroundStyle(session.statsAllTime == all ? Theme.void : Theme.inkMuted)
+                .font(Theme.display(11, .black)).kerning(0.8)
+                .foregroundStyle(on ? Theme.void : Theme.inkMuted)
                 .frame(maxWidth: .infinity).padding(.vertical, 11)
                 .background {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(session.statsAllTime == all
-                              ? AnyShapeStyle(Theme.heat) : AnyShapeStyle(Theme.raised))
+                        .fill(on ? AnyShapeStyle(Theme.heat) : AnyShapeStyle(Theme.raised))
                 }
         }
         .buttonStyle(.plain)

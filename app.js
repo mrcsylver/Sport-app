@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.19.1';
+  var APP_VERSION = '2.20.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1693,6 +1693,7 @@
   window.__state__ = state;
   window.__BODY__ = BODY;
   window.__renderSeason__ = renderSeason;
+  window.__statsRange__ = statsRange;
   window.__fixFor__ = fixFor;
   window.__EXNAME__ = function (k) { var e = exercise(k); return e ? e.name : k; };
 
@@ -2224,11 +2225,35 @@
   var CAT_COLOR = { PUSH: '#ff2e2e', PULL: '#ff8a1f', LEGS: '#ffc93c',
                     CORE: '#26d07c', CARDIO: '#3aa8ff', RECOVERY: '#9b7bff' };
 
+  /* Three ranges, one pair of arguments. `p_all` opens the range past this
+     week and `p_from` closes it below, so a season is "everything since the
+     Monday this season opened" — which is exactly what league_season_state
+     hands back. A season with no finished week yet falls back to this week,
+     because an empty tab is worse than a short one. */
+  function statsRange() {
+    if (state.statsRange === 'week') return { p_all: false, p_from: null };
+    if (state.statsRange === 'season') {
+      var from = state.seasonInfo && state.seasonInfo.first_week;
+      if (from) return { p_all: true, p_from: from };
+      return { p_all: false, p_from: null };
+    }
+    return { p_all: true, p_from: null };
+  }
+
   async function loadStats() {
     if (!state.leagueId) return;
     $('#statsWho').textContent = state.profile ? state.profile.display_name : '';
+    /* The season's opening Monday lives in league_season_state, which the hall
+       tab loads. Somebody can reach this tab without ever opening that one, so
+       fetch it here when it is the bound we are about to need — otherwise a
+       SEASON tap quietly shows a week. */
+    if (state.statsRange === 'season' && !state.seasonInfo) {
+      var si = await sb.rpc('league_season_state', { p_league: state.leagueId });
+      if (!si.error) state.seasonInfo = (si.data && si.data[0]) || null;
+    }
+    var range = statsRange();
     var r = await sb.rpc('my_stats', {
-      p_league: state.leagueId, p_all: state.statsRange === 'all'
+      p_league: state.leagueId, p_all: range.p_all, p_from: range.p_from
     });
     if (r.error) { toast(niceError(r.error), true); return; }
     renderStats(r.data || []);
@@ -2236,15 +2261,18 @@
     var rec = await sb.rpc('my_duel_record', { p_league: state.leagueId });
     renderDuelRecord(!rec.error && rec.data && rec.data[0]);
 
-    var all = state.statsRange === 'all' ? r
-            : await sb.rpc('my_stats', { p_league: state.leagueId, p_all: true });
+    /* The rank ladder is lifetime whatever the tab is showing, so it always
+       asks for everything. */
+    var all = (range.p_all && !range.p_from) ? r
+            : await sb.rpc('my_stats', { p_league: state.leagueId,
+                                         p_all: true, p_from: null });
     if (!all.error) {
       renderMilestones((all.data || []).reduce(function (a2, x) {
         return a2 + Number(x.total_points); }, 0));
     }
 
     var mus = await sb.rpc('my_muscles', {
-      p_league: state.leagueId, p_all: state.statsRange === 'all' });
+      p_league: state.leagueId, p_all: range.p_all, p_from: range.p_from });
     if (!mus.error) { state.muscles = mus.data || []; renderBody(); }
   }
 
@@ -2296,7 +2324,7 @@
     var filled = rows.filter(function (m) { return Number(m.pct) >= 100; }).length;
     $('#bodyWeeks').textContent = !rows.length ? ''
       : filled + ' / ' + rows.length + ' FILLED' +
-        (state.statsRange === 'all' ? ' · ' + weeks + 'W' : '');
+        (state.statsRange === 'week' ? '' : ' \u00b7 ' + weeks + 'W');
 
     if (!rows.length) {
       fig.innerHTML = '';
@@ -2572,7 +2600,9 @@
 
     if (!rows.length) {
       $('#statList').innerHTML = '<div class="empty">Nothing logged ' +
-        (state.statsRange === 'all' ? 'yet.' : 'this week yet.') + '</div>';
+        (state.statsRange === 'all' ? 'yet.'
+         : state.statsRange === 'season' ? 'this season yet.'
+         : 'this week yet.') + '</div>';
       return;
     }
     $('#statList').innerHTML = rows.map(function (r) {

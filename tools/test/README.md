@@ -33,7 +33,7 @@ them somewhere else.
 | `run11.js` | the league crest: shape, colour, emblem, banner |
 | `run12.js` | the control room: the two totals, and the bounty tools |
 | `run13.js` | the catch-up day |
-| `run14.js` | the season table, the hall history, and the muscle figure |
+| `run14.js` | the season table, the hall history, the muscle figure, the three stats ranges |
 | `run15.js` | the clock: Paris, whatever the phone says |
 | `run16.js` | the weekly budget, shown before a set is committed |
 | `run17.js` | the gym formula: the preview agrees with the server |

@@ -229,6 +229,42 @@ select case when (select count(*) from public.league_season_info(
        then 'the old name still works and agrees with the new one'
        else 'AN OLD CLIENT WOULD BREAK' end;
 
+\echo '--- 9c. the stats tab can ask for a season, not just a week or a lifetime'
+-- p_from bounds the range below. A third defaulted parameter rather than a
+-- replacement for p_all, so a call from an app that has not updated still
+-- answers — see supabase/README.md for why that needs the old shape retired.
+select '  week only  : ' || coalesce(sum(total_points), 0)
+from public.my_stats('5bbb0000-0000-0000-0000-000000000001', false, null);
+select '  since wk 4 : ' || coalesce(sum(total_points), 0)
+from public.my_stats('5bbb0000-0000-0000-0000-000000000001', true,
+       public.league_week0('5bbb0000-0000-0000-0000-000000000001') + 28);
+select '  all time   : ' || coalesce(sum(total_points), 0)
+from public.my_stats('5bbb0000-0000-0000-0000-000000000001', true, null);
+select case when (select coalesce(sum(total_points),0) from public.my_stats(
+                    '5bbb0000-0000-0000-0000-000000000001', true, null))
+            > (select coalesce(sum(total_points),0) from public.my_stats(
+                 '5bbb0000-0000-0000-0000-000000000001', true,
+                 public.league_week0('5bbb0000-0000-0000-0000-000000000001') + 28))
+       then 'a bounded range is smaller than a lifetime, as it must be'
+       else 'p_from DID NOT BOUND ANYTHING' end;
+-- and the figure takes the same bound, or the body and the table would
+-- disagree about which weeks the tab is showing
+select case when (select count(*) from public.my_muscles(
+                    '5bbb0000-0000-0000-0000-000000000001', true,
+                    public.league_week0('5bbb0000-0000-0000-0000-000000000001') + 28)) = 14
+       then 'the muscle figure accepts the same bound'
+       else 'THE FIGURE CANNOT BE BOUNDED' end;
+-- A call naming only the first two arguments still answers. That is the whole
+-- point of the default, and it only holds because the two-argument SHAPE is
+-- gone: two overloads both accepting p_league and p_all are ambiguous, and
+-- Postgres refuses the call rather than picking the narrower one.
+select case when (select count(*) from public.my_stats(
+                    '5bbb0000-0000-0000-0000-000000000001', true)) >= 0
+         and (select count(*) from public.my_muscles(
+                '5bbb0000-0000-0000-0000-000000000001', true)) = 14
+       then 'and the two-argument versions still work'
+       else 'AN OLD CLIENT WOULD BREAK ON THE STATS TAB' end;
+
 \echo '--- 10. and it is shut to somebody outside the league'
 set request.jwt.claim.sub = '53333333-3333-3333-3333-333333333333';
 select case when (select count(*) from public.league_season(

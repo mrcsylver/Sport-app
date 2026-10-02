@@ -27,7 +27,11 @@ final class Session {
     var season: [SeasonRow] = []
     var seasonInfo: SeasonInfo?
     var stats: [StatRow] = []
-    var statsAllTime = false
+    /// Which slice of history the stats tab is showing.
+    enum StatsRange: String { case week, season, all }
+    var statsRange: StatsRange = .week
+    /// Kept so nothing that still reads a boolean has to change at once.
+    var statsAllTime: Bool { statsRange != .week }
     /// Raw points banked on each exercise THIS week, so the log sheet can draw
     /// the budget before a set is committed. A discount discovered afterwards
     /// reads as a broken app; one shown up front reads as the rule it is.
@@ -190,11 +194,22 @@ final class Session {
 
     func loadStats() async {
         guard let id = leagueId else { return }
-        async let s = try? API.shared.myStats(id, allTime: statsAllTime)
+        // A season is "everything since the Monday it opened", which is what
+        // league_season_state() hands back. A season with no finished week yet
+        // falls back to this week — an empty tab is worse than a short one.
+        // The hall tab loads that state, and somebody can reach this tab without
+        // ever opening that one, so fetch it here when it is the bound we are
+        // about to need.
+        if statsRange == .season, seasonInfo == nil {
+            seasonInfo = try? await API.shared.seasonInfo(id)
+        }
+        let from = statsRange == .season ? seasonInfo?.firstWeek : nil
+        let all = statsRange != .week && !(statsRange == .season && from == nil)
+        async let s = try? API.shared.myStats(id, allTime: all, from: from)
         async let b = try? API.shared.badges(id)
         stats = await s ?? []
         badges = await b ?? []
-        if !statsAllTime { weekEx = Session.weekTotals(stats) }
+        if statsRange == .week { weekEx = Session.weekTotals(stats) }
     }
 
     // MARK: - Actions

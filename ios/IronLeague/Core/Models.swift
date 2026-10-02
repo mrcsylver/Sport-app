@@ -330,6 +330,9 @@ struct SeasonInfo: Codable, Hashable {
     var onBreak: Bool?
     /// The Monday the next season opens.
     var nextStart: String?
+    /// The Monday this season's first finished week began — the lower bound the
+    /// stats tab uses for its season range.
+    var firstWeek: String?
 
     var weeksLeft: Int? {
         guard let total = seasonWeeks else { return nil }
@@ -344,6 +347,7 @@ struct SeasonInfo: Codable, Hashable {
         case weeksDone = "weeks_done"
         case onBreak = "on_break"
         case nextStart = "next_start"
+        case firstWeek = "first_week"
     }
 }
 
