@@ -27,6 +27,11 @@ final class Session {
     var season: [SeasonRow] = []
     var seasonInfo: SeasonInfo?
     var stats: [StatRow] = []
+    /// The cup: a knockout for the top of the season over its last four weeks.
+    var cup: [CupTie] = []
+    var cupInfo: CupState?
+    /// Which round the bracket is showing; nil until the first load picks one.
+    var cupRound: Int?
     /// Which slice of history the stats tab is showing.
     enum StatsRange: String { case week, season, all }
     var statsRange: StatsRange = .week
@@ -170,9 +175,18 @@ final class Session {
         async let r = try? API.shared.rivalries(id)
         async let c = try? API.shared.myChallenges()
         async let d = try? API.shared.duelRecord(id)
+        async let s = try? API.shared.cupState(id)
         rivalries = await r ?? []
         challenges = await c ?? []
         duel = await d ?? nil
+        cupInfo = await s ?? nil
+        // There is no cup most of the season, and asking for a bracket that
+        // does not exist is a round trip for an empty array.
+        cup = cupInfo == nil ? [] : ((try? await API.shared.cupBracket(id)) ?? [])
+        if cupRound == nil {
+            cupRound = cupInfo?.round
+                ?? (cupInfo?.phase == "DONE" ? cupInfo?.rounds : 1)
+        }
     }
 
     func loadBadges() async {
@@ -248,6 +262,10 @@ final class Session {
         history = []
         season = []
         seasonInfo = nil
+        // Another league is another season, so its cup is at another round.
+        cup = []
+        cupInfo = nil
+        cupRound = nil
         stats = []
         weekEx = [:]
         badges = []

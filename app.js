@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.20.0';
+  var APP_VERSION = '2.21.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -932,6 +932,7 @@
     pendingCode: null,
     view: 'live',
     statsRange: 'week',
+    cup: [], cupInfo: null, cupRound: null,
     // the season table and where it stands, both the server's work
     season: [],
     seasonInfo: null,
@@ -1694,6 +1695,7 @@
   window.__BODY__ = BODY;
   window.__renderSeason__ = renderSeason;
   window.__statsRange__ = statsRange;
+  window.__renderCup__ = renderCup;
   window.__fixFor__ = fixFor;
   window.__EXNAME__ = function (k) { var e = exercise(k); return e ? e.name : k; };
 
@@ -1838,6 +1840,9 @@
     state.leagueId = b.getAttribute('data-league');
     localStorage.setItem(LS.league, state.leagueId);
     state.feeds = {}; state.open = {}; state.openWeeks = {};
+    /* Another league is another season, so its cup is at another round. */
+    state.cup = []; state.cupInfo = null; state.cupRound = null;
+    state.seasonPick = null;
     renderHeader(); renderMe();
     switchView('live');
     await refreshAll();
@@ -1946,12 +1951,214 @@
     return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60);
   }
 
+  /* ===================================================================
+     12z. The cup
+     ===================================================================
+     The season table rewards turning up, which is the right thing to reward
+     and a quiet thing to watch — the leader on week 30 is usually the leader
+     on week 31. The cup is the other half: a straight knockout for the top of
+     the season over its last four weeks, where one bad week ends you however
+     good the year has been.
+
+     Nothing here is computed. The server derives the field, the draw and every
+     result from the same weekly_history the hall tab reads, so the phone draws
+     a bracket and never decides one — the same division of labour as the
+     season table, and for the same reason: a bracket the phone worked out is a
+     bracket two phones can disagree about.
+
+     A tree is the natural shape for a bracket and the wrong shape for a 390px
+     screen, so a round is a LIST of ties and a tie is two stacked sides. The
+     round you are looking at is a segmented control, defaulting to the one
+     being played. */
+  async function loadCup() {
+    if (!state.leagueId) { showCup(false); return; }
+    var i = await sb.rpc('league_cup_state', { p_league: state.leagueId });
+    if (i.error) { showCup(false); return; }
+    state.cupInfo = (i.data && i.data[0]) || null;
+    if (!state.cupInfo) { state.cup = []; showCup(false); return; }
+    var t = await sb.rpc('league_cup', { p_league: state.leagueId });
+    state.cup = t.error ? [] : (t.data || []);
+    /* Land on the round being played, or on the first one before it starts. */
+    if (state.cupRound == null) {
+      state.cupRound = Number(state.cupInfo.round) ||
+        (state.cupInfo.phase === 'DONE' ? Number(state.cupInfo.rounds) : 1);
+    }
+    renderCup();
+  }
+
+  function showCup(on) { $('#cupWrap').hidden = !on; }
+
+  function renderCup() {
+    var info = state.cupInfo;
+    var ties = state.cup || [];
+    if (!info || !ties.length) { showCup(false); return; }
+    showCup(true);
+
+    var rounds = Number(info.rounds);
+    var round = Math.min(Math.max(Number(state.cupRound) || 1, 1), rounds);
+    var fin = ties.filter(function (t) { return Number(t.round) === rounds; })[0];
+    var champ = fin && fin.winner ? fin : null;
+
+    $('#cupWhere').textContent = champ
+      ? 'WON BY ' + String(fin.winner === fin.a_profile ? fin.a_name : fin.b_name)
+      : info.phase === 'PROJECTED'
+        ? 'LOCKS IN ' + Number(info.weeks_to_lock) +
+          (Number(info.weeks_to_lock) === 1 ? ' WEEK' : ' WEEKS')
+        : info.phase === 'DONE' ? 'FINISHED'
+        : String(info.round_name) + ' · ' + closeIn(info.week_start);
+
+    /* The round picker. A short name, because four of them have to fit. */
+    $('#cupRounds').innerHTML = ties.filter(function (t) {
+      return Number(t.slot) === 1;
+    }).map(function (t) {
+      var r = Number(t.round);
+      return '<button type="button" data-cupr="' + r + '"' +
+        (r === round ? ' class="on"' : '') + '>' + shortRound(r, rounds) +
+        '</button>';
+    }).join('');
+
+    $('#cupMine').innerHTML = cupMine(info, ties, rounds);
+
+    var show = ties.filter(function (t) { return Number(t.round) === round; });
+    $('#cupTies').innerHTML =
+      '<div class="seahead"><span>' + esc(String(show[0].round_name)) + '</span>' +
+      '<i>' + weekRangeLabel(show[0].week_start) + '</i></div>' +
+      show.map(cupTie).join('');
+
+    $('#cupHint').innerHTML = cupHint(info, rounds);
+  }
+
+  function shortRound(r, rounds) {
+    var left = rounds - r;
+    return left === 0 ? 'FINAL' : left === 1 ? 'SEMIS' : left === 2 ? 'QF'
+         : 'R' + Math.pow(2, left + 1);
+  }
+
+  /* How long is left of the week a round is being played in. The cup borrows
+     the league's own closing time, so a league that rests on Sunday closes its
+     ties on Saturday night like everything else. */
+  function closeIn(weekStartIso) {
+    var ms = leagueCloseMs(weekStartIso) - Date.now();
+    if (ms <= 0) return 'CLOSED';
+    var d = Math.floor(ms / 86400000);
+    if (d >= 1) return d + (d === 1 ? ' DAY LEFT' : ' DAYS LEFT');
+    var h = Math.floor(ms / 3600000);
+    return h >= 1 ? h + (h === 1 ? ' HOUR LEFT' : ' HOURS LEFT') : 'LAST HOUR';
+  }
+
+  function cupTie(t) {
+    var cls = 'tie' + (t.mine ? ' mine' : '') + (t.status === 'LIVE' ? ' live' : '');
+    return '<div class="' + cls + '">' +
+      cupSide(t, 'a') + cupSide(t, 'b') + '</div>';
+  }
+
+  /* A side is a seed, a name and what that side scored in this tie's week. A
+     side nobody has reached yet is the list of seeds that still could, which is
+     the whole reason a bracket is worth looking at early. */
+  function cupSide(t, k) {
+    var seed = t[k + '_seed'], name = t[k + '_name'];
+    var pts = t[k + '_points'], from = t[k + '_from'] || [];
+    var won = t.winner && t.winner === t[k + '_profile'];
+    var lost = t.winner && !won;
+    if (seed == null) {
+      return '<div class="tie-side"><span class="tie-seed"></span>' +
+        '<span></span><span class="tie-open">' +
+        from.map(function (s) { return '#' + s; }).join(' / ') +
+        '</span><span class="tie-pts"></span></div>';
+    }
+    return '<div class="tie-side' + (won ? ' won' : '') + (lost ? ' out' : '') + '">' +
+      '<span class="tie-seed">' + seed + '</span>' +
+      avatarHtml(t[k + '_avatar'], { name: name, size: 'sm' }) +
+      '<b>' + esc(name) + '</b>' +
+      '<span class="tie-pts">' + (t.status === 'SCHEDULED' ? '' : num(pts)) +
+      '</span></div>';
+  }
+
+  /* Your own tie, lifted out above the round. Somebody outside the field gets
+     the only number that matters to them: how far off the cut they are. */
+  function cupMine(info, ties, rounds) {
+    var seed = info.my_seed == null ? null : Number(info.my_seed);
+    if (seed == null) {
+      var rank = Number(info.my_rank) || 0;
+      var cut = Number(info.cut_points) || 0;
+      return '<div class="cupme out"><span>NOT IN THE CUP</span>' +
+        '<b>' + (rank ? ordinal(rank) + ' IN THE SEASON' : 'NO FINISHED WEEK') + '</b>' +
+        '<i>' + (info.phase === 'PROJECTED'
+          ? (rank ? 'The top ' + info.field + ' get in. ' +
+                    (cut ? num(cut) + ' season points is where the cut sits.' : '')
+                  : 'Finish a week and you are on the table.') +
+            ' The draw locks in ' + Number(info.weeks_to_lock) +
+            (Number(info.weeks_to_lock) === 1 ? ' week.' : ' weeks.')
+          : 'The field closed on ' + weekRangeLabel(info.lock_week).split('–')[0].trim() +
+            '. Next season.') + '</i></div>';
+    }
+    var mine = ties.filter(function (t) { return t.mine; });
+    var last = mine[mine.length - 1];
+    var live = mine.filter(function (t) { return t.status !== 'DONE'; })[0];
+    if (!live) {
+      var beat = last && last.winner && last.winner !== myCupProfile(last);
+      return '<div class="cupme' + (beat ? ' out' : '') + '">' +
+        '<span>' + (beat ? 'KNOCKED OUT' : 'CUP WINNER') + '</span>' +
+        '<b>' + esc(String(last.round_name)) + '</b>' +
+        '<i>' + (beat
+          ? 'Seeded ' + seed + '. You lost ' + num(myCupPoints(last)) + ' to ' +
+            num(foeCupPoints(last)) + '.'
+          : 'Seeded ' + seed + ', and you won the thing.') + '</i></div>';
+    }
+    var foeName = live.a_profile === myCupProfile(live) ? live.b_name : live.a_name;
+    var foeSeed = live.a_profile === myCupProfile(live) ? live.b_seed : live.a_seed;
+    return '<div class="cupme"><span>' +
+      (live.status === 'LIVE' ? 'YOUR TIE · ' + closeIn(live.week_start)
+                              : 'YOUR TIE · ' + weekRangeLabel(live.week_start)) +
+      '</span><b>' + esc(String(live.round_name)) + ' · ' +
+      (foeName ? 'V ' + esc(foeName) + ' (' + foeSeed + ')'
+               : 'V ' + (live.a_profile === myCupProfile(live)
+                   ? (live.b_from || []) : (live.a_from || []))
+                   .map(function (s) { return '#' + s; }).join(' / ')) +
+      '</b><i>Seeded ' + seed + '. ' +
+      (live.status === 'LIVE'
+        ? num(myCupPoints(live)) + ' against ' + num(foeCupPoints(live)) +
+          ' — whoever scores more this week goes through.'
+        : 'Whoever scores more points that week goes through.') + '</i></div>';
+  }
+
+  function myCupProfile(t) { return t.mine && state.profile ? state.profile.id : null; }
+  function myCupPoints(t) {
+    return Number(t.a_profile === myCupProfile(t) ? t.a_points : t.b_points) || 0;
+  }
+  function foeCupPoints(t) {
+    return Number(t.a_profile === myCupProfile(t) ? t.b_points : t.a_points) || 0;
+  }
+
+  function cupHint(info, rounds) {
+    if (info.phase === 'PROJECTED') {
+      return 'The top ' + info.field + ' of the season go in, and this is the draw ' +
+        'as the table stands today — it moves every week until it locks. ' +
+        'Then one round a week: ' +
+        'the final is the last week of the season.';
+    }
+    if (info.phase === 'DONE') {
+      return 'Season over. The next cup is drawn ' + Number(info.rounds) +
+        ' weeks before the next final, and shows up ten weeks out.';
+    }
+    return 'A tie is won on the points you score this week in this league — ' +
+      'nothing extra to log. Level on points goes to the higher seed, so the ' +
+      'season is still worth playing.';
+  }
+
+  $('#cupRounds').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cupr]'); if (!b) return;
+    state.cupRound = Number(b.getAttribute('data-cupr'));
+    renderCup();
+  });
+
   async function loadDuels() {
     if (!state.leagueId) return;
     var r = await sb.rpc('my_challenges');
     if (r.error) { toast(niceError(r.error), true); return; }
     state.duels = r.data || [];
     renderDuels();
+    await loadCup();
   }
 
   function renderDuels() {

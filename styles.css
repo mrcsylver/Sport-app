@@ -1100,6 +1100,38 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .pay i{font:700 9px/1 var(--display);letter-spacing:.1em;color:var(--muted);font-style:normal}
 .pay b{font:800 13px/1 var(--mono);color:var(--txt);font-variant-numeric:tabular-nums}
 .pay.first b{color:var(--gold)}
+/* ---- the cup: a tie, drawn as two sides ----------------------------------
+   A bracket is a tree, and a tree on a 390px phone is a tree you cannot read.
+   One tie is two stacked rows instead — a seed, a name and what that side
+   scored in the tie's week — so a round is a list and the whole thing scrolls
+   like everything else in the app. A side nobody has reached yet shows the
+   seeds that can still get there, which is what makes the draw worth looking
+   at before it has been played. */
+.tie{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+  padding:3px 11px;display:grid;gap:0}
+.tie.mine{border-color:rgba(255,46,46,.45)}
+.tie.live{border-color:rgba(255,201,60,.5)}
+.tie-side{display:grid;grid-template-columns:22px auto 1fr auto;gap:8px;
+  align-items:center;padding:7px 0}
+.tie-side + .tie-side{border-top:1px dashed var(--line)}
+.tie-seed{font:800 10px/1 var(--mono);color:var(--muted);text-align:right;
+  font-variant-numeric:tabular-nums}
+.tie-side b{font:700 14px/1.1 var(--display);letter-spacing:.06em;
+  text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tie-side.won .tie-seed,.tie-side.won b{color:var(--gold)}
+.tie-side.out{opacity:.42}
+.tie-pts{font:800 15px/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--txt)}
+.tie-side.won .tie-pts{color:var(--gold)}
+.tie-side.out .tie-pts{color:var(--muted)}
+.tie-open{font:400 11px/1 var(--mono);color:var(--muted);letter-spacing:.04em}
+/* the tie you are in, pulled out above the round so it is never hunted for */
+.cupme{background:var(--panel);border:1px solid rgba(255,46,46,.45);border-radius:4px;
+  padding:11px 12px;display:flex;flex-direction:column;gap:3px}
+.cupme.out{border-color:var(--line)}
+.cupme span{font:800 11px/1 var(--display);letter-spacing:.16em;color:var(--red)}
+.cupme.out span{color:var(--muted)}
+.cupme b{font:800 19px/1.1 var(--display);letter-spacing:.04em}
+.cupme i{font:400 11px/1.4 var(--mono);color:var(--muted);font-style:normal}
 .sect.sub > summary{padding:9px 11px}
 .sect.sub > summary span:first-child{font-size:11px;letter-spacing:.14em}
 

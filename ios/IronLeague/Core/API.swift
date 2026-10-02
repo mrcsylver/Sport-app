@@ -182,6 +182,23 @@ actor API {
                                                ["p_league": .string(league.uuidString)])
         return rows.first
     }
+    /// Where the cup stands. No row at all means there is no cup to show —
+    /// an endless season, a season too short, too few people, or simply more
+    /// than ten weeks still to run.
+    func cupState(_ league: UUID, season: Int? = nil) async throws -> CupState? {
+        let rows: [CupState] = try await rpc("league_cup_state", [
+            "p_league": .string(league.uuidString),
+            "p_season": season.map { .integer($0) } ?? .null
+        ])
+        return rows.first
+    }
+    /// The bracket: every tie of every round, in order.
+    func cupBracket(_ league: UUID, season: Int? = nil) async throws -> [CupTie] {
+        try await rpc("league_cup", [
+            "p_league": .string(league.uuidString),
+            "p_season": season.map { .integer($0) } ?? .null
+        ])
+    }
     func weeklyHistory(_ league: UUID) async throws -> [HistoryRow] {
         try await rpc("weekly_history", ["p_league": .string(league.uuidString)])
     }

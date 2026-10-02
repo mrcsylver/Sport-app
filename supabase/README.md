@@ -6,8 +6,8 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
-`progressions.sql`, `season-table.sql` and `season-stats.sql` are migrations for
-a database that is already running. They only add; nothing logged is touched, and all of
+`progressions.sql`, `season-table.sql`, `season-stats.sql` and `cup.sql` are
+migrations for a database that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -181,6 +181,44 @@ transaction that creates them, so there is no instant where both are callable.
 `my_muscles`, both old shapes parked — because the failure mode is silent until
 somebody on an old build opens a tab.
 
+### The cup
+
+`cup.sql` adds a straight knockout for the top of the season, played over its
+last four weeks. Create-only: nothing already live changes shape.
+
+The season table rewards turning up, which is the right thing to reward and a
+quiet thing to watch. The cup is the other half — one bad week ends you however
+good the year has been.
+
+* the field is the top 16 of the season; 8 or 4 in a league that cannot fill
+  16, and no cup under 4
+* the bracket appears ten weeks before the final and is drawn from the table as
+  it stands, so a ninth place can see who they would draw and a seventeenth can
+  see what they are missing
+* it locks four weeks out, then runs one round a week, with the final in the
+  season's last week
+* a tie is won on that week's league points; a dead heat goes to the higher
+  seed, which is what keeps the regular season worth playing
+
+Nothing is stored. `cup_seeds()` cuts the season table to the weeks before the
+lock, `league_cup_state()` says which phase the cup is in, and `league_cup()`
+walks the rounds and returns one row per tie. `cup_seeds()` and the three
+arithmetic helpers are not granted to anybody: they are read by the two
+security-definer functions above and never by an app.
+
+One piece of that arithmetic is worth spelling out, because the obvious version
+does not terminate. The lock date is **fixed at four weeks before the final**,
+whatever the field turns out to be, and a smaller field simply starts later. It
+has to be fixed: the field size is read off the weeks before the lock, so if
+the lock moved with the field size neither would ever settle. A field of 8
+therefore ignores the week between the lock and its own first round for
+seeding, which is a week of slack, not a bug.
+
+`a_from` and `b_from` on each tie are the seeds that can still arrive on that
+side — a quarter-final reads `1/16 v 8/9` until both halves are settled. That
+is what makes the bracket worth looking at six weeks before it is played, which
+is the whole reason it shows up early.
+
 ### A season on the stats tab
 
 The tab had `THIS WEEK` and `ALL TIME`. The season is the unit the league plays
@@ -270,6 +308,7 @@ Do not hand-edit these:
 | `progressions.sql` | `tools/build_progression_migration.py` |
 | `season-table.sql` | `tools/build_season_migration.py` |
 | `season-stats.sql` | `tools/build_stats_migration.py` |
+| `cup.sql` | `tools/build_cup_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

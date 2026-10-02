@@ -16,6 +16,11 @@ struct DuelsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                // The cup is the headline when it is on and absent otherwise,
+                // which is most of the season — a bracket nobody is in yet is
+                // furniture.
+                CupSection()
+
                 SectionHead(title: "THIS WEEK'S RIVALRY",
                             trailing: session.rivalries.isEmpty ? nil : "PAIRED MONDAY")
 

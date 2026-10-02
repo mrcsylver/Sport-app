@@ -32,7 +32,7 @@ fresh() {
   psql -q -d "$1" -f "$HERE/bootstrap.sql"
   psql -q -d "$1" -f "$ROOT/supabase/schema.sql" >/dev/null 2>&1
 }
-clean() { grep -viE '^(SET|INSERT|UPDATE|DELETE|DO|ALTER|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
+clean() { grep -viE '^(SET|INSERT|UPDATE|DELETE|DO|ALTER|CREATE|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
 
 echo "· a fresh database from schema.sql"
 fresh iron
@@ -51,6 +51,10 @@ psql -d irondash -f "$HERE/dashboard.sql" 2>&1 | clean
 echo "· the season table"
 fresh ironseason
 psql -d ironseason -f "$HERE/season.sql" 2>&1 | clean
+
+echo "· the cup"
+fresh ironcup2
+psql -d ironcup2 -f "$HERE/cup.sql" 2>&1 | clean
 
 echo "· the skill ladders"
 fresh ironprog
@@ -88,6 +92,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/progressions.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/season-table.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/season-stats.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/cup.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -152,4 +157,8 @@ psql -tAd ironlive -c "set request.jwt.claim.sub = '11111111-1111-1111-1111-1111
       p_all => true)) >= 0
   then 'a two-argument call by name still answers'
   else 'AN OLD APP WOULD BREAK ON THE STATS TAB' end;"
+psql -tAd ironlive -c "select case when public.cup_field(18) = 16
+    and (public.cup_seed_order(16))[2] = 16
+  then 'and the cup survived the migration: top 16, bottom seed drawn first'
+  else 'THE CUP DID NOT SURVIVE' end;"
 echo "· all clear"

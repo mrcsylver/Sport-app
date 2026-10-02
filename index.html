@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.20.0">
+  <link rel="stylesheet" href="./styles.css?v=2.21.0">
 </head>
 <body>
 
@@ -162,6 +162,23 @@
 
     <!-- DUELS -->
     <section id="view-duel" class="view" hidden>
+      <!-- THE CUP. The season table rewards turning up every week, which is the
+           right thing to reward and a quiet thing to watch. This is the other
+           half: a straight knockout for the top of the season over its last
+           four weeks, where one bad week ends you however good the year was.
+           Hidden until ten weeks from the final — a bracket nobody is in yet
+           is furniture — and from then on it is drawn from where the table
+           stands, so a ninth place can see who they would draw and a
+           seventeenth can see exactly what they are missing. -->
+      <div id="cupWrap" hidden style="margin-bottom:26px">
+        <div class="section-head"><h2>THE CUP</h2>
+          <span class="muted small mono" id="cupWhere"></span></div>
+        <div id="cupMine"></div>
+        <div class="segmented tiny" id="cupRounds" style="margin-top:10px"></div>
+        <div id="cupTies" class="stack tight" style="margin-top:10px"></div>
+        <p class="hint" id="cupHint"></p>
+      </div>
+
       <div class="section-head"><h2>THIS WEEK'S RIVAL</h2>
         <span class="muted small mono">AUTOMATIC</span></div>
       <div id="myRival"></div>
@@ -606,8 +623,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.20.0"></script>
-<script src="./vendor/game-icons.js?v=2.20.0"></script>
-<script src="./app.js?v=2.20.0"></script>
+<script src="./vendor/supabase.js?v=2.21.0"></script>
+<script src="./vendor/game-icons.js?v=2.21.0"></script>
+<script src="./app.js?v=2.21.0"></script>
 </body>
 </html>

@@ -8,12 +8,15 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **Daily combo bonus** — small rewards for training more than one muscle group in a day.
 - **Weekly bounty** — a rotating Thursday side quest, verified automatically.
 - **Sunday rest day** — the league closes Saturday night; only a stretch counts.
-- **Stats tab** — your own totals, this week or all time, split by muscle group.
+- **Stats tab** — your own totals for this week, this season or all time, split by muscle group.
 - **Duels** — 24 hour head to head against anyone in your league, by code.
 - **Your mark** — an emblem in the colour you pick, or an animal. One or the other.
 - **Emblems, league crests and rank banners** — set in the Leagues tab.
 - **Hall of Fame** — every past week's champion and full standings.
-- **Crowns** — one per week won, with a first-to-3/5/10 race for side bets.
+- **Season table** — every finished week pays by finishing place, 5.0 for a win
+  down to 0.1 for twentieth, over a 38 week season with an off-season after it.
+- **The cup** — a knockout for the top 16 of the season over its last four weeks.
+- **Crowns** — one per week won, counted across every season.
 - **The body** — an anatomical figure, front and back, showing which muscles you
   trained. Fourteen regions, tap one to read it, and no region ever hits 100%.
 - **100+ exercises** — search the bank, including team sports and gym lifts.
@@ -342,7 +345,7 @@ competed the week before to win it, so it cannot be won by simply showing up.
 One crown per week won, for everybody in the league, above the Hall of Fame.
 Nothing is stored: the count is read back from the same finished weeks, so a
 week that is corrected corrects the count and a new league starts honestly
-empty. Pick a target — first to 3, 5 or 10 — and the bars measure against it.
+empty. Crowns follow the person across every season.
 The app keeps the count; what the run is worth is between you.
 
 When somebody reaches the target the run closes on that week: their name stays
@@ -447,6 +450,45 @@ duel card says so on screen.
 
 One duel at a time per person. An unclaimed code expires after 24 hours, and
 when a duel ends the tab clears itself and the result drops into *Past duels*.
+
+---
+
+# 🏆 THE CUP
+
+The season table rewards turning up every week. That is the right thing to
+reward and a quiet thing to watch — by week 30 the top of the table has usually
+been the top of the table for a month. **The cup is the other half: a straight
+knockout for the top of the season, played over its last four weeks, where one
+bad week ends you however good the year has been.**
+
+It lives at the top of the **DUELS** tab, and only when there is one:
+
+| when | what you see |
+|---|---|
+| more than 10 weeks from the end | nothing — a bracket nobody is in yet is furniture |
+| 10 weeks out | the draw as the table stands today, and it moves every week |
+| 4 weeks out | the draw **locks** — whatever the table says then is the field |
+| the last 4 weeks | one round a week: round of 16, quarters, semis, final |
+
+**The field is the top 16 of the season.** A league that cannot fill 16 gets 8
+or 4; under four people there is no cup. Seeds are drawn so the top two can
+only meet in the final.
+
+**A tie is won on the points you score that week in that league** — the same
+number the weekly board already shows, so there is nothing extra to log and
+nothing extra to understand. Level on points goes to the higher seed, which is
+what keeps the regular season worth playing beyond qualifying.
+
+**It pays no season points.** Silverware that moved the table would make the
+last four weeks worth more than the first thirty-four, and the table is the
+thing that keeps people going.
+
+Before it locks, the bracket is the point: a ninth place can see they would
+draw the eighth seed, and a seventeenth is told exactly how many season points
+the cut is sitting at. Nothing about the cup is stored — the field, the draw
+and every result are worked out from the weeks already logged, so a corrected
+week corrects the bracket and a league that turns this on today has an honest
+cup rather than an invented one.
 
 ---
 

@@ -170,6 +170,155 @@
              onBreak: seasonOf(now) === null, nextStart: nextStart(now) };
   }
 
+  /* ---- the cup --------------------------------------------------------
+     A straight knockout for the top of the season over its last four weeks.
+     Everything is derived, here as on the server: the field, the draw and every
+     result come out of the weeks already logged. */
+  var CUP_WINDOW = 10;
+  function cupField(n) {
+    return n >= 16 ? 16 : n >= 8 ? 8 : n >= 4 ? 4 : 0;
+  }
+  /* Seeds in bracket order, so 1 and 2 can only meet in the final. */
+  function cupSeedOrder(field) {
+    var ord = [1];
+    while (ord.length < field) {
+      var n = ord.length * 2, nxt = [];
+      ord.forEach(function (s) { nxt.push(s, n + 1 - s); });
+      ord = nxt;
+    }
+    return ord;
+  }
+  function cupRoundName(r, rounds) {
+    var left = rounds - r;
+    return left === 0 ? 'FINAL' : left === 1 ? 'SEMI-FINALS'
+         : left === 2 ? 'QUARTER-FINALS' : 'ROUND OF ' + Math.pow(2, left + 1);
+  }
+  function addWeeks(wk, n) {
+    var d = new Date(Date.parse(wk + 'T00:00:00Z'));
+    d.setUTCDate(d.getUTCDate() + 7 * n);
+    return d.toISOString().slice(0, 10);
+  }
+  function weeksBetween(a, b) {
+    return Math.round((Date.parse(b + 'T00:00:00Z')
+                     - Date.parse(a + 'T00:00:00Z')) / 604800000);
+  }
+  /* The season table cut to the weeks that count for the draw, ordered the way
+     the hall tab orders it. */
+  async function cupSeeds(leagueId, season, before) {
+    var t = await seasonTagged(leagueId);
+    var acc = {};
+    t.weeks.forEach(function (w) {
+      if (w.season !== season || !(w.week_start < before)) return;
+      w.ranked.forEach(function (r, i) {
+        var o = acc[r.profile_id] = acc[r.profile_id] ||
+          { profile_id: r.profile_id, display_name: r.display_name,
+            points: 0, wins: 0, best: null, joined: r.joined_at };
+        o.points = Math.round((o.points + rankPoints(i + 1)) * 100) / 100;
+        if (i === 0) o.wins++;
+        if (o.best == null || i + 1 < o.best) o.best = i + 1;
+      });
+    });
+    return Object.keys(acc).map(function (k) { return acc[k]; })
+      .sort(function (x, y) {
+        return y.points - x.points || y.wins - x.wins || x.best - y.best ||
+               (String(x.joined) < String(y.joined) ? -1 : 1); })
+      .map(function (r, i) {
+        var p = DB.profiles.filter(function (q) { return q.id === r.profile_id; })[0] || {};
+        r.seed = i + 1; r.avatar = p.avatar || null; return r; });
+  }
+  async function cupState(leagueId, seasonArg) {
+    if (!isMember(leagueId)) return null;
+    var lg = DB.leagues.filter(function (l) { return l.id === leagueId; })[0] || {};
+    var n = lg.season_weeks == null ? null : Number(lg.season_weeks);
+    if (n == null || n < 5) return null;
+    var brk = lg.season_break == null ? 2 : Number(lg.season_break);
+    var w0 = weekStart(lg.created_at ? new Date(lg.created_at) : new Date());
+    var cw = weekStart();
+    var cyc = n + brk;
+    var idx = Math.max(weeksBetween(w0, cw), 0);
+    var seas = seasonArg != null ? Number(seasonArg) : Math.floor(idx / cyc);
+    var lastw = addWeeks(w0, seas * cyc + n - 1);
+    var lockw = addWeeks(lastw, -3);
+    var seeds = await cupSeeds(leagueId, seas, lockw);
+    var field = cupField(seeds.length);
+    if (!field) return null;
+    var rounds = 0;
+    while (Math.pow(2, rounds) < field) rounds++;
+    var firstw = addWeeks(lastw, -(rounds - 1));
+    var phase = cw > lastw ? 'DONE' : cw >= firstw ? 'RUNNING'
+              : cw >= addWeeks(lastw, -(CUP_WINDOW - 1)) ? 'PROJECTED' : null;
+    if (!phase) return null;
+    var round = phase === 'RUNNING' ? weeksBetween(firstw, cw) + 1 : null;
+    var mine = me();
+    var my = mine ? seeds.filter(function (s) {
+      return s.profile_id === mine.id; })[0] : null;
+    return { phase: phase, season: seas, seasons: Math.floor(idx / cyc) + 1,
+             field: field, rounds: rounds, entrants: seeds.length,
+             lock_week: lockw, first_week: firstw, final_week: lastw,
+             round: round,
+             round_name: round == null ? null : cupRoundName(round, rounds),
+             week_start: round == null ? null : cw,
+             weeks_to_lock: Math.max(weeksBetween(cw, lockw), 0),
+             my_rank: my ? my.seed : null,
+             my_seed: my && my.seed <= field ? my.seed : null,
+             cut_points: (seeds[field - 1] || {}).points == null
+               ? null : seeds[field - 1].points };
+  }
+  async function cupTies(leagueId, seasonArg) {
+    var st = await cupState(leagueId, seasonArg);
+    if (!st) return [];
+    var seeds = (await cupSeeds(leagueId, st.season, st.lock_week))
+      .slice(0, st.field);
+    var cw = weekStart();
+    /* Every cup week's points, finished weeks out of the history and the week
+       in progress off the live board. */
+    var pts = {};
+    var hist = (await RPC.weekly_history({ p_league: leagueId })).data || [];
+    hist.forEach(function (r) {
+      if (r.week_start >= st.first_week && r.week_start <= st.final_week) {
+        pts[r.profile_id + '|' + r.week_start] = Number(r.points);
+      }
+    });
+    if (cw >= st.first_week && cw <= st.final_week) {
+      ((await RPC.league_leaderboard({ p_league: leagueId })).data || [])
+        .forEach(function (r) { pts[r.profile_id + '|' + cw] = Number(r.points); });
+    }
+    var ord = cupSeedOrder(st.field);
+    var out = [], cur = ord.slice(), mine = me();
+    for (var r = 1; r <= st.rounds; r++) {
+      var wk = addWeeks(st.first_week, r - 1);
+      var blk = Math.pow(2, r - 1);
+      var status = wk < cw ? 'DONE' : wk === cw ? 'LIVE' : 'SCHEDULED';
+      var nxt = [];
+      for (var i = 1; i <= cur.length / 2; i++) {
+        var sa = cur[2 * i - 2], sb = cur[2 * i - 1];
+        var ra = sa ? seeds[sa - 1] : null, rb = sb ? seeds[sb - 1] : null;
+        var pa = ra ? (pts[ra.profile_id + '|' + wk] || 0) : null;
+        var pb = rb ? (pts[rb.profile_id + '|' + wk] || 0) : null;
+        var wn = 0;
+        if (status === 'DONE' && sa && sb) {
+          wn = pa > pb ? sa : pb > pa ? sb : Math.min(sa, sb);
+        }
+        nxt.push(wn);
+        out.push({
+          round: r, round_name: cupRoundName(r, st.rounds), slot: i,
+          a_seed: sa || null, a_profile: ra ? ra.profile_id : null,
+          a_name: ra ? ra.display_name : null, a_avatar: ra ? ra.avatar : null,
+          a_points: pa, a_from: ord.slice((2 * i - 2) * blk, (2 * i - 1) * blk),
+          b_seed: sb || null, b_profile: rb ? rb.profile_id : null,
+          b_name: rb ? rb.display_name : null, b_avatar: rb ? rb.avatar : null,
+          b_points: pb, b_from: ord.slice((2 * i - 1) * blk, 2 * i * blk),
+          winner: wn ? seeds[wn - 1].profile_id : null,
+          winner_seed: wn || null, status: status, week_start: wk,
+          mine: !!mine && [ra && ra.profile_id, rb && rb.profile_id]
+                  .indexOf(mine.id) !== -1
+        });
+      }
+      cur = nxt;
+    }
+    return out;
+  }
+
   function calc(k, m, a, bw, load) {
     var g = GYMS[k];
     if (g) {
@@ -823,6 +972,18 @@
         last_week: here.length ? here[here.length - 1].week_start : null,
         on_break: t.onBreak,
         next_start: t.nextStart }]);
+    },
+    /* ---- the cup -------------------------------------------------------
+       The same arithmetic as cup_field / cup_seed_order / league_cup_state /
+       league_cup in SQL. Written out again on purpose: this file exists to
+       catch the app disagreeing with the server, and the server's bracket is
+       the one in supabase/schema.sql. supabase/test/cup.sql holds it honest. */
+    league_cup_state: async function (a) {
+      var st = await cupState(a.p_league, a.p_season);
+      return ok(st ? [st] : []);
+    },
+    league_cup: async function (a) {
+      return ok(await cupTies(a.p_league, a.p_season));
     },
     league_season: async function (a) {
       if (!isMember(a.p_league)) return ok([]);

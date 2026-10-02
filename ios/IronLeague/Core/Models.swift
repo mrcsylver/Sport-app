@@ -315,6 +315,101 @@ struct SeasonRow: Codable, Identifiable, Hashable {
     }
 }
 
+/// Where the cup stands. A straight knockout for the top of the season over
+/// its last four weeks — the other half of a table that rewards turning up.
+/// Every field here is derived on the server from the weeks already logged;
+/// nothing about a bracket is stored, so nothing about one can go stale.
+struct CupState: Codable, Hashable {
+    /// PROJECTED while the draw still moves, RUNNING once it locks, DONE after
+    /// the final. The server returns no row at all when there is no cup.
+    var phase: String
+    /// Zero-based, like the season table.
+    var season: Int
+    var seasons: Int
+    /// 16, 8 or 4 — the biggest power of two the league can fill.
+    var field: Int
+    var rounds: Int
+    /// How many people played a week that counts for the draw.
+    var entrants: Int
+    /// Weeks before this count for the seeding; after it the draw is fixed.
+    var lockWeek: String?
+    /// The Monday the first round is played, and the Monday of the final.
+    var firstWeek: String?
+    var finalWeek: String?
+    /// 1…rounds while RUNNING, nil otherwise.
+    var round: Int?
+    var roundName: String?
+    var weekStart: String?
+    var weeksToLock: Int?
+    /// Where you are in the seeding, even when that is outside the field.
+    var myRank: Int?
+    /// Your seed, or nil when you did not make the cut.
+    var mySeed: Int?
+    /// What the last qualifying place is worth, so "how far off" is answerable.
+    var cutPoints: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case phase, season, seasons, field, rounds, entrants, round
+        case lockWeek = "lock_week"
+        case firstWeek = "first_week"
+        case finalWeek = "final_week"
+        case roundName = "round_name"
+        case weekStart = "week_start"
+        case weeksToLock = "weeks_to_lock"
+        case myRank = "my_rank"
+        case mySeed = "my_seed"
+        case cutPoints = "cut_points"
+    }
+}
+
+/// One tie. `aFrom` and `bFrom` are the seeds that can still arrive on each
+/// side, which is what makes a bracket worth looking at before it is played:
+/// a quarter-final reads "1/16 v 8/9" until both halves are settled.
+struct CupTie: Codable, Hashable, Identifiable {
+    var round: Int
+    var roundName: String
+    var slot: Int
+    var aSeed: Int?
+    var aId: UUID?
+    var aName: String?
+    var aAvatar: String?
+    var aPoints: Double?
+    var aFrom: [Int]
+    var bSeed: Int?
+    var bId: UUID?
+    var bName: String?
+    var bAvatar: String?
+    var bPoints: Double?
+    var bFrom: [Int]
+    var winner: UUID?
+    var winnerSeed: Int?
+    /// SCHEDULED, LIVE or DONE — the week this tie is played in.
+    var status: String
+    var weekStart: String
+    var mine: Bool
+
+    var id: String { "\(round)-\(slot)" }
+
+    enum CodingKeys: String, CodingKey {
+        case round, slot, winner, status, mine
+        case roundName = "round_name"
+        case aSeed = "a_seed"
+        case aId = "a_profile"
+        case aName = "a_name"
+        case aAvatar = "a_avatar"
+        case aPoints = "a_points"
+        case aFrom = "a_from"
+        case bSeed = "b_seed"
+        case bId = "b_profile"
+        case bName = "b_name"
+        case bAvatar = "b_avatar"
+        case bPoints = "b_points"
+        case bFrom = "b_from"
+        case winnerSeed = "winner_seed"
+        case weekStart = "week_start"
+    }
+}
+
 /// Where the season stands, so the header never does arithmetic.
 struct SeasonInfo: Codable, Hashable {
     /// Zero-based: season 0 is the first one.
