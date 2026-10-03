@@ -6,8 +6,8 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
-`progressions.sql`, `season-table.sql`, `season-stats.sql` and `cup.sql` are
-migrations for a database that is already running. They only add; nothing logged is touched, and all of
+`progressions.sql`, `season-table.sql`, `season-stats.sql`, `cup.sql` and
+`membership.sql` are migrations for a database that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -181,6 +181,35 @@ transaction that creates them, so there is no instant where both are callable.
 `my_muscles`, both old shapes parked — because the failure mode is silent until
 somebody on an old build opens a tab.
 
+### Leaving, and being removed
+
+`membership.sql` puts both halves through one function, `drop_membership()`,
+because they have to agree about the two awkward cases and neither is obvious.
+
+**The league is never deleted, even when the last member walks out.**
+`leagues.id` is the parent of `workouts.league_id ON DELETE CASCADE`, and a
+workout is what a lifetime total is made of — somebody who leaves their only
+league to keep a quiet account must come back to the rank they earned, not to
+zero. An empty league is invisible to everybody (`my_leagues()` only returns
+what you are a member of) and costs one row; the control room can delete it
+when it really is rubbish.
+
+**If the owner leaves, the league goes to whoever has been in it longest.**
+Otherwise `owner_id` points at a non-member and the settings, the crest and
+the delete button are all unreachable for everyone. If the owner was the last
+one out they stay the owner of an empty league, so rejoining with the code
+hands it straight back.
+
+`admin_remove_member()` is the half of `admin_delete_profile()` that somebody
+usually actually wants: one membership goes, and the account, its restore
+code, its badges and everything it logged in other leagues stay. The control
+room reads `admin_memberships()` to know which leagues to offer.
+
+An account with **no league at all** is a supported state on both clients, not
+an error — the web lands on the leagues tab and iOS has a `noLeague` phase. It
+used to fall through to onboarding, which hands somebody with a perfectly good
+profile a "pick a fighter name" screen and implies their rank is gone.
+
 ### The cup
 
 `cup.sql` adds a straight knockout for the top of the season, played over its
@@ -309,6 +338,7 @@ Do not hand-edit these:
 | `season-table.sql` | `tools/build_season_migration.py` |
 | `season-stats.sql` | `tools/build_stats_migration.py` |
 | `cup.sql` | `tools/build_cup_migration.py` |
+| `membership.sql` | `tools/build_membership_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

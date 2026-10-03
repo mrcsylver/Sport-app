@@ -76,6 +76,9 @@ drop function if exists public.join_league_by_code(p_code text) cascade;
 drop function if exists public.league_leaderboard(p_league uuid, p_week date) cascade;
 drop function if exists public.league_preview(p_code text) cascade;
 drop function if exists public.leave_league(p_league uuid) cascade;
+drop function if exists public.drop_membership(p_league uuid, p_profile uuid) cascade;
+drop function if exists public.admin_memberships() cascade;
+drop function if exists public.admin_remove_member(p_league uuid, p_profile uuid) cascade;
 drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric) cascade;
 drop function if exists public.log_workout(p_league uuid, p_key text, p_mode text, p_amount numeric, p_bw numeric, p_load numeric) cascade;
 drop function if exists public.my_challenges() cascade;
@@ -884,11 +887,42 @@ begin
   return l;
 end $$;
 
+-- Taking somebody out of a league, used by the person themselves and by the
+-- control room. One place, because the two have to agree about the awkward
+-- cases and there are two of them.
+--
+-- THE LEAGUE IS NEVER DELETED, even when the last member walks out. Deleting
+-- it would cascade its workouts away, and a workout is what a lifetime total
+-- is made of — somebody who leaves their only league to keep a quiet account
+-- would come back to a rank of nothing. An empty league is invisible to
+-- everybody (my_leagues only returns what you are a member of) and costs a
+-- row; the control room can delete it when it really is rubbish.
+--
+-- If the OWNER leaves, the league goes to whoever has been in it longest, so
+-- the settings and the crest never end up unreachable. If the owner was the
+-- last one out, they stay the owner of an empty league, which means rejoining
+-- with the code hands it straight back.
+create function public.drop_membership(p_league uuid, p_profile uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare own uuid; heir uuid;
+begin
+  delete from public.league_members
+   where league_id = p_league and profile_id = p_profile;
+  select owner_id into own from public.leagues where id = p_league;
+  if own is distinct from p_profile then return; end if;
+  select m.profile_id into heir from public.league_members m
+   where m.league_id = p_league order by m.joined_at, m.profile_id limit 1;
+  if heir is not null then
+    update public.leagues set owner_id = heir where id = p_league;
+  end if;
+end $$;
+
 create function public.leave_league(p_league uuid) returns void
 language plpgsql security definer set search_path = public as $$
 declare me uuid := public.my_profile_id();
 begin
-  delete from public.league_members where league_id = p_league and profile_id = me;
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  perform public.drop_membership(p_league, me);
 end $$;
 
 -- Deliberately NOT carrying season_break. Widening this would mean dropping
@@ -2528,6 +2562,35 @@ language sql stable security definer set search_path = public as $$
   order by p.created_at
 $$;
 
+-- Who is in what, for the control room. The player list says how MANY leagues
+-- somebody is in; this says which, so a membership can be taken away one at a
+-- time instead of the whole account going.
+create function public.admin_memberships()
+returns table (league_id uuid, league_name text, profile_id uuid,
+               display_name text, joined_at timestamptz, is_owner boolean)
+language sql stable security definer set search_path = public as $$
+  select l.id, l.name, p.id, p.display_name, m.joined_at, l.owner_id = p.id
+  from public.league_members m
+  join public.leagues l on l.id = m.league_id
+  join public.profiles p on p.id = m.profile_id
+  where public.is_admin()
+  order by l.name, m.joined_at
+$$;
+
+-- Take one person out of one league. The account, its restore code, its
+-- badges and everything it logged anywhere else are untouched — this is the
+-- half of admin_delete_profile that somebody usually actually wants.
+create function public.admin_remove_member(p_league uuid, p_profile uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if not exists (select 1 from public.league_members
+                  where league_id = p_league and profile_id = p_profile) then
+    raise exception 'That person is not in that league';
+  end if;
+  perform public.drop_membership(p_league, p_profile);
+end $$;
+
 create function public.admin_delete_league(p_league uuid)
 returns void language plpgsql security definer set search_path = public as $$
 begin
@@ -2784,6 +2847,9 @@ revoke all on function public.league_preview(text)          from public, anon;
 revoke all on function public.create_league(text)           from public, anon;
 revoke all on function public.join_league_by_code(text)     from public, anon;
 revoke all on function public.leave_league(uuid)            from public, anon;
+revoke all on function public.drop_membership(uuid,uuid)    from public, anon;
+revoke all on function public.admin_memberships()           from public, anon;
+revoke all on function public.admin_remove_member(uuid,uuid) from public, anon;
 revoke all on function public.my_leagues()                  from public, anon;
 revoke all on function public.league_leaderboard(uuid,date) from public, anon;
 revoke all on function public.weekly_history(uuid)          from public, anon;
@@ -2877,6 +2943,8 @@ grant execute on function public.admin_leagues()               to authenticated;
 grant execute on function public.admin_players()               to authenticated;
 grant execute on function public.admin_delete_league(uuid)     to authenticated;
 grant execute on function public.admin_delete_profile(uuid)    to authenticated;
+grant execute on function public.admin_memberships()           to authenticated;
+grant execute on function public.admin_remove_member(uuid,uuid) to authenticated;
 grant execute on function public.admin_schedule()              to authenticated;
 grant execute on function public.admin_bounties()              to authenticated;
 grant execute on function public.admin_pin_bounty(date,int,text) to authenticated;

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.21.0';
+  var APP_VERSION = '2.22.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -557,6 +557,7 @@
      something that needs everybody rather than one strong person. */
   async function loadRaid() {
     var box = $('#raidCard'); if (!box) return;
+    if (!state.leagueId) { box.hidden = true; return; }
     var r = await sb.rpc('current_raid', { p_league: state.leagueId });
     var d = r.error ? null : (r.data && r.data[0]);
     if (!d) { box.hidden = true; state.chip.raid = null; paintWeekChips(); return; }
@@ -643,6 +644,7 @@
   async function loadRivalries() {
     var mine = $('#myRival'), all = $('#rivalList');
     if (!mine) return;
+    if (!state.leagueId) { mine.innerHTML = ''; all.innerHTML = ''; return; }
     var r = await sb.rpc('league_rivalries', { p_league: state.leagueId });
     if (r.error || !r.data || !r.data.length) {
       mine.innerHTML = '<div class="empty">Pairings start once the league has ' +
@@ -659,6 +661,7 @@
   /* Consistency, not volume: the one table a beginner can win. */
   async function loadStreaks() {
     var box = $('#streaks'); if (!box) return;
+    if (!state.leagueId) { box.innerHTML = ''; return; }
     var r = await sb.rpc('league_streaks', { p_league: state.leagueId });
     if (r.error || !r.data) { box.innerHTML = ''; return; }
     var rows = r.data.filter(function (x) { return x.best_streak > 0; });
@@ -3256,6 +3259,13 @@
     var l = league(), mine = l && state.profile && l.owner_id === state.profile.id;
     $('#leagueOwnerBox').hidden = !mine;
     $('#deleteLeagueBtn').hidden = !mine;
+    /* Name the league on the button. "LEAVE THIS LEAGUE" under a list of three
+       of them is a question, not an instruction. */
+    $('#leaveBox').hidden = !l;
+    if (l) {
+      $('#leaveBtn').textContent = 'LEAVE ' + (l.name || 'THIS LEAGUE').toUpperCase();
+      $('#deleteLeagueBtn').textContent = 'DELETE ' + (l.name || 'THIS LEAGUE').toUpperCase();
+    }
     if (!l) return;
     var rest = l.rest_dow || [7];
     $('#restDows').innerHTML = DOW.map(function (d) {
@@ -3278,9 +3288,15 @@
     var brk = state.seasonInfo && state.seasonInfo.season_break;
     $('#seasonBreak').value = String(brk == null ? 2 : brk);
     if (mine) ruleState(rulesSummary());
+    /* The two things somebody is actually afraid of before they tap it: that
+       they are taking the league down with them, and that they are losing
+       what they earned. Neither is true, so say so. */
     $('#leaveNote').textContent = mine
-      ? 'Leaving keeps the league alive for everyone else. Deleting removes it for everybody.'
-      : 'Your logs stay in every other league you are in.';
+      ? 'Leaving keeps ' + l.name + ' alive for everyone else — it passes to '
+        + 'whoever has been in it longest. Deleting removes it for everybody. '
+        + 'Either way your rank follows you, not the league.'
+      : 'Your logs stay in every other league you are in, and your rank follows '
+        + 'you, not the league.';
   }
 
   $('#restDows').addEventListener('click', function (e) {
@@ -3376,6 +3392,21 @@
   $('#seasonWeeks').addEventListener('change', saveRules);
   $('#seasonBreak').addEventListener('change', saveRules);
 
+  /* An account with no league at all is a real state, not an error: somebody
+     between groups, or somebody who only wanted the logbook. The boot path
+     already handles it, so leaving the last one lands in the same place
+     rather than on a board with nothing behind it. */
+  async function afterLeaving() {
+    if (state.leagueId) { localStorage.setItem(LS.league, state.leagueId); }
+    else { try { localStorage.removeItem(LS.league); } catch (e) {} }
+    state.feeds = {}; state.open = {}; state.openWeeks = {};
+    state.cup = []; state.cupInfo = null; state.cupRound = null;
+    state.seasonPick = null; state.seasonInfo = null;
+    renderHeader(); renderMe();
+    if (!state.leagueId) { switchView('me'); return; }
+    await refreshAll();
+  }
+
   $('#leaveBtn').addEventListener('click', async function () {
     var l = league(); if (!l) return;
     if (!confirm('Leave ' + l.name + '? Your logs in your other leagues are untouched.')) return;
@@ -3384,7 +3415,7 @@
       if (r.error) throw r.error;
       await loadLeagues();
       state.leagueId = state.leagues.length ? state.leagues[0].id : null;
-      await refreshAll();
+      await afterLeaving();
       toast('You left ' + l.name);
     } catch (err) { toast(niceError(err), true); }
   });
@@ -3399,7 +3430,7 @@
       if (r.error) throw r.error;
       await loadLeagues();
       state.leagueId = state.leagues.length ? state.leagues[0].id : null;
-      await refreshAll();
+      await afterLeaving();
       toast(l.name + ' deleted');
     } catch (err) { toast(niceError(err), true); }
   });

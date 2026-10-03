@@ -17,6 +17,13 @@ const SEED=`(function(){var DB=window.__DB__;
  DB.profiles.push({id:'p2',user_id:'u2',display_name:'SARAH',restore_code:'RC2'});
  DB.members.push({league_id:'lg1',profile_id:'p1',joined_at:'2026-01-01'});
  DB.members.push({league_id:'lg1',profile_id:'p2',joined_at:'2026-01-02'});
+ /* SARAH is in two leagues and has logged in both, so a kick from one can be
+    shown to be exactly that and not half an account deletion. */
+ DB.leagues.push({id:'lg2',name:'SECOND CREW',code:'CREW22',owner_id:'p2',max_members:30});
+ DB.members.push({league_id:'lg2',profile_id:'p2',joined_at:'2026-01-03'});
+ DB.workouts.push({id:'wk1',group_id:'gk1',league_id:'lg2',profile_id:'p2',
+   exercise_key:'pushups',mode:'reps',amount:50,points:50,
+   week_start:window.__weekStart__(),created_at:new Date().toISOString(),boost:1});
 })();`;
 
 (async()=>{
@@ -130,6 +137,32 @@ const SEED=`(function(){var DB=window.__DB__;
    (await pg.$$('[data-db="0"]')).length===0, 'none');
 
  await pg.screenshot({path:path.join(OUT,'61-admin-bounties.png'),fullPage:false});
+
+ /* ---- taking somebody out of ONE league ----
+    The only button here used to delete the whole account, which is a wildly
+    bigger thing than "they are not in this group any more". */
+ await pg.click('[data-mem="p2"]'); await pg.waitForTimeout(300);
+ const rows = await pg.$$eval('[data-kick]', e=>e.map(x=>x.getAttribute('data-l')));
+ T('the league count opens the list of leagues somebody is in',
+   rows.length===2 && rows.indexOf('IRON CIRCLE')>=0 && rows.indexOf('SECOND CREW')>=0,
+   rows.join(' + '));
+ T('and says which one they own',
+   (await pg.textContent('#players')).includes('OWNER'), 'SECOND CREW');
+ await pg.click('[data-kick="lg1"][data-kp="p2"]');
+ await pg.waitForTimeout(700);
+ T('removing from one league takes only that membership',
+   await pg.evaluate(()=>!window.__DB__.members.some(m=>m.league_id==='lg1'&&m.profile_id==='p2')
+     && window.__DB__.members.some(m=>m.league_id==='lg2'&&m.profile_id==='p2')),
+   'out of one, still in the other');
+ T('the account, its restore code and its logs are untouched',
+   await pg.evaluate(()=>{
+     const p = window.__DB__.profiles.find(x=>x.id==='p2');
+     return !!p && p.restore_code==='RC2' &&
+            window.__DB__.workouts.some(w=>w.profile_id==='p2'); }),
+   'SARAH is still SARAH');
+ T('and the league she was removed from still exists',
+   await pg.evaluate(()=>!!window.__DB__.leagues.find(l=>l.id==='lg1')), 'IRON CIRCLE');
+ await pg.screenshot({path:path.join(OUT,'62-admin-memberships.png'),fullPage:false});
 
  await ctx.close(); await b.close(); srv.close();
  let bad=0; res.forEach(([n,ok,g])=>{if(!ok)bad++;console.log((ok?'  PASS  ':'> FAIL <')+' '+n+'   ['+g+']');});

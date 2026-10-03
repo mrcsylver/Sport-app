@@ -153,6 +153,8 @@
     { auth: { storageKey: 'ironleague-admin', persistSession: true } });
   var $ = function (s) { return document.querySelector(s); };
   var players = [];
+  var memberships = [];      // who is in what, for the per-league kick
+  var openPlayer = null;     // whose league list is expanded
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -187,8 +189,10 @@
     $('#err').textContent = '';
     var lg = await sb.rpc('admin_leagues');
     var pl = await sb.rpc('admin_players');
+    var mb = await sb.rpc('admin_memberships');
     if (lg.error || pl.error) { $('#err').textContent = (lg.error || pl.error).message; return; }
     players = pl.data || [];
+    memberships = mb.error ? [] : (mb.data || []);
     var L = lg.data || [];
 
     if (!players.length) {
@@ -331,6 +335,30 @@
     await loadBounties();
   });
 
+  /* Taking somebody out of ONE league is almost always what is wanted, and
+     until now the only button here deleted the whole account. The league
+     count opens the list instead: one row per league, one Remove each, and
+     the account, its restore code and everything it logged elsewhere stay
+     exactly where they are. */
+  function membershipRow(p) {
+    var mine = memberships.filter(function (m) { return m.profile_id === p.id; });
+    if (!mine.length) {
+      return '<tr><td colspan="8" class="dim">' + esc(p.display_name) +
+             ' is not in any league.</td></tr>';
+    }
+    return '<tr><td colspan="8" style="padding:0 0 10px 18px">' +
+      mine.map(function (m) {
+        return '<div class="row" style="justify-content:flex-start;gap:10px;' +
+          'padding:5px 0;align-items:center">' +
+          '<b class="name" style="min-width:140px">' + esc(m.league_name) + '</b>' +
+          (m.is_owner ? '<span class="tag">OWNER</span>' : '') +
+          '<span class="dim">joined ' + when(m.joined_at) + '</span>' +
+          '<button data-kick="' + m.league_id + '" data-kp="' + m.profile_id +
+          '" data-n="' + esc(p.display_name) + '" data-l="' + esc(m.league_name) +
+          '">Remove from this league</button></div>';
+      }).join('') + '</td></tr>';
+  }
+
   function paintPlayers() {
     var q = ($('#search').value || '').trim().toLowerCase();
     var rows = players.filter(function (p) {
@@ -339,15 +367,19 @@
       '<tr><th>Player</th><th>Leagues</th><th>Logs</th><th>Lifetime</th>' +
       '<th>This week</th><th>Last activity</th><th>Restore code</th><th></th></tr>' +
       rows.map(function (p) {
+        var open = openPlayer === p.id;
         return '<tr><td class="name">' + esc(p.display_name) +
           (p.is_admin ? '<span class="tag">ADMIN</span>' : '') + '</td>' +
-          '<td>' + p.leagues + '</td><td>' + p.workouts + '</td>' +
+          '<td><button data-mem="' + p.id + '">' + p.leagues +
+            (open ? ' \u25B4' : ' \u25BE') + '</button></td>' +
+          '<td>' + p.workouts + '</td>' +
           '<td>' + num(p.lifetime) + '</td><td>' + num(p.week_points) + '</td>' +
           '<td class="dim">' + when(p.last_log) + '</td>' +
           '<td class="dim" style="font-family:ui-monospace,monospace">' +
             esc(p.restore_code) + '</td>' +
           '<td>' + (p.is_admin ? '' : '<button class="danger" data-dp="' + p.id +
-            '" data-n="' + esc(p.display_name) + '">Delete</button>') + '</td></tr>';
+            '" data-n="' + esc(p.display_name) + '">Delete account</button>') + '</td></tr>' +
+          (open ? membershipRow(p) : '');
       }).join('') || '<tr><td class="dim">Nobody matches.</td></tr>';
   }
 
@@ -391,6 +423,28 @@
                             { p_idx: Number(db.getAttribute('data-db')) });
       if (rd.error) { $('#err').textContent = rd.error.message; return; }
       await loadBounties();
+      return;
+    }
+
+    var mem = e.target.closest('[data-mem]');
+    if (mem) {
+      var who = mem.getAttribute('data-mem');
+      openPlayer = openPlayer === who ? null : who;
+      paintPlayers();
+      return;
+    }
+    var kick = e.target.closest('[data-kick]');
+    if (kick) {
+      var kn = kick.getAttribute('data-n'), kl = kick.getAttribute('data-l');
+      if (!confirm('Remove ' + kn + ' from "' + kl + '"?\n\n' +
+                   'Their account, their restore code and everything they logged in ' +
+                   'other leagues are untouched. They can be invited back with the ' +
+                   'league code.')) return;
+      var rk = await sb.rpc('admin_remove_member', {
+        p_league: kick.getAttribute('data-kick'),
+        p_profile: kick.getAttribute('data-kp') });
+      if (rk.error) { $('#err').textContent = rk.error.message; return; }
+      await load();
       return;
     }
 

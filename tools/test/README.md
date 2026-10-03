@@ -1,11 +1,11 @@
 # The browser tests
 
-Eighteen Playwright runs against the real `index.html` and `admin.html`, with
+Nineteen Playwright runs against the real `index.html` and `admin.html`, with
 Supabase replaced by `mock-supabase.js` — a hand-written stand-in that keeps a
 database in `localStorage` and answers the same RPCs the server does.
 
 ```bash
-node tools/test/run.js        # …through run18.js
+node tools/test/run.js        # …through run19.js
 ```
 
 Each file prints a list of PASS/FAIL lines, reports any JavaScript error the
@@ -31,13 +31,14 @@ them somewhere else.
 | `run9.js` | rivalries, badges, raids, the settings layout |
 | `run10.js` | banners and name colours |
 | `run11.js` | the league crest: shape, colour, emblem, banner |
-| `run12.js` | the control room: the two totals, and the bounty tools |
+| `run12.js` | the control room: the two totals, the bounty tools, kicking one membership |
 | `run13.js` | the catch-up day |
 | `run14.js` | the season table, the hall history, the muscle figure, the three stats ranges |
 | `run15.js` | the clock: Paris, whatever the phone says |
 | `run16.js` | the weekly budget, shown before a set is committed |
 | `run17.js` | the gym formula: the preview agrees with the server |
 | `run18.js` | the cup: the draw, the upset, the projection, and when there is none |
+| `run19.js` | leaving a league, having none at all, and finding restore on the login screen |
 
 ## Before a release
 

@@ -451,6 +451,25 @@ duel card says so on screen.
 One duel at a time per person. An unclaimed code expires after 24 hours, and
 when a duel ends the tab clears itself and the result drops into *Past duels*.
 
+### Leaving a league
+
+**LEAVE** sits under the list of leagues in the LEAGUES tab, and it names the
+league so there is no doubt which one you are about to walk out of. Leaving
+takes nothing with it: your logs stay in every other league, and your rank
+follows the person, not the league. **An account with no league at all is
+fine** — you keep your profile, your restore code and your shop, and the tab
+shows the way back in.
+
+If the person who created a league leaves it, the league passes to whoever has
+been in it longest, so the settings and the crest are never stranded. The
+league itself is never deleted by somebody leaving, even the last person: the
+workouts logged into it are part of everyone's lifetime totals.
+
+The control room can also take one person out of one league — open the league
+count beside their name in **Players**. That removes the membership and
+nothing else: the account, the restore code and everything logged in other
+leagues stay.
+
 ---
 
 # 🏆 THE CUP

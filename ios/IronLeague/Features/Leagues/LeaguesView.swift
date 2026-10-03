@@ -121,7 +121,12 @@ struct LeaguesView: View {
             }
             Button("Stay", role: .cancel) { confirmLeave = nil }
         } message: {
-            Text("Your points stay in the league's history, but you drop off the board.")
+            // The two things somebody is actually afraid of before they tap
+            // it: that they are taking the league down with them, and that
+            // they are losing what they earned. Neither is true.
+            Text(confirmLeave?.ownerId == session.profile?.id
+                 ? "The league stays up for everyone else — it passes to whoever has been in it longest. Your rank follows you, not the league."
+                 : "Your logs stay in every other league you are in, and your rank follows you, not the league.")
         }
         .alert("Delete this league?", isPresented: Binding(
             get: { confirmDelete != nil },

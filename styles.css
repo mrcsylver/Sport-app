@@ -111,6 +111,19 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .linkbtn{background:none;border:0;color:var(--muted);font-size:13px;text-decoration:underline;
   padding:18px 0;display:block;width:100%}
 
+/* ---- coming back on a new phone ----------------------------------------
+   Restore used to be a second underlined link under another underlined link,
+   and people did not see it: they started a new profile and lost their rank.
+   A bordered panel with its own heading stops the eye without competing with
+   the primary button above it — the whole trick is that it is quiet TYPE,
+   not a quiet position. */
+.backcard{margin-top:22px;padding:16px;border:1px solid var(--line-2);border-radius:6px;
+  background:var(--panel);display:flex;flex-direction:column;gap:9px}
+.backcard h3{margin:0;font:800 13px/1 var(--display);letter-spacing:.18em;color:var(--txt)}
+.backcard p{margin:0}
+.backcard .btn{width:100%}
+.backcard #restoreBox{display:flex;flex-direction:column;gap:9px;margin-top:3px}
+
 /* ---------- inputs ---------- */
 .input{width:100%;background:var(--panel);border:1px solid var(--line-2);color:var(--txt);
   padding:14px;border-radius:4px;outline:0}
@@ -1100,6 +1113,15 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .pay i{font:700 9px/1 var(--display);letter-spacing:.1em;color:var(--muted);font-style:normal}
 .pay b{font:800 13px/1 var(--mono);color:var(--txt);font-variant-numeric:tabular-nums}
 .pay.first b{color:var(--gold)}
+/* ---- leaving, where somebody looking for it looks ------------------------
+   This used to sit at the bottom of the league settings block, past the crest
+   options and the rules, and nobody found it. It is a panel under the list of
+   leagues now — quiet enough not to look like an action you are being pushed
+   towards, present enough to be seen. */
+.leavebox{display:flex;flex-direction:column;gap:8px;margin-top:12px;
+  padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:4px}
+.leavebox .btn{width:100%}
+
 /* ---- the cup: a tie, drawn as two sides ----------------------------------
    A bracket is a tree, and a tree on a 390px phone is a tree you cannot read.
    One tie is two stacked rows instead — a seed, a name and what that side

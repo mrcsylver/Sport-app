@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.21.0">
+  <link rel="stylesheet" href="./styles.css?v=2.22.0">
 </head>
 <body>
 
@@ -73,12 +73,26 @@
   </form>
 
   <button id="modeToggle" class="linkbtn" hidden>No code? Start a brand new league</button>
-  <button id="restoreToggle" class="linkbtn">Changed phone? Restore your profile</button>
-  <div id="restoreBox" hidden>
-    <label class="lbl" for="restoreInput">RESTORE CODE</label>
-    <input id="restoreInput" class="input mono" maxlength="9" placeholder="XXXXXXXX"
-           autocapitalize="characters" spellcheck="false">
-    <button id="restoreBtn" class="btn ghost">RESTORE PROFILE</button>
+
+  <!-- Restore was a second underlined link directly under another underlined
+       link, and people simply did not see it: they made a new profile on the
+       new phone and lost their rank. It is a panel of its own now, with a
+       rule and a heading so the eye stops on it. Deliberately NOT a primary
+       button — somebody arriving for the first time must still be pulled
+       straight to ENTER THE ARENA. -->
+  <div class="backcard">
+    <h3>BEEN HERE BEFORE?</h3>
+    <p class="muted small">New phone, or reinstalled the app? Bring your old
+      profile back instead of starting again — your rank, badges and history
+      come with it.</p>
+    <button id="restoreToggle" class="btn ghost sm" type="button">I ALREADY HAVE A PROFILE</button>
+    <div id="restoreBox" hidden>
+      <label class="lbl" for="restoreInput">RESTORE CODE</label>
+      <input id="restoreInput" class="input mono" maxlength="9" placeholder="XXXXXXXX"
+             autocapitalize="characters" spellcheck="false">
+      <p class="muted small">The 8 characters from Settings on your old phone.</p>
+      <button id="restoreBtn" class="btn ghost">RESTORE PROFILE</button>
+    </div>
   </div>
   <p id="onboardErr" class="err"></p>
 </div>
@@ -272,6 +286,18 @@
       <div class="section-head"><h2>MY LEAGUES</h2></div>
       <div id="leagueList" class="stack"></div>
 
+      <!-- Leaving used to live at the bottom of the settings block below, past
+           the crest options and the league rules, and people could not find
+           it. It belongs next to the list of leagues: that is where you are
+           standing when you decide to go. -->
+      <div id="leaveBox" class="leavebox" hidden>
+        <button id="leaveBtn" class="btn ghost sm" type="button">LEAVE THIS LEAGUE</button>
+        <button id="deleteLeagueBtn" class="btn ghost sm danger" type="button"
+                hidden>DELETE THIS LEAGUE</button>
+        <p class="muted small" id="leaveNote">Your logs stay in every other league
+          you are in, and your rank is yours — it follows you, not the league.</p>
+      </div>
+
       <details class="sect" open>
         <summary><span>LEAGUES</span></summary>
         <div class="sect-b">
@@ -352,13 +378,6 @@
             <h4>League name colour</h4>
             <div id="lgNameColors" class="ncrow"></div>
           </div>
-
-          <h4>Leaving</h4>
-          <button id="leaveBtn" class="btn ghost sm" type="button"
-                  style="width:100%">LEAVE THIS LEAGUE</button>
-          <button id="deleteLeagueBtn" class="btn ghost sm danger" type="button"
-                  hidden style="width:100%;margin-top:8px">DELETE THIS LEAGUE</button>
-          <p class="muted small" id="leaveNote">Your logs stay in every other league you are in.</p>
 
           <h4>You can be in several leagues at once</h4>
           <p class="muted small">Joining or starting another league never touches this
@@ -623,8 +642,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.21.0"></script>
-<script src="./vendor/game-icons.js?v=2.21.0"></script>
-<script src="./app.js?v=2.21.0"></script>
+<script src="./vendor/supabase.js?v=2.22.0"></script>
+<script src="./vendor/game-icons.js?v=2.22.0"></script>
+<script src="./app.js?v=2.22.0"></script>
 </body>
 </html>

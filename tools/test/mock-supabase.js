@@ -422,6 +422,36 @@
       DB.members.push({ league_id: l.id, profile_id: p.id, joined_at: new Date().toISOString() });
       return ok(l);
     },
+    /* Same rules as drop_membership() in SQL: the league is never deleted,
+       because deleting it would cascade the workouts away and a workout is
+       what a lifetime total is made of. If the owner goes, the league passes
+       to whoever has been in it longest; if the owner was the last one out,
+       they stay the owner of an empty league so the code hands it back. */
+    leave_league: function (a) {
+      var p = me(); if (!p) return bad('NO_PROFILE');
+      DB.members = DB.members.filter(function (m) {
+        return !(m.league_id === a.p_league && m.profile_id === p.id); });
+      var l = DB.leagues.filter(function (x) { return x.id === a.p_league; })[0];
+      if (l && l.owner_id === p.id) {
+        var left = DB.members.filter(function (m) { return m.league_id === l.id; })
+          .slice().sort(function (x, y) {
+            return String(x.joined_at) < String(y.joined_at) ? -1 : 1; });
+        if (left.length) l.owner_id = left[0].profile_id;
+      }
+      save(); return ok(null);
+    },
+    delete_league: function (a) {
+      var p = me(); if (!p) return bad('NO_PROFILE');
+      var l = DB.leagues.filter(function (x) { return x.id === a.p_league; })[0];
+      if (!l) return bad('NO_SUCH_LEAGUE');
+      if (l.owner_id !== p.id) {
+        return bad('Only the person who created a league can delete it');
+      }
+      DB.leagues = DB.leagues.filter(function (x) { return x.id !== l.id; });
+      DB.members = DB.members.filter(function (m) { return m.league_id !== l.id; });
+      DB.workouts = DB.workouts.filter(function (w) { return w.league_id !== l.id; });
+      save(); return ok(null);
+    },
     my_leagues: function () {
       var p = me(); if (!p) return ok([]);
       return ok(DB.members.filter(function (m) { return m.profile_id === p.id; }).map(function (m) {
@@ -624,6 +654,36 @@
         return bad('A built-in bounty cannot be deleted, only left unpinned');
       }
       DB.bounties = DB.bounties.filter(function (b) { return b.idx !== a.p_idx; });
+      save(); return ok(null);
+    },
+    admin_memberships: function () {
+      var p = me(); if (!p || !p.is_admin) return ok([]);
+      return ok(DB.members.map(function (m) {
+        var l = DB.leagues.filter(function (x) { return x.id === m.league_id; })[0] || {};
+        var q = DB.profiles.filter(function (x) { return x.id === m.profile_id; })[0] || {};
+        return { league_id: m.league_id, league_name: l.name,
+                 profile_id: m.profile_id, display_name: q.display_name,
+                 joined_at: m.joined_at, is_owner: l.owner_id === m.profile_id };
+      }).sort(function (x, y) {
+        return String(x.league_name) < String(y.league_name) ? -1 : 1; }));
+    },
+    /* The half of admin_delete_profile somebody usually actually wants: one
+       membership goes, the account and everything logged elsewhere stay. */
+    admin_remove_member: function (a) {
+      var p = me(); if (!p || !p.is_admin) return bad('Not allowed');
+      if (!DB.members.some(function (m) {
+            return m.league_id === a.p_league && m.profile_id === a.p_profile; })) {
+        return bad('That person is not in that league');
+      }
+      DB.members = DB.members.filter(function (m) {
+        return !(m.league_id === a.p_league && m.profile_id === a.p_profile); });
+      var l = DB.leagues.filter(function (x) { return x.id === a.p_league; })[0];
+      if (l && l.owner_id === a.p_profile) {
+        var left = DB.members.filter(function (m) { return m.league_id === l.id; })
+          .slice().sort(function (x, y) {
+            return String(x.joined_at) < String(y.joined_at) ? -1 : 1; });
+        if (left.length) l.owner_id = left[0].profile_id;
+      }
       save(); return ok(null);
     },
     admin_delete_league: function (a) {

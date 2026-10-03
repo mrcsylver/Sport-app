@@ -52,6 +52,10 @@ echo "· the season table"
 fresh ironseason
 psql -d ironseason -f "$HERE/season.sql" 2>&1 | clean
 
+echo "· leaving and being removed"
+fresh ironmem
+psql -d ironmem -f "$HERE/membership.sql" 2>&1 | clean
+
 echo "· the cup"
 fresh ironcup2
 psql -d ironcup2 -f "$HERE/cup.sql" 2>&1 | clean
@@ -93,6 +97,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/season-table.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/season-stats.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/cup.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/membership.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -161,4 +166,10 @@ psql -tAd ironlive -c "select case when public.cup_field(18) = 16
     and (public.cup_seed_order(16))[2] = 16
   then 'and the cup survived the migration: top 16, bottom seed drawn first'
   else 'THE CUP DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in ('drop_membership','admin_memberships','admin_remove_member')) = 3
+  then 'and somebody can leave a league, or be taken out of one, without losing an account'
+  else 'THE MEMBERSHIP TOOLS DID NOT SURVIVE' end;"
 echo "· all clear"

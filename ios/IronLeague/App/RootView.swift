@@ -13,6 +13,9 @@ struct RootView: View {
             case .needsProfile:
                 OnboardingView()
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            case .noLeague:
+                NoLeagueView()
+                    .transition(.opacity)
             case .ready:
                 MainTabs()
                     .transition(.opacity)
@@ -34,6 +37,7 @@ struct RootView: View {
         switch session.phase {
         case .booting: return "booting"
         case .needsProfile: return "profile"
+        case .noLeague: return "noleague"
         case .ready: return "ready"
         case .failed: return "failed"
         }

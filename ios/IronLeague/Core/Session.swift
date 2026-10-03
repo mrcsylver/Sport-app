@@ -7,7 +7,12 @@ import Observation
 @Observable
 @MainActor
 final class Session {
-    enum Phase { case booting, needsProfile, ready, failed(String) }
+    /// `noLeague` is a real state, not an error: somebody between groups, or
+    /// somebody who only wanted the logbook. It used to fall through to
+    /// `needsProfile`, which threw a person with a perfectly good profile back
+    /// into onboarding and put their restore code, their shop and their name
+    /// out of reach until they joined something.
+    enum Phase { case booting, needsProfile, noLeague, ready, failed(String) }
 
     var phase: Phase = .booting
     var profile: Profile?
@@ -97,8 +102,11 @@ final class Session {
             if exercises.isEmpty { exercises = try await API.shared.exercises() }
 
             guard !mine.isEmpty else {
-                // A profile with no league — onboarding picks up at step two.
-                phase = .needsProfile
+                // A profile with no league. The leagues tab on its own: join
+                // or start one, and everything about you still reachable.
+                leagues = []
+                leagueId = nil
+                phase = .noLeague
                 return
             }
 
@@ -117,7 +125,7 @@ final class Session {
             leagues = try await API.shared.myLeagues()
             leagueId = leagues.first?.id
             if exercises.isEmpty { exercises = try await API.shared.exercises() }
-            phase = leagues.isEmpty ? .needsProfile : .ready
+            phase = leagues.isEmpty ? .noLeague : .ready
             if !leagues.isEmpty { await refresh() }
         } catch {
             show(Friendly.message(error))
@@ -360,7 +368,10 @@ final class Session {
         if leagueId == id { leagueId = leagues.first?.id }
         if leagues.isEmpty {
             standings = []; raid = nil; bounty = nil; combo = []
-            phase = .needsProfile
+            history = []; season = []; seasonInfo = nil
+            cup = []; cupInfo = nil; cupRound = nil
+            rivalries = []; challenges = []; stats = []; badges = []
+            phase = .noLeague
         } else {
             await refresh()
         }
