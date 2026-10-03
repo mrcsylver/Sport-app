@@ -181,6 +181,35 @@ transaction that creates them, so there is no instant where both are callable.
 `my_muscles`, both old shapes parked — because the failure mode is silent until
 somebody on an old build opens a tab.
 
+### A revoke that does not revoke
+
+Worth its own heading because it cost a live hole. `drop_membership()` is an
+internal helper — `leave_league()` and `admin_remove_member()` call it, nothing
+else should — so it shipped SECURITY DEFINER with no check of its own and
+
+```sql
+revoke all on function public.drop_membership(uuid,uuid) from public, anon;
+```
+
+**That is not enough.** A new function in `public` ends up executable by
+`authenticated` as well, and revoking from `public` and `anon` leaves that
+grant alone. For about an hour any signed-in person could take anybody out of
+any league through `/rest/v1/rpc/drop_membership`.
+
+Two rules came out of it, and both are in `schema.sql`:
+
+* **Name `authenticated` in the revoke.** Every internal helper here now reads
+  `from public, anon, authenticated`. Verify with
+  `has_function_privilege('authenticated', p.oid, 'execute')` rather than by
+  reading the revoke — the whole point is that the revoke looked right.
+* **Guard the body anyway.** A SECURITY DEFINER function that writes must
+  check its own caller, because one `create or replace` in a future migration
+  re-grants it and nobody will notice. `drop_membership()` now refuses unless
+  the caller is the person being removed or an admin.
+
+`supabase/test/membership.sql` asserts both: that a third party is refused by
+the body, and that `authenticated` has no execute privilege at all.
+
 ### Leaving, and being removed
 
 `membership.sql` puts both halves through one function, `drop_membership()`,

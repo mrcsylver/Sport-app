@@ -269,11 +269,11 @@ begin
 end $fn$;
 
 -- -------------------------------------------------------- grants ---
-revoke all on function public.cup_window()                  from public, anon;
-revoke all on function public.cup_field(int)                from public, anon;
-revoke all on function public.cup_seed_order(int)           from public, anon;
-revoke all on function public.cup_round_name(int,int)       from public, anon;
-revoke all on function public.cup_seeds(uuid,int,date)      from public, anon;
+revoke all on function public.cup_window()                  from public, anon, authenticated;
+revoke all on function public.cup_field(int)                from public, anon, authenticated;
+revoke all on function public.cup_seed_order(int)           from public, anon, authenticated;
+revoke all on function public.cup_round_name(int,int)       from public, anon, authenticated;
+revoke all on function public.cup_seeds(uuid,int,date)      from public, anon, authenticated;
 revoke all on function public.league_cup_state(uuid,int)    from public, anon;
 revoke all on function public.league_cup(uuid,int)          from public, anon;
 grant execute on function public.league_cup_state(uuid,int)    to authenticated;

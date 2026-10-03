@@ -143,7 +143,29 @@ select case when (select count(*) from public.admin_memberships()) = 0
        then 'and the membership list is shut to them too'
        else 'THE MEMBERSHIP LIST IS READABLE BY ANYBODY' end;
 
-\echo '--- 8. removing somebody who is not there says so'
+\echo '--- 8. and nobody can reach the helper the other two share'
+-- drop_membership() shipped SECURITY DEFINER with no check of its own. A new
+-- function in `public` is executable by `authenticated` unless you say
+-- otherwise, and "revoke from public, anon" does not say otherwise — so for
+-- about an hour any signed-in person could take anybody out of any league
+-- through /rest/v1/rpc/drop_membership. The check is in the body now as well
+-- as in the grant, because either alone is one mistake away from it coming
+-- back.
+set request.jwt.claim.sub = '73333333-3333-3333-3333-333333333333';
+do $t$ begin
+  perform public.drop_membership('7bbb0000-0000-0000-0000-00000000000b',
+                                 '7aaa0000-0000-0000-0000-000000000002');
+  raise notice 'ANYBODY CAN REMOVE ANYBODY';
+exception when others then raise notice 'removing somebody else refused: %', sqlerrm;
+end $t$;
+select case when (select count(*) from pg_proc p
+                  join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname = 'public' and p.proname = 'drop_membership'
+                    and has_function_privilege('authenticated', p.oid, 'execute')) = 0
+       then 'and it is not callable over the API either'
+       else 'THE HELPER IS EXPOSED AT /rest/v1/rpc/drop_membership' end;
+
+\echo '--- 9. removing somebody who is not there says so'
 set request.jwt.claim.sub = '74444444-4444-4444-4444-444444444444';
 do $t$ begin
   perform public.admin_remove_member('7bbb0000-0000-0000-0000-00000000000b',

@@ -906,6 +906,20 @@ create function public.drop_membership(p_league uuid, p_profile uuid)
 returns void language plpgsql security definer set search_path = public as $$
 declare own uuid; heir uuid;
 begin
+  -- You may remove yourself. An admin may remove anybody. Nobody else.
+  --
+  -- This check is INSIDE the function rather than left to the grants, and the
+  -- reason is worth writing down: a new function in `public` is executable by
+  -- `authenticated` unless you say otherwise, and "revoke from public, anon"
+  -- does not say otherwise. This shipped without the check for about an hour
+  -- and any signed-in person could have taken anybody out of any league
+  -- through /rest/v1/rpc/drop_membership. Both halves are here now — the
+  -- check, and `authenticated` named in the revoke below — because either
+  -- alone is one mistake away from the hole coming back.
+  if p_profile is distinct from public.my_profile_id()
+     and not public.is_admin() then
+    raise exception 'Not allowed';
+  end if;
   delete from public.league_members
    where league_id = p_league and profile_id = p_profile;
   select owner_id into own from public.leagues where id = p_league;
@@ -2847,7 +2861,7 @@ revoke all on function public.league_preview(text)          from public, anon;
 revoke all on function public.create_league(text)           from public, anon;
 revoke all on function public.join_league_by_code(text)     from public, anon;
 revoke all on function public.leave_league(uuid)            from public, anon;
-revoke all on function public.drop_membership(uuid,uuid)    from public, anon;
+revoke all on function public.drop_membership(uuid,uuid)    from public, anon, authenticated;
 revoke all on function public.admin_memberships()           from public, anon;
 revoke all on function public.admin_remove_member(uuid,uuid) from public, anon;
 revoke all on function public.my_leagues()                  from public, anon;
@@ -2862,11 +2876,11 @@ revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
 revoke all on function public.my_muscles(uuid,boolean,date)  from public, anon;
 revoke all on function public.muscle_dose(uuid)             from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
-revoke all on function public.cup_window()                  from public, anon;
-revoke all on function public.cup_field(int)                from public, anon;
-revoke all on function public.cup_seed_order(int)           from public, anon;
-revoke all on function public.cup_round_name(int,int)       from public, anon;
-revoke all on function public.cup_seeds(uuid,int,date)      from public, anon;
+revoke all on function public.cup_window()                  from public, anon, authenticated;
+revoke all on function public.cup_field(int)                from public, anon, authenticated;
+revoke all on function public.cup_seed_order(int)           from public, anon, authenticated;
+revoke all on function public.cup_round_name(int,int)       from public, anon, authenticated;
+revoke all on function public.cup_seeds(uuid,int,date)      from public, anon, authenticated;
 revoke all on function public.league_cup_state(uuid,int)    from public, anon;
 revoke all on function public.league_cup(uuid,int)          from public, anon;
 revoke all on function public.league_champions(uuid)        from public, anon;
@@ -2923,6 +2937,8 @@ grant execute on function public.my_muscles(uuid,boolean,date) to authenticated;
 grant execute on function public.my_stats(uuid,boolean,date)   to authenticated;
 grant execute on function public.muscle_dose(uuid)             to authenticated;
 grant execute on function public.league_wins(uuid)             to authenticated;
+grant execute on function public.league_champions(uuid)        to authenticated;
+grant execute on function public.my_duel_record(uuid)          to authenticated;
 grant execute on function public.rank_points(int)              to authenticated;
 grant execute on function public.league_week0(uuid)            to authenticated;
 grant execute on function public.season_index(uuid,date)       to authenticated;
