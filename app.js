@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.22.1';
+  var APP_VERSION = '2.23.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -856,8 +856,8 @@
      a league that rests on Monday. No league loaded now means no rest day
      known yet; the server refuses the entry either way, and it refuses it
      with a reason that names the real day. */
-  function restDows() {
-    var l = league();
+  function restDows(l) {
+    l = l || league();
     var dows = l && Array.isArray(l.rest_dow) ? l.rest_dow : [];
     return dows.map(Number).filter(function (d) { return d >= 1 && d <= 7; });
   }
@@ -865,7 +865,27 @@
     var day = d.getUTCDay();
     return day === 0 ? 7 : day;
   }
-  function isRestDay() { return restDows().indexOf(isoDow(wallNow())) !== -1; }
+  function isRestDay(l) { return restDows(l).indexOf(isoDow(wallNow())) !== -1; }
+
+  /* A rest day belongs to a LEAGUE, and you can be in several. One league
+     closing its Sunday closes that league — the entry still goes into the
+     others, and the server writes exactly the rows that will take it. These
+     three say the same thing on the phone so the sheet can be honest about
+     it before anybody taps ADD. */
+  function restingLeagues() {
+    return state.leagues.filter(function (l) { return isRestDay(l); });
+  }
+  function openLeagues() {
+    return state.leagues.filter(function (l) { return !isRestDay(l); });
+  }
+  /* Which leagues would take this entry right now. A resting league takes a
+     stretch, but only the first one of the day. */
+  function acceptingLeagues(key) {
+    return state.leagues.filter(function (l) {
+      if (!isRestDay(l)) return true;
+      return key === 'stretch' && !(state.restDoneIn || {})[l.id];
+    });
+  }
 
   /* The instant the league stops scoring this week: the end of the last day
      of it that is not a rest day.
@@ -936,6 +956,7 @@
     view: 'live',
     statsRange: 'week',
     cup: [], cupInfo: null, cupRound: null,
+    restDoneIn: {},        // league id -> already logged today, for the rest rule
     // the season table and where it stands, both the server's work
     season: [],
     seasonInfo: null,
@@ -2380,8 +2401,13 @@
         '<div class="combo-top"><span class="combo-t">REST DAY</span>' +
           '<span class="combo-p">LEAGUE CLOSED</span></div>' +
         '<div class="combo-hint">Today is a rest day for this league — nothing ' +
-        'can be added, edited or deleted. One <b>stretching session</b> is the ' +
-        'only thing that counts today. The league opens again at midnight.</div>';
+        'can be added, edited or deleted here. One <b>stretching session</b> is ' +
+        'the only thing that counts today. The league opens again at midnight.' +
+        (openLeagues().length
+          ? ' Your other ' + (openLeagues().length === 1 ? 'league is' :
+              openLeagues().length + ' leagues are') + ' open, and anything you ' +
+            'log still counts there.'
+          : '') + '</div>';
       return;
     }
     $('#comboCard').className = 'combo';
@@ -3491,7 +3517,7 @@
   var modal = { key: null, mode: null, editing: null };
 
   function buildExerciseSelect() {
-    modal.restOnly = isRestDay();
+    modal.restOnly = !openLeagues().length && !!restingLeagues().length;
     renderExList('');
     selectExercise(modal.restOnly ? 'stretch' : 'pushups');
     closeFinder();
@@ -3749,19 +3775,24 @@
   }
 
   /* On a rest day, has this athlete already taken their one session? */
+  /* Which leagues already have something from today. Per league, because the
+     one-recovery-a-day rule is per league: you can have stretched in one and
+     not the other, and the server will write exactly the difference. */
   async function loadRestState() {
     state.restDone = false;
-    if (!isRestDay() || !state.leagueId || !state.profile) return;
-    var r = await sb.from('workouts').select('created_at')
-      .eq('league_id', state.leagueId)
+    state.restDoneIn = {};
+    if (!state.profile || !restingLeagues().length) return;
+    var r = await sb.from('workouts').select('created_at,league_id')
       .eq('profile_id', state.profile.id)
       .eq('week_start', state.week);
     if (r.error || !r.data) return;
     var today = iso(wallNow());
-    state.restDone = r.data.some(function (w) {
-      return iso(new Date(new Date(w.created_at).getTime() +
-             tzOffsetMs(new Date(w.created_at), TZ))) === today;
+    r.data.forEach(function (w) {
+      var d = iso(new Date(new Date(w.created_at).getTime() +
+                  tzOffsetMs(new Date(w.created_at), TZ)));
+      if (d === today) state.restDoneIn[w.league_id] = true;
     });
+    state.restDone = !!state.restDoneIn[state.leagueId];
   }
 
   function applyMultiLeagueNote() {
@@ -3769,21 +3800,44 @@
     var el = $('#multiNote');
     el.hidden = n < 2;
     if (n >= 2) {
+      var shut = restingLeagues().length;
       el.innerHTML = 'You are in <b>' + n + ' leagues</b>. Log once — this entry ' +
-                     'counts in all of them.';
+        (shut ? 'counts in the ' + (n - shut) + ' that ' +
+                (n - shut === 1 ? 'is' : 'are') + ' open today.'
+              : 'counts in all of them.');
     }
   }
 
+  /* The sheet used to lock itself on the CURRENT league's rest day, which
+     made no sense once you were in two: it would refuse to let you log into
+     the league that was open. The lock belongs to the whole set — it is only
+     a rest day for you if every league you are in is resting. */
   function applyRestMode() {
-    var rest = isRestDay();
-    $('#restNote').hidden = !rest;
-    if (!rest) { $('#addBtn').disabled = false; return; }
-    $('#restNote').innerHTML = state.restDone
-      ? '<b>Recovery already logged.</b> That is your one session for today — ' +
-        'the league opens again at midnight.'
-      : '<b>Rest day.</b> One stretching session is all that counts today, ' +
-        'and only once.';
-    $('#addBtn').disabled = state.restDone;
+    var resting = restingLeagues(), open = openLeagues();
+    var el = $('#restNote');
+    el.hidden = !resting.length;
+    if (!resting.length) { $('#addBtn').disabled = false; return; }
+
+    var names = resting.map(function (l) { return esc(l.name); }).join(' and ');
+    if (open.length) {
+      /* Some leagues are open: nothing is blocked, but say where this is
+         about to land so a missing entry is never a mystery. */
+      el.innerHTML = '<b>' + names + (resting.length > 1 ? ' are' : ' is') +
+        ' resting today.</b> What you log still counts in your other ' +
+        (open.length === 1 ? 'league' : open.length + ' leagues') +
+        '. Only a stretching session counts in ' +
+        (resting.length > 1 ? 'the resting ones' : names) + ', once.';
+      $('#addBtn').disabled = false;
+      return;
+    }
+    /* Every league you are in is shut, so this really is your rest day. */
+    var canStretch = acceptingLeagues('stretch').length > 0;
+    el.innerHTML = canStretch
+      ? '<b>Rest day.</b> One stretching session is all that counts today, ' +
+        'and only once.'
+      : '<b>Recovery already logged.</b> That is your one session for today — ' +
+        'the league opens again at midnight.';
+    $('#addBtn').disabled = !canStretch;
   }
 
   function openModal() {
@@ -3805,7 +3859,7 @@
        got told about Sunday. It is also wrong for anyone who leaves the app
        open across midnight, or switches to a league that rests on a different
        day. Asking at the moment the sheet opens is right in all three cases. */
-    modal.restOnly = isRestDay();
+    modal.restOnly = !openLeagues().length && !!restingLeagues().length;
     if (modal.restOnly) modal.key = 'stretch';
     renderExList('');
 
@@ -3876,20 +3930,34 @@
       state.weekEx[modal.key] = usedThisWeek(modal.key) + Number(row.points);
       replaySession();
       renderSession();
-      if (isRestDay()) { state.restDone = true; applyRestMode(); }
+      /* A resting league only takes the first recovery of the day, so mark
+         the ones that just took this entry as done. */
+      acceptingLeagues(modal.key).forEach(function (l) {
+        if (isRestDay(l)) state.restDoneIn[l.id] = true; });
+      state.restDone = !!state.restDoneIn[state.leagueId];
+      applyRestMode();
       var got = row.scored == null ? Number(row.points) : row.scored;
+      /* Say where it landed whenever that is not everywhere. A set that
+         quietly goes into two of your three leagues has to say so, or the
+         missing one reads as a bug. */
+      var went = Number(row.leagues) || 0, have = state.leagues.length;
       toast('+' + num(got) + ' pts' +
             (got < Number(row.points) - 0.001
                ? ' · ' + (exercise(modal.key) || {}).name + ' is full this week'
                : '') +
-            (row.leagues > 1 ? ' · counted in ' + row.leagues + ' leagues' : ''));
+            (went < have
+               ? ' · ' + went + ' of ' + have + ' leagues — ' +
+                 restingLeagues().map(function (l) { return l.name; }).join(', ') +
+                 ' resting'
+               : went > 1 ? ' · counted in ' + went + ' leagues' : ''));
       $('#amountInput').value = unitFor(modal.key, modal.mode).def;
       updatePreview();
     } catch (e) {
       $('#modalErr').textContent = niceError(e);
     } finally {
       btn.textContent = label;
-      btn.disabled = isRestDay() && state.restDone;   // keep the rest lock on
+      /* Keep the lock on only when nothing of this kind can land anywhere. */
+      btn.disabled = acceptingLeagues(modal.key).length === 0;
     }
   });
 

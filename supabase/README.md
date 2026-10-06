@@ -6,8 +6,9 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
-`progressions.sql`, `season-table.sql`, `season-stats.sql`, `cup.sql` and
-`membership.sql` are migrations for a database that is already running. They only add; nothing logged is touched, and all of
+`progressions.sql`, `season-table.sql`, `season-stats.sql`, `cup.sql`,
+`membership.sql` and `rest-day.sql` are migrations for a database that is
+already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -180,6 +181,41 @@ transaction that creates them, so there is no instant where both are callable.
 `supabase/test/run.sh` asserts the count afterwards — one `my_stats`, one
 `my_muscles`, both old shapes parked — because the failure mode is silent until
 somebody on an old build opens a tab.
+
+### A rest day belongs to a league, not to a person
+
+`log_workout()` writes one row per league the person is in, and the rest rule
+used to raise from the insert trigger. A raise from any one of those rows
+aborts the whole statement — so while ONE league was resting, somebody in two
+could not log anything at all, and the league that was open lost the entry
+too.
+
+The rule is a question before it is a rule now:
+
+| | |
+|---|---|
+| `rest_day_block()` | why this league will not take this entry, or null |
+| `rest_day_check()` | the same answer as a raise, for the triggers |
+
+`log_workout()` filters the fan-out on the question, so the open leagues score
+it and the resting ones sit it out, and raises only when **every** league
+refuses — with the reason the league on screen gives, which keeps the message
+identical for somebody in one league. It also returns a row from whichever
+league did take it (`order by (league_id = p_league) desc limit 1`), because
+asking from the resting league used to come back empty, which reads as
+"nothing happened".
+
+The triggers still call `rest_day_check()`, so a direct write — an edit, or
+anything not coming through the RPC — is refused exactly as before. That
+split is the point: the RPC decides which leagues to *offer* the row to, the
+trigger decides whether a row is *allowed*, and they cannot drift because they
+are the same function underneath.
+
+`rest_day_block()` is deliberately **not** revoked from `authenticated`: the
+update trigger runs as the person doing the edit and reaches it through
+`rest_day_check()`, so taking the grant away makes every correction fail with
+a permission error. It is safe to leave — not security definer, so RLS still
+decides which leagues and workouts it can see.
 
 ### A revoke that does not revoke
 
@@ -368,6 +404,7 @@ Do not hand-edit these:
 | `season-stats.sql` | `tools/build_stats_migration.py` |
 | `cup.sql` | `tools/build_cup_migration.py` |
 | `membership.sql` | `tools/build_membership_migration.py` |
+| `rest-day.sql` | `tools/build_restday_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

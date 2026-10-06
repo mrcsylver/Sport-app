@@ -21,7 +21,9 @@ struct ExercisePicker: View {
     /// counts, so the picker offers nothing else. The server enforces this;
     /// showing a hundred and eighteen exercises you cannot log would just be
     /// a hundred and eighteen ways to be told no.
-    private var restOnly: Bool { LeagueClock.isRestDay(session.league) }
+    // Narrowed to recovery only when EVERY league is resting: with one open,
+    // anything you log still counts there.
+    private var restOnly: Bool { LeagueClock.allResting(session.leagues) }
 
     private var pool: [Exercise] {
         restOnly ? session.exercises.filter { $0.cat == "RECOVERY" } : session.exercises

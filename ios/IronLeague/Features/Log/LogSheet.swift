@@ -30,7 +30,35 @@ struct LogSheet: View {
     /// launch: the league may not have loaded yet at launch, and somebody can
     /// leave the app open across midnight or switch to a league that rests on
     /// a different day.
-    private var restOnly: Bool { LeagueClock.isRestDay(session.league) }
+    private var restOnly: Bool { LeagueClock.allResting(session.leagues) }
+    private var restingLeagues: [League] { LeagueClock.resting(session.leagues) }
+    private var openLeagues: [League] { LeagueClock.open(session.leagues) }
+
+    /// Some leagues resting, some open. Nothing is blocked — say where this
+    /// is about to land, so a missing entry is never a mystery.
+    private var partialRestNote: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "moon.zzz")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Theme.azure)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(restingLeagues.map(\.name).joined(separator: " AND ").uppercased()
+                     + (restingLeagues.count > 1 ? " ARE RESTING" : " IS RESTING"))
+                    .font(Theme.display(12, .heavy)).kerning(1.4)
+                    .foregroundStyle(Theme.ink)
+                Text("What you log still counts in your other "
+                     + (openLeagues.count == 1 ? "league" : "\(openLeagues.count) leagues")
+                     + ". Only a stretching session counts in "
+                     + (restingLeagues.count > 1 ? "the resting ones" : "it") + ", once.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.inkFaint)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(Theme.raised, in: RoundedRectangle(cornerRadius: Theme.cornerSmall))
+    }
 
     private var restNote: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -41,8 +69,8 @@ struct LogSheet: View {
                 Text("REST DAY")
                     .font(Theme.display(12, .heavy)).kerning(1.4)
                     .foregroundStyle(Theme.ink)
-                Text("The league is shut today. One stretching session counts, "
-                     + "and only once. It opens again at midnight.")
+                Text("Every league you are in is shut today. One stretching "
+                     + "session counts, and only once. They open again at midnight.")
                     .font(.footnote)
                     .foregroundStyle(Theme.inkFaint)
                     .fixedSize(horizontal: false, vertical: true)
@@ -85,7 +113,7 @@ struct LogSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
-                    if restOnly { restNote }
+                    if restOnly { restNote } else if !restingLeagues.isEmpty { partialRestNote }
                     picker
                     if isGym { gymFields }
                     modeRow

@@ -41,6 +41,24 @@ enum LeagueClock {
         restDows(league).contains(isoDow(now))
     }
 
+    /// A rest day belongs to a LEAGUE, and you can be in several. One league
+    /// closing its Sunday closes that league — the entry still goes into the
+    /// others, and the server writes exactly the rows that will take it. The
+    /// log sheet used to lock itself on the league ON SCREEN, which refused
+    /// to let anybody log into an open league one tap away.
+    static func resting(_ leagues: [League], now: Date = Date()) -> [League] {
+        leagues.filter { isRestDay($0, now: now) }
+    }
+
+    static func open(_ leagues: [League], now: Date = Date()) -> [League] {
+        leagues.filter { !isRestDay($0, now: now) }
+    }
+
+    /// Only a rest day for YOU when every league you are in is resting.
+    static func allResting(_ leagues: [League], now: Date = Date()) -> Bool {
+        !leagues.isEmpty && open(leagues, now: now).isEmpty
+    }
+
     /// Monday 00:00 of the current week, in the league's timezone.
     static func weekStart(_ now: Date = Date()) -> Date {
         cal.dateInterval(of: .weekOfYear, for: now)?.start ?? now

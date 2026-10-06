@@ -89,6 +89,7 @@ drop function if exists public.my_profile_id() cascade;
 drop function if exists public.my_stats(p_league uuid, p_all boolean) cascade;
 drop function if exists public.my_stats(p_league uuid, p_all boolean, p_from date) cascade;
 drop function if exists public.rename_profile(p_name text) cascade;
+drop function if exists public.rest_day_block(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 drop function if exists public.rest_day_check(p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid) cascade;
 drop function if exists public.restore_profile(p_code text) cascade;
 drop function if exists public.set_avatar(p_avatar text) cascade;
@@ -220,18 +221,27 @@ returns numeric language sql stable set search_path = public as $$
   , 2)
 $$;
 
--- Raises if an entry breaks the rest day rule. p_at is the day the entry
--- belongs to, so an edit is judged on its own date, not on today.
-create function public.rest_day_check(
+-- Why ONE league will not take this entry today, or null if it will. p_at is
+-- the day the entry belongs to, so an edit is judged on its own date rather
+-- than on today.
+--
+-- This is a question before it is a rule, because a rest day belongs to a
+-- league and a person can be in several. Somebody in two leagues used to be
+-- unable to log anything at all while ONE of them was resting: log_workout
+-- writes a row per league, the trigger raised on the resting one, and the
+-- whole statement went down with it — including the leagues that were open.
+-- A league closing its own Sunday should close that league, not the person's
+-- day.
+create function public.rest_day_block(
   p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid)
-returns void language plpgsql stable set search_path = public as $$
+returns text language plpgsql stable set search_path = public as $$
 declare
   tz   text := public.app_timezone();
   dows int[] := coalesce((select rest_dow from public.leagues where id = p_league), '{7}'::int[]);
   d    date;
 begin
-  if not (extract(isodow from (p_at at time zone tz))::int = any (dows)) then return; end if;
-  if p_key <> 'stretch' then raise exception 'REST_DAY'; end if;
+  if not (extract(isodow from (p_at at time zone tz))::int = any (dows)) then return null; end if;
+  if p_key <> 'stretch' then return 'REST_DAY'; end if;
   d := (p_at at time zone tz)::date;
   if exists (
     select 1 from public.workouts w
@@ -240,8 +250,21 @@ begin
       and (w.created_at at time zone tz)::date = d
       and (p_exclude is null or w.id <> p_exclude)
   ) then
-    raise exception 'REST_DAY_DONE';
+    return 'REST_DAY_DONE';
   end if;
+  return null;
+end $$;
+
+-- The same question as a rule, for one row going into one league. The insert
+-- and update triggers use this, so a row written directly — an edit, or
+-- anything that does not come through log_workout — is still refused.
+create function public.rest_day_check(
+  p_profile uuid, p_league uuid, p_key text, p_at timestamptz, p_exclude uuid)
+returns void language plpgsql stable set search_path = public as $$
+declare why text;
+begin
+  why := public.rest_day_block(p_profile, p_league, p_key, p_at, p_exclude);
+  if why is not null then raise exception '%', why; end if;
 end $$;
 
 
@@ -1768,16 +1791,36 @@ begin
     update public.profiles set bodyweight = p_bw where profiles.id = me;
   end if;
 
+  -- One row per league, but only the leagues that will take it. A rest day
+  -- belongs to a league: the ones resting sit this entry out and the rest of
+  -- them score it. Filtering here rather than letting the trigger raise is
+  -- the whole fix — a raise from any one row aborts the statement, so one
+  -- league's Sunday used to cost somebody every league they were in.
   insert into public.workouts (group_id, league_id, profile_id,
                                exercise_key, mode, amount, bodyweight, load)
   select g, m.league_id, me, p_key, p_mode, p_amount, p_bw, p_load
   from public.league_members m
-  where m.profile_id = me;
+  where m.profile_id = me
+    and public.rest_day_block(me, m.league_id, p_key, now(), null) is null;
   get diagnostics n = row_count;
+
+  -- Nothing took it, so every league this person is in is shut today. Now the
+  -- rest day really has stopped them, and they get the reason the league they
+  -- were looking at gives — which keeps the message exactly what it has
+  -- always been for somebody in one league.
+  if n = 0 then
+    raise exception '%', coalesce(
+      public.rest_day_block(me, p_league, p_key, now(), null), 'REST_DAY');
+  end if;
+
+  -- The row for the league on screen, or any of them when that is the one
+  -- sitting the day out: the app needs a points figure to show either way.
   return query
   select w.id, w.group_id, w.exercise_key, w.mode, w.amount, w.points, n
   from public.workouts w
-  where w.group_id = g and w.league_id = p_league;
+  where w.group_id = g
+  order by (w.league_id = p_league) desc
+  limit 1;
 end $$;
 
 -- Duels ---------------------------------------------------------------
@@ -2904,6 +2947,12 @@ revoke all on function public.admin_add_bounty(text,text,numeric,text,text,numer
   from public, anon;
 revoke all on function public.admin_delete_bounty(int)      from public, anon;
 revoke all on function public.log_workout(uuid,text,text,numeric,numeric,numeric) from public, anon;
+-- NOT revoked from authenticated on purpose. The update trigger runs as the
+-- person doing the edit and reaches this through rest_day_check(), so taking
+-- the grant away would make every correction fail with a permission error.
+-- It is safe to leave: it is not security definer, so RLS still decides which
+-- leagues and which workouts it can see.
+revoke all on function public.rest_day_block(uuid,uuid,text,timestamptz,uuid) from public, anon;
 revoke all on function public.create_challenge(uuid)        from public, anon;
 revoke all on function public.accept_challenge(text)        from public, anon;
 revoke all on function public.cancel_challenge(uuid)        from public, anon;

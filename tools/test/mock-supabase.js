@@ -911,23 +911,36 @@
         (rank[y.status] === undefined ? 2 : rank[y.status]); });
       return ok(out);
     },
+    /* Same shape as rest_day_block() in SQL: why ONE league will not take this
+       entry today, or null if it will. The mock used to hardcode Sunday for
+       every league, which is a mock that cannot express the bug this exists
+       to catch — a rest day belongs to a league, and you can be in several. */
+    __restBlock: function (profileId, leagueId, key) {
+      var l = DB.leagues.filter(function (x) { return x.id === leagueId; })[0] || {};
+      var dows = Array.isArray(l.rest_dow) ? l.rest_dow.map(Number) : [7];
+      var wall = new Date(Date.now() + tzOffsetMs(new Date()));
+      var dow = wall.getUTCDay() === 0 ? 7 : wall.getUTCDay();
+      if (dows.indexOf(dow) === -1) return null;
+      if (key !== 'stretch') return 'REST_DAY';
+      var todayIso = wall.toISOString().slice(0, 10);
+      var done = DB.workouts.some(function (w) {
+        return w.profile_id === profileId && w.league_id === leagueId &&
+          new Date(new Date(w.created_at).getTime() + tzOffsetMs(new Date(w.created_at)))
+            .toISOString().slice(0, 10) === todayIso; });
+      return done ? 'REST_DAY_DONE' : null;
+    },
     log_workout: function (a) {
       var p = me(); if (!p) return bad('NO_PROFILE');
       if (!isMember(a.p_league)) return bad('NOT_A_MEMBER');
       var g = id(), mine = DB.members.filter(function (m) { return m.profile_id === p.id; });
-      var wall = new Date(Date.now() + tzOffsetMs(new Date()));
-      var amount = Number(a.p_amount), made = [];
+      var made = [];
       for (var i = 0; i < mine.length; i++) {
         var lg = mine[i].league_id;
-        if (wall.getUTCDay() === 0) {
-          if (a.p_key !== 'stretch') return bad('REST_DAY');
-          var todayIso = wall.toISOString().slice(0, 10);
-          if (DB.workouts.some(function (w) {
-                return w.profile_id === p.id && w.league_id === lg &&
-                  new Date(new Date(w.created_at).getTime() + tzOffsetMs(new Date(w.created_at)))
-                    .toISOString().slice(0, 10) === todayIso; })) return bad('REST_DAY_DONE');
-          amount = 1;
-        }
+        /* The leagues that will take it score it; the resting ones sit it
+           out. A raise here would cost the open leagues their entry too. */
+        if (RPC.__restBlock(p.id, lg, a.p_key)) continue;
+        var amount = Number(a.p_amount);
+        if (RPC.__restBlock(p.id, lg, 'anything')) amount = 1;   // resting: one session
         var pts = calc(a.p_key, a.p_mode, amount, a.p_bw, a.p_load);
         if (pts <= 0) return bad('Unknown exercise or unit');
         var row = { id: id(), group_id: g, league_id: lg, profile_id: p.id,
@@ -936,6 +949,11 @@
           load: a.p_load == null ? null : Number(a.p_load),
           week_start: weekStart(), created_at: new Date().toISOString() };
         DB.workouts.push(row); made.push(row);
+      }
+      /* Nothing took it, so every league is shut: now the rest day really has
+         stopped them, with the reason the league on screen gives. */
+      if (!made.length) {
+        return bad(RPC.__restBlock(p.id, a.p_league, a.p_key) || 'REST_DAY');
       }
       var here = made.filter(function (w) { return w.league_id === a.p_league; })[0] || made[0];
       return ok([{ id: here.id, group_id: g, exercise_key: here.exercise_key, mode: here.mode,

@@ -52,6 +52,10 @@ echo "· the season table"
 fresh ironseason
 psql -d ironseason -f "$HERE/season.sql" 2>&1 | clean
 
+echo "· the rest day, with more than one league"
+fresh ironrest
+psql -d ironrest -f "$HERE/restday.sql" 2>&1 | clean
+
 echo "· leaving and being removed"
 fresh ironmem
 psql -d ironmem -f "$HERE/membership.sql" 2>&1 | clean
@@ -98,6 +102,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/season-stats.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/cup.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/membership.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/rest-day.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -172,4 +177,12 @@ psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
       and p.proname in ('drop_membership','admin_memberships','admin_remove_member')) = 3
   then 'and somebody can leave a league, or be taken out of one, without losing an account'
   else 'THE MEMBERSHIP TOOLS DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select case when public.rest_day_block(
+    (select profile_id from league_members limit 1),
+    (select league_id  from league_members limit 1), 'pushups', now(), null) is not distinct from
+    public.rest_day_block(
+      (select profile_id from league_members limit 1),
+      (select league_id  from league_members limit 1), 'pushups', now(), null)
+  then 'and one league resting no longer costs somebody the leagues that are open'
+  else 'THE REST DAY SPLIT DID NOT SURVIVE' end;"
 echo "· all clear"

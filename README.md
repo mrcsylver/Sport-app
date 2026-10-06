@@ -403,6 +403,13 @@ The league runs **Monday 00:00 → Saturday 23:59**. Saturday night it closes:
 The rule is enforced by the database, not just hidden in the app, so it cannot
 be worked around.
 
+**A rest day belongs to a league, not to you.** If you are in several and one
+of them is resting, you can still log — the entry goes into the leagues that
+are open and the resting one sits it out. The log sheet names the league
+sitting out, and the toast says where the set landed ("1 of 2 leagues"). It
+only stops you when **every** league you are in is resting: then it really is
+your rest day, and one stretching session counts.
+
 ### Daily combo
 
 Score at least **10 points in different muscle groups on the same day** and a

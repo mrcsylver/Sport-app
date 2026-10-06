@@ -138,6 +138,13 @@ tableau repart à zéro chaque lundi : une mauvaise semaine est oubliée le mard
 **Jours de repos.** Le créateur de la ligue en choisit jusqu'à trois. Ce
 jour-là la ligue est fermée : seul un étirement compte, une seule fois.
 
+**Un jour de repos appartient à une ligue, pas à toi.** Si tu es dans
+plusieurs et qu'une seule se repose, tu peux quand même enregistrer : la série
+part dans les ligues ouvertes et celle qui se repose la laisse passer. La
+fiche de saisie dit laquelle se repose, et le message dit où c'est tombé
+(« 1 of 2 leagues »). Ça ne te bloque que si **toutes** tes ligues se reposent
+le même jour — là c'est vraiment ton jour de repos, et un étirement compte.
+
 **Jour de rattrapage.** Un jour par semaine, choisi par le créateur, où être
 derrière rapporte quelque chose. Tout ce que tu enregistres ce jour-là est
 multiplié selon ton retard sur le leader au moment où tu enregistres :
@@ -499,6 +506,13 @@ every Monday: a bad week is forgotten by Tuesday.
 
 **Rest days.** The person who made the league picks up to three. On those days
 the league is shut — only a stretch counts, once.
+
+**A rest day belongs to a league, not to you.** If you are in several and one
+of them is resting, you can still log: the entry goes into the leagues that
+are open and the resting one sits it out. The log sheet names the league
+sitting out and the toast says where it landed ("1 of 2 leagues"). It only
+stops you when **every** league you are in is resting — then it really is your
+rest day, and one stretching session counts.
 
 **Catch-up day.** One day a week, chosen by the league's creator, where being
 behind is worth something. Everything you log that day is multiplied by how
