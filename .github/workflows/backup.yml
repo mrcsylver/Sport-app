@@ -93,15 +93,42 @@ jobs:
               echo "::error::  ...pooler.supabase.com:5432"
               exit 1 ;;
           esac
+          # The runner ships postgresql-client-16 and Debian's /usr/bin/pg_dump
+          # is a wrapper that kept resolving to it even with 17 installed
+          # alongside -- and a pg_dump older than its server aborts rather
+          # than producing a partial dump. So pick the newest binary by path
+          # and never trust the wrapper.
+          PGDUMP=$(ls -d /usr/lib/postgresql/*/bin/pg_dump 2>/dev/null | sort -V | tail -1)
+          if [ -z "$PGDUMP" ]; then
+            echo "::error::No pg_dump found under /usr/lib/postgresql/*/bin."
+            exit 1
+          fi
+          echo "using $PGDUMP ($("$PGDUMP" --version))"
+
           STAMP=$(date -u +%Y-%m-%d)
           # --no-owner and --no-acl so the dump restores into a fresh project
           # whose roles are named differently. Schema and data together: a
           # backup you cannot restore without also finding the right schema.sql
           # is not a backup.
-          pg_dump "$DB_URL" \
+          "$PGDUMP" "$DB_URL" \
             --no-owner --no-acl \
             --schema=public --schema=auth \
             --file="ironleague-$STAMP.sql"
+
+          # A backup nobody checks is a rumour. An empty or truncated dump
+          # uploads just as happily as a good one, and you find out on the
+          # day you need it, so the run fails here instead.
+          WORKOUTS=$(grep -c '^COPY public.workouts' "ironleague-$STAMP.sql" || true)
+          ROWS=$(awk '/^COPY public.workouts /{f=1;next} f&&/^\\\.$/{exit} f{n++} END{print n+0}' \
+                 "ironleague-$STAMP.sql")
+          echo "workouts COPY blocks: $WORKOUTS · rows: $ROWS"
+          if [ "$WORKOUTS" -lt 1 ] || [ "$ROWS" -lt 1 ]; then
+            echo "::error::The dump has no workout rows in it. Not uploading a"
+            echo "::error::backup that would be useless on the day it is needed."
+            exit 1
+          fi
+          echo "- Dumped **$ROWS workouts**" >> "$GITHUB_STEP_SUMMARY"
+
           gzip -9 "ironleague-$STAMP.sql"
           ls -lh ironleague-*.sql.gz
           echo "STAMP=$STAMP" >> "$GITHUB_ENV"
