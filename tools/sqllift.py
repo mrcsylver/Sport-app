@@ -37,15 +37,21 @@ def lift(schema, kind, name):
         raise SystemExit("cannot find table %s in schema.sql" % name)
     body = one_object(m.group(0), name).replace(
         "create table public.", "create table if not exists public.", 1)
-    # the RLS lines that belong with it
-    rls = re.search(r"^alter table public\.%s enable row level security;\n"
-                    r"create policy (\w+) on public\.%s\n(.*?);$"
-                    % (re.escape(name), re.escape(name)), schema, re.S | re.M)
+    # The RLS lines that belong with it. Two separate searches, because RLS
+    # with NO policy is a real shape here, not an oversight: a table only ever
+    # read through a SECURITY DEFINER function wants the lock on and nothing
+    # opening it. Looking for the two together meant those tables arrived in a
+    # migration unlocked, and the only thing that caught it was the Supabase
+    # editor refusing to run the file.
+    if re.search(r"^alter table public\.%s enable row level security;$"
+                 % re.escape(name), schema, re.M):
+        body += "\nalter table public.%s enable row level security;" % name
+    rls = re.search(r"^create policy (\w+) on public\.%s\n(.*?);$"
+                    % re.escape(name), schema, re.S | re.M)
     if rls:
-        body += ("\nalter table public.%s enable row level security;"
-                 "\ndrop policy if exists %s on public.%s;"
+        body += ("\ndrop policy if exists %s on public.%s;"
                  "\ncreate policy %s on public.%s\n%s;"
-                 % (name, rls.group(1), name, rls.group(1), name, rls.group(2)))
+                 % (rls.group(1), name, rls.group(1), name, rls.group(2)))
     return body
 
 

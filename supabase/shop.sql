@@ -69,6 +69,7 @@ create table if not exists public.shop_items (
   created_at  timestamptz not null default now(),
   unique (kind, item)
 );
+alter table public.shop_items enable row level security;
 create unique index if not exists shop_items_kind_item
   on public.shop_items (kind, item);
 
@@ -80,6 +81,7 @@ create table if not exists public.entitlements (
   granted_at timestamptz not null default now(),
   primary key (profile_id, item_key)
 );
+alter table public.entitlements enable row level security;
 create index if not exists entitlements_profile
   on public.entitlements (profile_id);
 
