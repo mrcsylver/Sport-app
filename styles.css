@@ -527,6 +527,13 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
   color:var(--muted);position:relative;overflow:hidden}
 .av .gi{width:70%;height:70%}
 .av-emoji{font-size:17px;line-height:1}
+/* A ring is uploaded artwork laid over the rim. The circle's own border goes
+   away underneath it, or two rings read as a mistake. */
+.av-ring{border-color:transparent;background:transparent}
+.av-rimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+  pointer-events:none}
+.shop-ring{padding:7px}
+.shop-ring .av{margin:0}
 .av-fb{font:800 14px/1 var(--display);color:var(--muted)}
 .av-sm{width:22px;height:22px;border-width:1px}
 .av-sm .av-emoji{font-size:13px}
@@ -762,7 +769,13 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .shop-badge .lbadge{width:100%;height:100%}
 .shop-badge .lbadge svg{width:100%;height:100%}
 .shop-c small,.shop-b small{position:absolute;top:4px;right:5px;font:700 7px/1 var(--display);
-  letter-spacing:.08em;color:var(--green);opacity:.85}
+  letter-spacing:.08em;color:var(--green);opacity:.85;z-index:2}
+/* Not yours yet. Dimmed rather than hidden, because a shop you cannot see
+   into sells nothing — and the price is the label, in gold, not a padlock. */
+.shop-c small.locked,.shop-b small.locked{color:var(--gold);opacity:1;
+  background:rgba(0,0,0,.55);border-radius:3px;padding:2px 4px}
+.shop-c.locked,.shop-b.locked{opacity:.45}
+.shop-c.locked .gi,.shop-c.locked .lbadge{filter:grayscale(1)}
 .shop-b{position:relative;height:60px;border-radius:5px;border:1px solid var(--line);
   display:flex;align-items:flex-end;padding:8px 10px;cursor:pointer;overflow:hidden}
 .shop-b span{font:800 12px/1 var(--display);letter-spacing:.1em;font-style:italic;

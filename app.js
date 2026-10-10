@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.24.0';
+  var APP_VERSION = '2.25.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -466,8 +466,21 @@
     } else {
       inner = '<span class="av-fb">' + esc((opts.name || '?').slice(0, 1)) + '</span>';
     }
-    /* Emblem and animal together: the emoji rides as a small pin on the rim. */
-    return '<span class="' + cls + '"' + style + '>' + inner + '</span>';
+    /* A ring, when somebody is wearing one: uploaded artwork laid over the
+       rim, which is the one place in this app where a moving design is worth
+       its bytes. It is drawn last so it sits above the mark. */
+    var ring = opts.frame && frameArt(opts.frame);
+    if (ring) cls += ' av-ring';
+    return '<span class="' + cls + '"' + style + '>' + inner +
+      (ring ? '<img class="av-rimg" src="' + esc(ring) + '" alt="" ' +
+              'loading="lazy" decoding="async">' : '') + '</span>';
+  }
+
+  /* The file a ring key points at. Unknown keys draw nothing rather than a
+     broken image: a ring retired from the shelf is still on somebody. */
+  function frameArt(key) {
+    var it = shopItem('frame', key);
+    return it ? assetUrl(it.asset_path) : '';
   }
 
   /* Plain-text avatar for the few places that are one line of text. */
@@ -952,6 +965,13 @@
     // the budget BEFORE a set is committed. A discount discovered afterwards
     // reads as a broken app; one shown up front reads as the rule it is.
     weekEx: {},
+    // The shop catalogue, straight from the server, with `owned` worked out
+    // per caller. Loaded once the app is up and re-read after anything that
+    // could change what you own.
+    shop: [],
+    // profile id -> ring key, for the league being shown. Its own small call
+    // rather than a column on seven functions that already return an avatar.
+    frames: {},
     session: [],       // items logged inside the currently open modal
     pendingCode: null,
     view: 'live',
@@ -1294,6 +1314,9 @@
     buildPointsTable();
     buildComboRules();
     loadRestState();
+    /* The catalogue before anything draws an avatar: a ring is looked up in
+       it, so loading it afterwards means one frame of ringless boards. */
+    await loadShop();
 
     if (!state.leagues.length) { renderMe(); switchView('me'); tick(); return; }
 
@@ -1380,7 +1403,7 @@
     /* allSettled, not all: one widget failing must never blank the table,
        which is the only thing on this screen that really matters. */
     var jobs = [loadBoard(), loadHistory(), loadCombo(), loadBounty(),
-                loadStreaks(), loadRaid(), loadWeekEx()];
+                loadStreaks(), loadRaid(), loadWeekEx(), loadFrames()];
     var res = await Promise.allSettled(jobs);
     res.forEach(function (x) {
       if (x.status === 'rejected' && window.console) console.error('widget failed', x.reason);
@@ -1409,6 +1432,56 @@
     if (r.error) { toast(niceError(r.error), true); return; }
     state.board = r.data || [];
     renderBoard();
+  }
+
+  /* Who in this league is wearing a ring. Only people actually wearing one
+     come back, so this is usually an empty array and never a large one. */
+  async function loadFrames() {
+    if (!state.leagueId) return;
+    var r = await sb.rpc('league_frames', { p_league: state.leagueId });
+    if (r.error) return;                       /* a ring is decoration */
+    var by = {};
+    (r.data || []).forEach(function (x) { by[x.profile_id] = x.frame; });
+    state.frames = by;
+    renderBoard();
+  }
+
+  /* ---- the shop catalogue ----------------------------------------------
+     What exists, what it costs and what is already yours. The server is the
+     authority on that last part: `owned` is computed per caller, and the
+     setters refuse anything this list says is not yours, so a locked tile is
+     a locked item and not a hidden one. */
+  async function loadShop() {
+    var r = await sb.rpc('shop_catalogue');
+    if (r.error) return;
+    state.shop = r.data || [];
+  }
+  function shopOf(kind) {
+    return state.shop.filter(function (i) { return i.kind === kind; });
+  }
+  function shopItem(kind, item) {
+    for (var i = 0; i < state.shop.length; i++) {
+      if (state.shop[i].kind === kind && state.shop[i].item === item) return state.shop[i];
+    }
+    return null;
+  }
+  /* A file in the designs bucket, as a URL. Public on purpose: the artwork is
+     cosmetic and goes through the CDN, which is the only way the bandwidth
+     works on a free project. */
+  function assetUrl(path) {
+    if (!path) return '';
+    var base = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_URL) || '';
+    return base.replace(/\/$/, '') + '/storage/v1/object/public/' + path;
+  }
+  /* The still, when there is one. A shelf of twenty animations pulls twenty
+     animations; a shelf of twenty stills pulls twenty small images. */
+  function thumbUrl(it) {
+    return assetUrl(it.thumb_path || it.asset_path);
+  }
+  function priceTag(it) {
+    if (it.owned) return it.price_cents ? 'YOURS' : 'FREE';
+    var cur = (window.APP_CONFIG && window.APP_CONFIG.CURRENCY) || '\u20ac';
+    return cur + (it.price_cents / 100).toFixed(2);
   }
 
   function ranked(rows) {
@@ -1461,7 +1534,8 @@
            '" data-id="' + p.profile_id + '">' +
       '<button class="rowbtn" type="button" data-toggle="' + p.profile_id + '">' +
         '<span class="rank">' + (rank && pts > 0 ? rank : '–') + '</span>' +
-        avatarHtml(p.avatar, { name: p.display_name, tier: tierKey }) +
+        avatarHtml(p.avatar, { name: p.display_name, tier: tierKey,
+                               frame: state.frames[p.profile_id] }) +
         '<span class="who"><span class="nm"' +
           (nameColor(p.name_color) ? ' style="color:' + nameColor(p.name_color) + '"' : '') +
           '>' + esc(p.display_name) +
@@ -3020,7 +3094,8 @@
 
   function paintAvatarPreview() {
     var a = myAvatar();
-    $('#avPreview').innerHTML = avatarHtml(buildAvatar(a), { size: 'lg' });
+    $('#avPreview').innerHTML = avatarHtml(buildAvatar(a), { size: 'lg',
+      frame: state.profile && state.profile.frame });
   }
 
   function markAvatarSelection() {
@@ -3223,71 +3298,168 @@
     } catch (err) { toast(niceError(err), true); }
   }
 
+  /* Every shelf is drawn from shop_catalogue(), not from the client's own
+     arrays, because the server is the authority on what is yours. A locked
+     tile is a locked item: the setters refuse it, so this is the label on a
+     rule and not the rule itself. */
   function buildShop() {
     var l = league();
     var cur = badgeOf(l);
-    $('#shopCrests').innerHTML = GI_CRESTS.map(function (n) {
-      return '<button type="button" class="shop-c' + (n === cur.emblem ? ' on' : '') +
-             '" data-crest="' + n + '" aria-label="' + esc(n.replace(/-/g, ' ')) + '">' +
-             iconSvg(n) + '<small>FREE</small></button>';
+    var mine = state.profile || {};
+
+    /* The header tag told everybody everything was free. It is now read off
+       the catalogue, so the day something is priced the label stops lying. */
+    var paid = state.shop.filter(function (i) { return i.price_cents; }).length;
+    $('#shopTag').textContent = paid ? 'ARMOURY' : 'ALL FREE';
+    $('#shopIntro').textContent = paid
+      ? 'Anything without a price is yours straight away.'
+      : 'Pick anything here and it is yours straight away. Nothing is paid for yet.';
+
+    /* A tile that is not yours yet: dimmed, priced, and it says so when
+       tapped instead of making a round trip the server would refuse. */
+    function tag(it) {
+      return '<small class="' + (it.owned ? '' : 'locked') + '">' +
+             esc(priceTag(it)) + '</small>';
+    }
+    function cls(base, it, on) {
+      return base + (on ? ' on' : '') + (it.owned ? '' : ' locked');
+    }
+
+    /* An uploaded mark is an <img>, never inlined. Inline SVG can carry
+       script; an <img> cannot run anything whatever the file turns out to be,
+       which is why the bucket takes PNG and WebP and the app draws them this
+       way. */
+    function mark(it) {
+      return it.asset_path
+        ? '<img class="gi" src="' + esc(thumbUrl(it)) + '" alt="" ' +
+          'loading="lazy" decoding="async">'
+        : iconSvg(it.item);
+    }
+
+    $('#shopCrests').innerHTML = shopOf('crest').map(function (it) {
+      return '<button type="button" class="' +
+             cls('shop-c', it, it.item === cur.emblem) +
+             '" data-kind="crest" data-crest="' + esc(it.item) + '" ' +
+             'aria-label="' + esc(it.name) + '">' + mark(it) + tag(it) + '</button>';
     }).join('');
 
-    /* Shape and colour were the two CHANGE buttons that never did anything.
-       They are drawn as the badge you would actually get, not named in a
-       dropdown, because nobody knows what a "heater" is. */
-    $('#shopShapes').innerHTML = BADGE_SHAPES.map(function (k) {
-      return '<button type="button" class="shop-c shop-badge' +
-             (k === cur.shape ? ' on' : '') + '" data-cshape="' + k + '" ' +
-             'aria-label="' + esc(k) + ' shape">' +
-             badgeHtml({ shape: k, color: cur.color, emblem: cur.emblem }, 'md') +
-             '</button>';
+    /* Shape and colour are drawn as the badge you would actually get, not
+       named in a dropdown, because nobody knows what a "heater" is. */
+    $('#shopShapes').innerHTML = shopOf('shape').map(function (it) {
+      return '<button type="button" class="' +
+             cls('shop-c shop-badge', it, it.item === cur.shape) +
+             '" data-kind="shape" data-cshape="' + esc(it.item) + '" ' +
+             'aria-label="' + esc(it.name) + ' shape">' +
+             badgeHtml({ shape: it.item, color: cur.color, emblem: cur.emblem }, 'md') +
+             (it.owned ? '' : tag(it)) + '</button>';
     }).join('');
-    $('#shopMetals').innerHTML = BADGE_COLORS.map(function (c) {
-      return '<button type="button" class="shop-c shop-badge' +
-             (c.key === cur.color ? ' on' : '') + '" data-cmetal="' + c.key + '" ' +
-             'aria-label="' + esc(c.key) + '">' +
-             badgeHtml({ shape: cur.shape, color: c.key, emblem: cur.emblem }, 'md') +
-             '</button>';
+    $('#shopMetals').innerHTML = shopOf('metal').map(function (it) {
+      return '<button type="button" class="' +
+             cls('shop-c shop-badge', it, it.item === cur.color) +
+             '" data-kind="metal" data-cmetal="' + esc(it.item) + '" ' +
+             'aria-label="' + esc(it.name) + '">' +
+             badgeHtml({ shape: cur.shape, color: it.item, emblem: cur.emblem }, 'md') +
+             (it.owned ? '' : tag(it)) + '</button>';
     }).join('');
-    function skins(target, cls, set, chosen) {
-      $(target).innerHTML = set.map(function (b) {
-        return '<button type="button" class="' + cls + ' skin sk-' + b.key +
-               (b.key === chosen ? ' on' : '') +
-               '" data-skin="' + b.key + '"><span>' + b.name + '</span>' +
-               '<small>FREE</small></button>';
+
+    /* A shipped banner is CSS and costs nothing to download. An uploaded one
+       is a picture, so the shelf shows its still: twenty animations opening
+       at once is the difference between a shop and a bandwidth bill. */
+    function skins(target, klass, kind, chosen) {
+      $(target).innerHTML = shopOf(kind).map(function (it) {
+        var art = it.asset_path
+          ? ' style="background-image:url(' + esc(thumbUrl(it)) +
+            ');background-size:cover;background-position:center"'
+          : '';
+        return '<button type="button" class="' +
+               cls(klass + ' skin' + (it.asset_path ? '' : ' sk-' + it.item),
+                   it, it.item === chosen) +
+               '" data-kind="' + kind + '" data-skin="' + esc(it.item) + '"' + art +
+               '><span>' + esc(it.name) + '</span>' + tag(it) + '</button>';
       }).join('');
     }
-    skins('#shopBanners', 'shop-b', LEAGUE_SKINS, l && l.badge && l.badge.skin);
-    skins('#shopPlayer', 'shop-b shop-b-sm', PLAYER_SKINS,
-          state.profile && state.profile.banner);
+    skins('#shopBanners', 'shop-b', 'league_banner', l && l.badge && l.badge.skin);
+    skins('#shopPlayer', 'shop-b shop-b-sm', 'player_banner', mine.banner);
+
+    /* Rings. The only slot that is uploaded artwork rather than CSS, and the
+       only one that shows on every row of the board rather than on a card you
+       have to open. There are none until somebody uploads one. */
+    var rings = shopOf('frame');
+    $('#shopRingsWrap').hidden = !rings.length;
+    $('#shopRings').innerHTML = rings.map(function (it) {
+      return '<button type="button" class="' +
+             cls('shop-c shop-ring', it, it.item === mine.frame) +
+             '" data-kind="frame" data-ring="' + esc(it.item) + '" ' +
+             'aria-label="' + esc(it.name) + '">' +
+             '<span class="av av-lg">' +
+               avatarInner(mine.avatar, mine.display_name) +
+               '<img class="av-rimg" src="' + esc(thumbUrl(it)) + '" alt="" ' +
+               'loading="lazy" decoding="async"></span>' +
+             tag(it) + '</button>';
+    }).join('');
+    $('#shopRingOff').hidden = !rings.length || !mine.frame;
+  }
+
+  /* The inside of an avatar, without the circle around it, so a ring tile can
+     draw your own face in the middle of the ring it is selling. */
+  function avatarInner(spec, name) {
+    var a = parseAvatar(spec);
+    if (a.icon) return iconSvg(a.icon) || '<span class="av-fb">?</span>';
+    if (a.emoji) return '<span class="av-emoji">' + esc(a.emoji) + '</span>';
+    return '<span class="av-fb">' + esc((name || '?').slice(0, 1)) + '</span>';
+  }
+
+  /* One handler for every shelf. It checks `owned` first so a locked tile
+     explains itself instead of making a round trip the server refuses. */
+  function shelfPick(e, attr, apply) {
+    var b = e.target.closest('[' + attr + ']');
+    if (!b) return;
+    var it = shopItem(b.getAttribute('data-kind'), b.getAttribute(attr));
+    if (it && !it.owned) {
+      toast(it.name + ' is not yours yet — ' + priceTag(it), true);
+      return;
+    }
+    apply(b.getAttribute(attr));
   }
 
   $('#shopCrests').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-crest]'); if (!b) return;
-    saveBadge({ emblem: b.getAttribute('data-crest') });
+    shelfPick(e, 'data-crest', function (v) { saveBadge({ emblem: v }); });
   });
   $('#shopShapes').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-cshape]'); if (!b) return;
-    saveBadge({ shape: b.getAttribute('data-cshape') });
+    shelfPick(e, 'data-cshape', function (v) { saveBadge({ shape: v }); });
   });
   $('#shopMetals').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-cmetal]'); if (!b) return;
-    saveBadge({ color: b.getAttribute('data-cmetal') });
+    shelfPick(e, 'data-cmetal', function (v) { saveBadge({ color: v }); });
   });
   $('#shopBanners').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-skin]'); if (!b) return;
-    saveBadge({ skin: b.getAttribute('data-skin') });
+    shelfPick(e, 'data-skin', function (v) { saveBadge({ skin: v }); });
   });
+  $('#shopRings').addEventListener('click', function (e) {
+    shelfPick(e, 'data-ring', function (v) { saveFrame(v); });
+  });
+  $('#shopRingOff').addEventListener('click', function () { saveFrame(''); });
 
-  $('#shopPlayer').addEventListener('click', async function (e) {
-    var b = e.target.closest('[data-skin]'); if (!b) return;
+  async function saveFrame(key) {
     try {
-      var r = await sb.rpc('set_banner', { p_banner: b.getAttribute('data-skin') });
+      var r = await sb.rpc('set_frame', { p_frame: key });
       if (r.error) throw r.error;
       state.profile = r.data;
-      buildShop(); await refreshAll();
-      toast('Your banner is set');
+      buildShop(); paintAvatarPreview();
+      await refreshAll();
+      toast(key ? 'Ring on' : 'Ring off');
     } catch (err) { toast(niceError(err), true); }
+  }
+
+  $('#shopPlayer').addEventListener('click', function (e) {
+    shelfPick(e, 'data-skin', async function (key) {
+      try {
+        var r = await sb.rpc('set_banner', { p_banner: key });
+        if (r.error) throw r.error;
+        state.profile = r.data;
+        buildShop(); await refreshAll();
+        toast('Your banner is set');
+      } catch (err) { toast(niceError(err), true); }
+    });
   });
 
   /* Kilos or pounds. Storage is always kilos; this only changes what is typed

@@ -433,6 +433,12 @@ struct BannerSkin: View {
 struct SkinSwatch: View {
     let skin: Skin
     var selected: Bool
+    /// A shipped banner is drawn and costs nothing to download. An uploaded
+    /// one is a picture, so the shelf shows its still — twenty animations
+    /// opening at once is the difference between a shop and a bandwidth bill.
+    var art: URL? = nil
+    /// The price, when it is not yours yet. Nil means it is.
+    var price: String? = nil
     var action: () -> Void
 
     var body: some View {
@@ -441,8 +447,14 @@ struct SkinSwatch: View {
             action()
         } label: {
             ZStack(alignment: .bottomLeading) {
-                BannerSkin(key: skin.key)
-                    .frame(height: 56)
+                if let art {
+                    AsyncImage(url: art) { $0.resizable().scaledToFill() }
+                        placeholder: { Theme.raised }
+                        .frame(height: 56).clipped()
+                } else {
+                    BannerSkin(key: skin.key)
+                        .frame(height: 56)
+                }
                 LinearGradient(colors: [.black.opacity(skin.light ? 0 : 0.5), .clear],
                                startPoint: .bottom, endPoint: .top)
                 Text(skin.name)
@@ -458,13 +470,23 @@ struct SkinSwatch: View {
                                   lineWidth: selected ? 2 : 1)
             }
             .overlay(alignment: .topTrailing) {
-                if selected {
+                if let price {
+                    // Dimmed rather than hidden, because a shop you cannot
+                    // see into sells nothing — and the price is the label.
+                    Text(price)
+                        .font(Theme.display(9, .heavy)).kerning(0.6)
+                        .foregroundStyle(Theme.gold)
+                        .padding(.horizontal, 5).padding(.vertical, 3)
+                        .background(Capsule().fill(Color.black.opacity(0.55)))
+                        .padding(5)
+                } else if selected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 15))
                         .foregroundStyle(Theme.flame)
                         .padding(5)
                 }
             }
+            .opacity(price == nil ? 1 : 0.45)
         }
         .buttonStyle(.plain)
         .pressable()

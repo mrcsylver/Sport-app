@@ -18,6 +18,9 @@ struct Profile: Codable, Identifiable, Hashable {
     /// deleted; the profile simply does not count against the cap and cannot
     /// be used until a seat frees up.
     var dormantAt: Date?
+    /// A ring drawn around the avatar, on every row of every board. The one
+    /// cosmetic slot that is uploaded artwork rather than something drawn.
+    var frame: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,6 +32,7 @@ struct Profile: Codable, Identifiable, Hashable {
         case pinnedBadges = "pinned_badges"
         case isAdmin = "is_admin"
         case dormantAt = "dormant_at"
+        case frame
     }
 
     var isParked: Bool { dormantAt != nil }
@@ -587,5 +591,57 @@ struct SignupState: Codable {
     enum CodingKeys: String, CodingKey {
         case cap, used
         case isFull = "is_full"
+    }
+}
+
+/// One thing on a shelf. `owned` is worked out by the server per caller, so
+/// the client never reasons about entitlements itself — and the setters
+/// refuse anything this says is not yours, which makes a locked tile the
+/// label on a rule rather than the rule.
+struct ShopItem: Codable, Identifiable, Hashable {
+    let key: String
+    let kind: String
+    let item: String
+    let name: String
+    var priceCents: Int?
+    var assetPath: String?
+    var assetKind: String?
+    var thumbPath: String?
+    var animated: Bool
+    var sort: Int
+    var owned: Bool
+
+    var id: String { key }
+
+    enum CodingKeys: String, CodingKey {
+        case key, kind, item, name, animated, sort, owned
+        case priceCents = "price_cents"
+        case assetPath = "asset_path"
+        case assetKind = "asset_kind"
+        case thumbPath = "thumb_path"
+    }
+
+    /// A file in the designs bucket, as a URL. Public on purpose: the artwork
+    /// is cosmetic and goes through the CDN, which is the only way the
+    /// bandwidth works on a free project.
+    static func assetURL(_ path: String?) -> URL? {
+        guard let path, !path.isEmpty else { return nil }
+        return URL(string: Config.supabaseURL.absoluteString
+                   + "/storage/v1/object/public/" + path)
+    }
+    /// The still, when there is one. A shelf of twenty animations pulls
+    /// twenty animations; a shelf of twenty stills pulls twenty small images.
+    var thumbURL: URL? { ShopItem.assetURL(thumbPath ?? assetPath) }
+    var artURL: URL? { ShopItem.assetURL(assetPath) }
+}
+
+/// Who in a league is wearing a ring.
+struct FrameRow: Codable {
+    let profileId: UUID
+    let frame: String
+
+    enum CodingKeys: String, CodingKey {
+        case profileId = "profile_id"
+        case frame
     }
 }

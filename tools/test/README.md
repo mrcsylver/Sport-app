@@ -1,11 +1,11 @@
 # The browser tests
 
-Twenty-one Playwright runs against the real `index.html` and `admin.html`, with
+Twenty-two Playwright runs against the real `index.html` and `admin.html`, with
 Supabase replaced by `mock-supabase.js` — a hand-written stand-in that keeps a
 database in `localStorage` and answers the same RPCs the server does.
 
 ```bash
-node tools/test/run.js        # …through run21.js
+node tools/test/run.js        # …through run22.js
 ```
 
 Each file prints a list of PASS/FAIL lines, reports any JavaScript error the
@@ -41,6 +41,7 @@ them somewhere else.
 | `run19.js` | leaving a league, having none at all, and finding restore on the login screen |
 | `run20.js` | a rest day in one league while another is open |
 | `run21.js` | the seat cap: the full door, a parked seat, and getting back in |
+| `run22.js` | the armoury: locked tiles, a granted item, rings, uploads |
 
 ## Before a release
 

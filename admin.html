@@ -116,6 +116,75 @@
       bounty bonuses the board adds. The two are meant to differ.</p>
     <input id="search" placeholder="Search a name…" style="margin-bottom:10px">
     <div class="scroll"><table id="players"></table></div>
+    <h2>Designs</h2>
+    <p class="dim">Upload artwork and it appears in the app's armoury. Four slots take a
+      picture: an <b>avatar ring</b>, a <b>player banner</b>, a <b>league banner</b> and a
+      <b>crest mark</b>. Everything else in the shop is drawn in CSS and costs nobody a
+      download.</p>
+
+    <div class="card">
+      <h3 style="margin-top:0">What the bucket accepts</h3>
+      <div class="scroll">
+        <table>
+          <tr><th>Slot</th><th>Size</th><th>Keep it under</th><th>Why</th></tr>
+          <tr><td class="name">Avatar ring</td><td>512 × 512</td><td>60 KB still ·
+            250 KB animated</td>
+            <td class="dim">Drawn at 30px on a board row. It appears once per player per
+              row, so this is the one that multiplies.</td></tr>
+          <tr><td class="name">Player banner</td><td>1200 × 400</td><td>120 KB still ·
+            400 KB animated</td>
+            <td class="dim">Sits behind a name. The middle third is covered by text, so
+              put the detail at the edges.</td></tr>
+          <tr><td class="name">League banner</td><td>1600 × 500</td><td>160 KB still ·
+            500 KB animated</td>
+            <td class="dim">Wider because it spans the header as well as a card.</td></tr>
+          <tr><td class="name">Crest mark</td><td>512 × 512</td><td>60 KB</td>
+            <td class="dim">One shape on transparency. Still only — a crest sits inside a
+              moving banner already.</td></tr>
+        </table>
+      </div>
+      <p class="dim" style="margin-bottom:0">
+        <b>Formats: PNG, WebP, or Lottie JSON.</b> Animation means
+        <b>animated WebP</b> — a quarter the size of a GIF at better quality, with real
+        transparency. APNG works but is three to four times the bytes. <b>No SVG</b>:
+        an SVG can carry script, and this app inlines emblem artwork, so the bucket
+        refuses them. <b>No GIF, no MP4, no JPEG</b> (no transparency, and iOS will not
+        autoplay video inline without a fight). Keep animation to <b>3 seconds and under
+        24 fps</b>, and loop it seamlessly — it plays forever next to somebody's name.
+        A hard ceiling of 2 MB per file is enforced by the bucket itself; the numbers
+        above are what keeps the monthly bandwidth sane.</p>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin-top:0">Upload one</h3>
+      <div class="grid2">
+        <label>Slot<select id="dKind">
+          <option value="frame">Avatar ring</option>
+          <option value="player_banner">Player banner</option>
+          <option value="league_banner">League banner</option>
+          <option value="crest">Crest mark</option>
+        </select></label>
+        <label>Shown as<input id="dName" maxlength="24" placeholder="GOLD PULSE"></label>
+        <label>Short name<input id="dSlug" maxlength="38" placeholder="gold-pulse"></label>
+        <label>Price in cents — empty is free<input id="dPrice" type="number" min="1"
+          placeholder="free"></label>
+        <label style="grid-column:1/-1">The design
+          <input id="dFile" type="file" accept="image/png,image/webp,application/json"></label>
+        <label style="grid-column:1/-1">A still for the shelf — only needed if the design
+          moves
+          <input id="dThumb" type="file" accept="image/png,image/webp"></label>
+      </div>
+      <p class="dim">The short name is what gets stored on a profile: lower-case letters,
+        numbers and dashes. Uploading again under the same short name replaces the
+        artwork and leaves everybody wearing it alone.</p>
+      <span class="row">
+        <button class="primary" id="dUpload">UPLOAD</button>
+        <span class="dim" id="dState"></span>
+      </span>
+    </div>
+
+    <div class="scroll" style="margin-top:12px"><table id="designs"></table></div>
+
     <h2>Bounties</h2>
     <p class="dim">One quest runs each week, the same one for every league. Which one is
       normally drawn from the pool by a shuffle that reseeds every year — pin a week to
@@ -170,6 +239,19 @@
   var memberships = [];      // who is in what, for the per-league kick
   var openPlayer = null;     // whose league list is expanded
   var overview = null;       // the cap, what is used, how many are parked
+  var designs = [];          // the shop catalogue, uploaded rows and all
+
+  /* The slots that take a picture, and what to hold them to. The numbers are
+     bandwidth, not taste: a ring appears once per player per board row, so it
+     is the one that multiplies, and a free Supabase project has 5 GB of
+     egress a month to spend. */
+  var SLOTS = {
+    frame:          { label: 'Avatar ring',   kb: 60,  animKb: 250 },
+    player_banner:  { label: 'Player banner', kb: 120, animKb: 400 },
+    league_banner:  { label: 'League banner', kb: 160, animKb: 500 },
+    crest:          { label: 'Crest mark',    kb: 60,  animKb: 0 }
+  };
+  var OK_TYPES = ['image/png', 'image/webp', 'application/json'];
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -254,7 +336,156 @@
     var ex = await sb.rpc('bounty_exercises');
     exercises = ex.data || [];
     paintExercisePicker();
+    await loadDesigns();
     await loadBounties();
+  }
+
+  /* ---- designs --------------------------------------------------------
+     The catalogue is 198 rows of CSS cosmetics plus whatever has been
+     uploaded, and only the uploaded ones are manageable here: the others are
+     code and cannot be retired without the app losing a look it draws. */
+  async function loadDesigns() {
+    var r = await sb.rpc('admin_shop_items');
+    designs = r.error ? [] : (r.data || []).filter(function (i) { return i.asset_path; });
+    paintDesigns();
+  }
+
+  function assetUrl(path) {
+    return String(CFG.SUPABASE_URL || '').replace(/\/$/, '') +
+           '/storage/v1/object/public/' + path;
+  }
+
+  function paintDesigns() {
+    if (!designs.length) {
+      $('#designs').innerHTML =
+        '<tr><td class="dim">Nothing uploaded yet. The armoury is running on the ' +
+        '198 looks drawn in CSS.</td></tr>';
+      return;
+    }
+    $('#designs').innerHTML =
+      '<tr><th></th><th>Design</th><th>Slot</th><th>Short name</th><th>Price</th>' +
+      '<th>Owned by</th><th></th></tr>' +
+      designs.map(function (i) {
+        var slot = (SLOTS[i.kind] || {}).label || i.kind;
+        return '<tr' + (i.retired_at ? ' style="opacity:.45"' : '') + '>' +
+          '<td><img src="' + esc(assetUrl(i.thumb_path || i.asset_path)) + '" alt="" ' +
+            'style="width:42px;height:42px;object-fit:contain;' +
+            'background:var(--panel2);border-radius:4px"></td>' +
+          '<td class="name">' + esc(i.name) +
+            (i.animated ? '<span class="tag">MOVES</span>' : '') +
+            (i.retired_at ? '<span class="tag">OFF THE SHELF</span>' : '') + '</td>' +
+          '<td class="dim">' + esc(slot) + '</td>' +
+          '<td class="dim" style="font-family:ui-monospace,monospace">' +
+            esc(i.item) + '</td>' +
+          '<td>' + (i.price_cents
+            ? ((CFG.CURRENCY || '\u20ac') + (i.price_cents / 100).toFixed(2))
+            : '<span class="ok">free</span>') + '</td>' +
+          '<td class="dim">' + (i.price_cents ? i.owned_by : '—') + '</td>' +
+          '<td><button class="' + (i.retired_at ? '' : 'danger') +
+            '" data-retire="' + esc(i.key) + '" data-to="' +
+            (i.retired_at ? '0' : '1') + '" data-n="' + esc(i.name) + '">' +
+            (i.retired_at ? 'Put back' : 'Retire') + '</button></td></tr>';
+      }).join('');
+  }
+
+  /* What is wrong with this file, in a sentence, or null. Checked here as
+     well as in the bucket because "it failed" after a 400 KB upload is a
+     worse answer than "that is a GIF" before one. */
+  function fileProblem(f, kind, isThumb) {
+    var slot = SLOTS[kind] || { kb: 120, animKb: 400, label: kind };
+    if (OK_TYPES.indexOf(f.type) < 0) {
+      return f.type === 'image/svg+xml'
+        ? 'SVG is not accepted: it can carry script, and this app inlines emblem ' +
+          'artwork. Export it as a PNG or a WebP.'
+        : (f.type || 'that file type') + ' is not accepted. PNG, WebP or Lottie JSON.';
+    }
+    if (f.size > 2 * 1024 * 1024) {
+      return 'The bucket will refuse anything over 2 MB. That one is ' +
+             Math.round(f.size / 1024) + ' KB.';
+    }
+    var kb = Math.round(f.size / 1024);
+    var limit = isThumb ? slot.kb
+      : (slot.animKb ? Math.max(slot.kb, slot.animKb) : slot.kb);
+    if (kb > limit) {
+      var art = /^[aeiou]/i.test(slot.label) ? 'An ' : 'A ';
+      return art + slot.label.toLowerCase() + ' should stay under ' + limit +
+             ' KB; that one is ' + kb + ' KB. It will still upload — the bucket ' +
+             'allows it — but it is bandwidth on every board that draws it.';
+    }
+    return null;
+  }
+
+  function extOf(f) {
+    return f.type === 'application/json' ? 'json'
+         : f.type === 'image/webp' ? 'webp' : 'png';
+  }
+
+  /* The path carries a timestamp so a re-upload is a new URL. Storage serves
+     its own cache headers and a browser that already has `gold-pulse.webp`
+     would keep showing the old artwork for an hour otherwise. */
+  async function putFile(f, kind, slug, suffix) {
+    var path = kind + '/' + slug + suffix + '-' + Date.now() + '.' + extOf(f);
+    var up = await sb.storage.from('designs').upload(path, f, {
+      contentType: f.type, cacheControl: '31536000', upsert: false
+    });
+    if (up.error) throw up.error;
+    return 'designs/' + path;
+  }
+
+  /* Typing a label is the common case; the short name is a chore, so it is
+     offered from the label until somebody edits it themselves. */
+  var slugTouched = false;
+  document.addEventListener('input', function (e) {
+    if (e.target.id === 'dSlug') { slugTouched = true; return; }
+    if (e.target.id === 'dName' && !slugTouched) {
+      $('#dSlug').value = ($('#dName').value || '').toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 38);
+    }
+  });
+
+  window.__fileProblem__ = fileProblem;   // reachable from a test
+
+  async function uploadDesign() {
+    var kind = $('#dKind').value;
+    var slug = ($('#dSlug').value || '').trim().toLowerCase();
+    var name = ($('#dName').value || '').trim();
+    var raw = ($('#dPrice').value || '').trim();
+    var f = ($('#dFile').files || [])[0];
+    var t = ($('#dThumb').files || [])[0];
+    var st = $('#dState');
+    st.textContent = ''; $('#err').textContent = '';
+
+    if (!f) { st.textContent = 'Pick a file first.'; return; }
+    if (!name) { st.textContent = 'Give it a name people will read.'; return; }
+    if (!/^[a-z0-9][a-z0-9-]{1,38}$/.test(slug)) {
+      st.textContent = 'The short name takes lower-case letters, numbers and dashes.';
+      return;
+    }
+    var bad = fileProblem(f, kind, false) || (t && fileProblem(t, kind, true));
+    if (bad && !confirm(bad + '\n\nUpload it anyway?')) return;
+
+    st.textContent = 'Uploading…';
+    try {
+      var asset = await putFile(f, kind, slug, '');
+      var thumb = t ? await putFile(t, kind, slug, '-still') : null;
+      var r = await sb.rpc('admin_save_shop_item', {
+        p_kind: kind, p_item: slug, p_name: name,
+        p_asset_path: asset, p_asset_kind: extOf(f) === 'json' ? 'lottie' : extOf(f),
+        p_thumb_path: thumb, p_animated: !!t,
+        p_price_cents: raw === '' ? null : Number(raw), p_sort: 0
+      });
+      if (r.error) throw r.error;
+      st.textContent = name + ' is on the shelf.';
+      $('#dFile').value = ''; $('#dThumb').value = '';
+      $('#dName').value = ''; $('#dSlug').value = ''; $('#dPrice').value = '';
+      await loadDesigns();
+    } catch (e) {
+      st.textContent = '';
+      $('#err').textContent = /row-level security|not authoriz/i.test(e.message || '')
+        ? 'Storage refused the upload. Run supabase/shop.sql — it creates the designs ' +
+          'bucket and the admin-only write rule.'
+        : (e.message || String(e));
+    }
   }
 
   /* ---- bounties -------------------------------------------------------
@@ -461,6 +692,22 @@
                             { p_idx: Number(db.getAttribute('data-db')) });
       if (rd.error) { $('#err').textContent = rd.error.message; return; }
       await loadBounties();
+      return;
+    }
+
+    var up = e.target.closest('#dUpload');
+    if (up) { await uploadDesign(); return; }
+
+    var ret = e.target.closest('[data-retire]');
+    if (ret) {
+      var off = ret.getAttribute('data-to') === '1';
+      if (off && !confirm('Take "' + ret.getAttribute('data-n') + '" off the shelf?\n\n' +
+            'Nobody loses it. Anybody wearing it keeps wearing it; it just cannot ' +
+            'be newly chosen. Put it back any time.')) return;
+      var rr = await sb.rpc('admin_retire_shop_item',
+                            { p_key: ret.getAttribute('data-retire'), p_retired: off });
+      if (rr.error) { $('#err').textContent = rr.error.message; return; }
+      await loadDesigns();
       return;
     }
 

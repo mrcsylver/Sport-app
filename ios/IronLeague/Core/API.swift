@@ -75,6 +75,28 @@ actor API {
     func wakeMe() async throws -> Profile {
         try await rpc("wake_me")
     }
+
+    // MARK: - The shop
+
+    /// The shelf. One row per item on sale, with `owned` worked out per
+    /// caller so the client never reasons about entitlements itself.
+    func shopCatalogue() async throws -> [ShopItem] {
+        try await rpc("shop_catalogue")
+    }
+
+    /// The avatar ring. Its own setter rather than a field on setAvatar,
+    /// because the ring and the mark inside it are bought separately.
+    func setFrame(_ key: String) async throws -> Profile {
+        try await rpc("set_frame", ["p_frame": .string(key)])
+    }
+
+    /// Who in this league is wearing one. A separate call rather than a
+    /// column on the seven functions that already return an avatar: widening
+    /// a return type means dropping it first, and seven drops to carry one
+    /// short text column is the wrong trade.
+    func leagueFrames(_ league: UUID) async throws -> [FrameRow] {
+        try await rpc("league_frames", ["p_league": .string(league.uuidString)])
+    }
     func renameProfile(_ name: String) async throws -> Profile {
         try await rpc("rename_profile", ["p_name": .string(name)])
     }
@@ -306,6 +328,7 @@ enum Friendly {
             "WEEK_CLOSED": "That week is finished and cannot be edited.",
             "LEAGUE_FULL": "That league is full.",
             "APP_FULL": "Iron League is at capacity right now. Nothing of yours is lost — try again in a day or two, or ask for a seat.",
+            "LOCKED_ITEM": "That one is not yours yet.",
             "NOT_A_MEMBER": "You are not in that league.",
             "NO_PROFILE": "Something went wrong with your profile — reopen the app."
         ]

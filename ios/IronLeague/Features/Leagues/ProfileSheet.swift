@@ -79,7 +79,8 @@ struct ProfileSheet: View {
                 .font(Theme.display(9, .heavy)).kerning(1.6)
                 .foregroundStyle(Theme.inkFaint)
             HStack(spacing: 12) {
-                Mark(spec: session.profile?.avatar, name: name.isEmpty ? "?" : name)
+                Mark(spec: session.profile?.avatar, name: name.isEmpty ? "?" : name,
+                     ring: session.frameArt(session.profile?.frame))
                     .frame(width: 34, height: 34)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 5) {

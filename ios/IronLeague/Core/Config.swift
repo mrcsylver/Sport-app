@@ -11,6 +11,9 @@ enum Config {
     /// on the server. The app must agree or the countdown lies.
     static let timeZone = TimeZone(identifier: "Europe/Paris") ?? .current
 
+    /// The symbol the shop prints prices in. Mirrors CURRENCY in config.js.
+    static let currency = "\u{20ac}"
+
     /// Where somebody turned away at the door is sent to ask for a seat —
     /// an Instagram profile, a mailto:, a form, whatever. Leave it empty and
     /// the button is hidden rather than dead. Mirrors CONTACT_URL in config.js.

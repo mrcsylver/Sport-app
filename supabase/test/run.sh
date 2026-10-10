@@ -56,6 +56,10 @@ echo "· the global cap and parking an account"
 fresh ironcapg
 psql -d ironcapg -f "$HERE/usercap.sql" 2>&1 | clean
 
+echo "· the shop, and what stops you wearing what you have not got"
+fresh ironshop
+psql -d ironshop -f "$HERE/shop.sql" 2>&1 | clean
+
 echo "· the rest day, with more than one league"
 fresh ironrest
 psql -d ironrest -f "$HERE/restday.sql" 2>&1 | clean
@@ -108,6 +112,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/membership.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/rest-day.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/launch-gate.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/shop.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -200,4 +205,10 @@ psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
     where n.nspname='public' and p.proname='league_roster') = 1
   then 'and a finished week outlives the membership that scored it'
   else 'THE ROSTER DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select case when (select count(*) from shop_items) >= 190
+   and exists (select 1 from information_schema.columns
+                where table_name = 'profiles' and column_name = 'frame')
+  then 'and the shop came through the migration with a lock on it'
+  else 'THE SHOP CATALOGUE DID NOT SURVIVE' end;"
+
 echo "· all clear"

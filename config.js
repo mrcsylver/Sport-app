@@ -29,6 +29,11 @@ window.APP_CONFIG = {
   // Shown in the header and on the home screen icon.
   APP_NAME: "IRON LEAGUE",
 
+  // The currency the shop prints prices in. A symbol, not a code: it sits in
+  // front of a number on a small tile. Nothing charges anybody yet — this is
+  // what the labels say.
+  CURRENCY: "\u20ac",
+
   // Where somebody turned away by the cap is sent to ask for a seat. An
   // email, an Instagram profile, a WhatsApp link — anything a browser can
   // open. Leave "" and the button is hidden rather than dead.

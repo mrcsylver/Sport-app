@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 10 October 2026 · app version 2.24.0*
+*Last updated 10 October 2026 · app version 2.25.0*
 
 ---
 
@@ -391,6 +391,16 @@ les deux), 14 teintes, 16 bannières de joueur, 9 couleurs de nom. Tout est
 gratuit. Le créateur d'une ligue choisit en plus son blason (forme, métal,
 emblème parmi 56) et sa bannière parmi 16 autres.
 
+**L'armurerie.** Tout ça vit dans l'onglet ARMURERIE des réglages. Les 198
+apparences livrées avec l'appli sont dessinées en code : rien à télécharger,
+rien à payer. Si une vignette est grisée avec un prix dessus, c'est qu'elle
+n'est pas à toi — l'appli le dit et le serveur refuse de la poser, donc une
+pièce payante en reste une.
+
+**Les anneaux.** Le seul élément que les autres voient sans rien ouvrir : un
+cercle dessiné autour de ton emblème, sur chaque classement, chaque duel et
+chaque quête. Il n'y en a que si l'admin en a mis en ligne.
+
 ---
 
 # 🇬🇧 English
@@ -752,3 +762,12 @@ did — nothing to claim. Wear three of them beside your name.
 16 player banners, 9 name colours. All free. Whoever created a league also
 picks its crest (shape, metal, and one of 56 heraldic marks) and its banner
 from 16 more.
+
+**The armoury.** All of it lives in the ARMOURY section of settings. The 198
+looks the app ships with are drawn in code: nothing to download, nothing to
+pay. If a tile is dimmed with a price on it, it is not yours — the app says so
+and the server refuses to put it on, so a paid item stays one.
+
+**Rings.** The only thing other people see without opening anything: a circle
+drawn around your emblem, on every board, every duel and every quest. There
+are none unless the admin has uploaded some.

@@ -89,7 +89,8 @@ struct StandingRow: View {
                 .frame(width: 24, alignment: .leading)
 
             Mark(spec: standing.avatar, name: standing.displayName,
-                 tint: division.map { Theme.metal($0) })
+                 tint: division.map { Theme.metal($0) },
+                 ring: session.frameArt(session.frames[standing.profileId]))
                 .frame(width: 34, height: 34)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -168,14 +169,28 @@ struct Mark: View {
     let spec: String?
     let name: String
     var tint: Color? = nil
+    /// Uploaded artwork laid over the rim. The one place in this app where a
+    /// moving design is worth its bytes, because it is small and sits on one
+    /// element — and the only cosmetic that shows on somebody else's screen.
+    var ring: URL? = nil
 
     private var parsed: AvatarSpec { AvatarSpec(spec) }
 
     var body: some View {
         ZStack {
-            Circle().fill(Theme.raised)
-            Circle().strokeBorder(tint?.opacity(0.7) ?? Theme.hairline, lineWidth: 1.5)
+            Circle().fill(ring == nil ? AnyShapeStyle(Theme.raised)
+                                      : AnyShapeStyle(Color.clear))
+            if ring == nil {
+                Circle().strokeBorder(tint?.opacity(0.7) ?? Theme.hairline, lineWidth: 1.5)
+            }
             content.padding(5)
+            if let ring {
+                // A ring that has not arrived draws nothing, rather than a
+                // placeholder box where somebody's face should be.
+                AsyncImage(url: ring) { $0.resizable().scaledToFit() }
+                    placeholder: { Color.clear }
+                    .allowsHitTesting(false)
+            }
         }
     }
 

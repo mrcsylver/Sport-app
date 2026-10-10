@@ -890,3 +890,69 @@ trained in a month — and leaves the call to you.
 To fill in the "ask for a seat" button, set `CONTACT_URL` in `config.js` to an
 Instagram profile, a `mailto:`, a form, anything. Leave it empty and the button
 is hidden rather than dead.
+
+## Uploading your own designs
+
+The armoury ships with 198 looks — emblems, banners, crests, shapes, metals,
+tints, name colours — and every one of them is drawn in code. Nothing is
+downloaded, so none of it costs you a byte of bandwidth.
+
+Four slots also take a **picture you upload** from the control room:
+
+| Slot | Size | Keep it under | Notes |
+|---|---|---|---|
+| **Avatar ring** | 512 × 512 | 60 KB still · 250 KB animated | Drawn at 30px on a board row, once per player per row. This is the one that multiplies. |
+| **Player banner** | 1200 × 400 | 120 KB still · 400 KB animated | The middle third is covered by a name — put the detail at the edges. |
+| **League banner** | 1600 × 500 | 160 KB still · 500 KB animated | Spans the header as well as a card. |
+| **Crest mark** | 512 × 512 | 60 KB | One shape on transparency. Still only — a crest already sits inside a moving banner. |
+
+**Formats: PNG, WebP, or Lottie JSON.** Animation means **animated WebP** — a
+quarter the size of a GIF at better quality, with real transparency. APNG works
+but is three to four times the bytes.
+
+**Not accepted, and why:**
+
+- **SVG** — an SVG can carry script, and this app inlines emblem artwork. The
+  bucket refuses them outright.
+- **GIF** — four times the bytes of animated WebP, 256 colours, and a hard edge
+  instead of real transparency.
+- **MP4** — no alpha channel, and iOS will not autoplay video inline without a
+  fight.
+- **JPEG** — no transparency, which every one of these four slots needs.
+
+Keep animation to **3 seconds, 24 fps or under**, and make it loop seamlessly:
+it plays forever next to somebody's name. A hard ceiling of 2 MB per file is
+enforced by the bucket itself; the numbers in the table are what keeps a free
+Supabase project's 5 GB of monthly bandwidth from going on cosmetics.
+
+**On the "as vibrant as Call of Duty Mobile" question** — that look does not
+come from big uploaded pictures. It comes from cheap artwork with motion
+applied to it: a sweep of light across a panel, a slow parallax, a glow that
+breathes, a hairline that catches. The banners already in this app are built
+that way, which is why sixteen of them cost nothing to download. The best use
+of an upload is a **layer**: a foil, a texture, a holographic sheen, a ring —
+something small, with transparency, laid over motion that is already there.
+A 1200 × 400 photograph of a gym will look worse than a 40 KB sheen and cost
+thirty times as much.
+
+**A ring is the one to start with.** It is the only cosmetic other people see
+without opening anything: it is drawn around your emblem on every board, every
+duel and every quest. That is what makes one worth having, and it is also the
+cheapest one to draw well.
+
+## Prices, and what happens when you set one
+
+Every row in the armoury is free today. Set a price on one in the control room
+and three things change at once:
+
+- the tile is dimmed on everyone's shelf and wears the price instead of FREE
+- tapping it says so instead of doing nothing
+- **the server refuses to put it on**, which is the part that matters
+
+That last one is the point of the catalogue. Before it, `set_banner` took any
+string that fit the column, so a paid item would have been free to anybody
+willing to call the function by hand. Now the setters check what you own.
+
+Nothing takes payment yet. Until it does, **Grant** in the control room hands
+an item to a named player — which stays useful afterwards, for a prize or an
+apology. The currency symbol the shop prints is `CURRENCY` in `config.js`.

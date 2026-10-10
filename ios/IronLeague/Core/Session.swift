@@ -52,6 +52,12 @@ final class Session {
     var weekEx: [String: Double] = [:]
     var duel: DuelRecord?
     var challenges: [Challenge] = []
+    /// The shop catalogue, straight from the server, with `owned` worked out
+    /// per caller. Loaded at boot because a ring is looked up in it, and a
+    /// board that draws before it arrives is a board with no rings on it.
+    var shop: [ShopItem] = []
+    /// profile id -> ring key, for the league being shown.
+    var frames: [UUID: String] = [:]
 
     var feeds: [UUID: [WorkoutRow]] = [:]
     var toast: String?
@@ -59,6 +65,22 @@ final class Session {
 
     var league: League? { leagues.first { $0.id == leagueId } }
     var me: Standing? { standings.first { $0.profileId == profile?.id } }
+
+    func shelf(_ kind: String) -> [ShopItem] { shop.filter { $0.kind == kind } }
+    func shopItem(_ kind: String, _ item: String) -> ShopItem? {
+        shop.first { $0.kind == kind && $0.item == item }
+    }
+    /// The artwork a ring key points at. An unknown key draws nothing rather
+    /// than a broken image: a ring retired from the shelf is still on
+    /// somebody, and it has to keep working for them.
+    func frameArt(_ key: String?) -> URL? {
+        guard let key, let it = shopItem("frame", key) else { return nil }
+        return it.artURL
+    }
+    func priceTag(_ it: ShopItem) -> String {
+        if it.owned { return it.priceCents == nil ? "FREE" : "YOURS" }
+        return Config.currency + String(format: "%.2f", Double(it.priceCents ?? 0) / 100)
+    }
 
     /// Divisions: ten per division, ranked on live points. Below eleven
     /// people there is only one group, so showing divisions would be theatre.
@@ -116,6 +138,7 @@ final class Session {
 
             let mine = try await API.shared.myLeagues()
             if exercises.isEmpty { exercises = try await API.shared.exercises() }
+            if shop.isEmpty { shop = (try? await API.shared.shopCatalogue()) ?? [] }
 
             guard !mine.isEmpty else {
                 // A profile with no league. The leagues tab on its own: join
@@ -141,6 +164,7 @@ final class Session {
             leagues = try await API.shared.myLeagues()
             leagueId = leagues.first?.id
             if exercises.isEmpty { exercises = try await API.shared.exercises() }
+            if shop.isEmpty { shop = (try? await API.shared.shopCatalogue()) ?? [] }
             phase = leagues.isEmpty ? .noLeague : .ready
             if !leagues.isEmpty { await refresh() }
         } catch {
@@ -163,8 +187,13 @@ final class Session {
         async let d = try? API.shared.combo(id)
         async let e = try? API.shared.streaks(id)
         async let f = try? API.shared.myStats(id, allTime: false)
+        async let g = try? API.shared.leagueFrames(id)
 
         if let v = await a { standings = v }
+        if let v = await g {
+            frames = Dictionary(v.map { ($0.profileId, $0.frame) },
+                                uniquingKeysWith: { a, _ in a })
+        }
         raid = await b ?? nil
         bounty = await c ?? nil
         if let v = await d { combo = v }
@@ -290,6 +319,7 @@ final class Session {
         cup = []
         cupInfo = nil
         cupRound = nil
+        frames = [:]
         stats = []
         weekEx = [:]
         badges = []
@@ -475,6 +505,22 @@ final class Session {
     func setPinnedBadges(_ keys: [String]) async {
         await apply { try await API.shared.setPinnedBadges(keys) }
         await refresh()
+    }
+    func setFrame(_ key: String) async {
+        await apply { try await API.shared.setFrame(key) }
+        await refresh()
+    }
+
+    /// Picking something off a shelf. The check is here as well as on the
+    /// server so a locked tile explains itself instead of making a round trip
+    /// the server refuses.
+    func choose(_ it: ShopItem, _ wear: @escaping () async -> Void) async {
+        guard it.owned else {
+            show("\(it.name) is not yours yet — \(priceTag(it))")
+            Haptic.refuse()
+            return
+        }
+        await wear()
     }
 
     // MARK: - Duels

@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.24.0">
+  <link rel="stylesheet" href="./styles.css?v=2.25.0">
 </head>
 <body>
 
@@ -529,11 +529,29 @@
       </details>
 
       <details class="sect" id="sectShop">
-        <summary><span>SHOP</span><span class="tag-soon">ALL FREE</span></summary>
+        <summary><span>ARMOURY</span><span class="tag-soon" id="shopTag">ALL FREE</span></summary>
         <div class="sect-b">
-          <p class="muted small">Everything here is free while we build it out.</p>
+          <p class="muted small" id="shopIntro">Pick anything here and it is
+            yours straight away. Nothing is paid for yet.</p>
+
+          <!-- Rings first when there are any: it is the one cosmetic that
+               shows on every row of the board, so it is the one worth
+               opening the shop for. Hidden until something is uploaded. -->
+          <div id="shopRingsWrap" hidden>
+            <h4>Avatar rings</h4>
+            <p class="muted small">Drawn around your emblem on every board,
+              every duel and every quest you turn up for.</p>
+            <div id="shopRings" class="shopgrid"></div>
+            <button id="shopRingOff" class="btn ghost sm" type="button" hidden>TAKE THE RING OFF</button>
+          </div>
+
+          <h4>Player banners</h4>
+          <p class="muted small">The strip behind your name on the table.</p>
+          <div id="shopPlayer" class="shopgrid wide"></div>
 
           <h4 id="shopCrestHead">League crests</h4>
+          <p class="muted small">Your league's mark. Only the person who
+            created it can change these four.</p>
           <div id="shopCrests" class="shopgrid"></div>
 
           <h4 id="shopShapeHead">Crest shape</h4>
@@ -545,19 +563,18 @@
           <h4 id="shopBannerHead">League banners</h4>
           <div id="shopBanners" class="shopgrid wide"></div>
 
-          <h4>Player banners</h4>
-          <div id="shopPlayer" class="shopgrid wide"></div>
-
-          <h4>Later</h4>
+          <h4>Not built yet</h4>
           <div class="shop-i">
             <span class="shop-ic">👑</span>
-            <span class="shop-t"><b>Master League Pass</b><i>Unlimited slots, custom colours, data export</i></span>
-            <span class="shop-p">Elements to come</span>
+            <span class="shop-t"><b>League Pass</b><i>A season's rings and banners
+              as they land, and your league's history as a file you keep</i></span>
+            <span class="shop-p">Not yet</span>
           </div>
           <div class="shop-i">
             <span class="shop-ic">🏆</span>
-            <span class="shop-t"><b>Tournament pot</b><i>Put a prize on a season</i></span>
-            <span class="shop-p">Elements to come</span>
+            <span class="shop-t"><b>Season prize</b><i>Put something on the line
+              for a whole season, settled between you — the app never touches money</i></span>
+            <span class="shop-p">Not yet</span>
           </div>
         </div>
       </details>
@@ -689,8 +706,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.24.0"></script>
-<script src="./vendor/game-icons.js?v=2.24.0"></script>
-<script src="./app.js?v=2.24.0"></script>
+<script src="./vendor/supabase.js?v=2.25.0"></script>
+<script src="./vendor/game-icons.js?v=2.25.0"></script>
+<script src="./app.js?v=2.25.0"></script>
 </body>
 </html>

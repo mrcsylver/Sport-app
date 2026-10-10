@@ -509,6 +509,12 @@ create table public.profiles (
   -- chosen text colour for the name, so a banner never swallows it
   name_color   text constraint profiles_name_color_check
                  check (name_color is null or char_length(name_color) <= 16),
+  -- A ring drawn around the avatar, on every row of every board. The only
+  -- cosmetic slot that is uploaded artwork rather than CSS, because a ring is
+  -- small, sits on one element, and is where a moving design is worth its
+  -- bytes. Null is the plain ring everybody starts with.
+  frame        text constraint profiles_frame_check
+                 check (frame is null or char_length(frame) between 1 and 40),
   -- admin is a flag the DATABASE checks inside every admin function; no
   -- service key ever reaches a browser
   is_admin     boolean not null default false,
@@ -518,6 +524,62 @@ create table public.profiles (
                         or array_length(pinned_badges, 1) <= 3),
   created_at   timestamptz not null default now()
 );
+
+-- ---------------------------------------------------------------------
+-- The shop.
+--
+-- Every cosmetic the app can draw is a row here, and the four `set_*`
+-- functions refuse anything that is not. That is the whole point of the
+-- table: before it existed `set_banner('whatever')` was accepted, so the
+-- first item anybody charged for would have been free to anybody willing to
+-- call the function by hand.
+--
+-- `key` is namespaced (`player_banner:carbon`) so a crest shape called `gold`
+-- and a crest metal called `gold` cannot collide; `item` is the bare value a
+-- profile actually stores. The seed at the bottom of this file is generated
+-- from the client's own arrays by tools/build_shop.py — a key missing from it
+-- is somebody's banner refusing to save.
+-- ---------------------------------------------------------------------
+create table public.shop_items (
+  key         text primary key,
+  kind        text not null check (kind in
+                ('emblem','crest','shape','metal','league_banner',
+                 'player_banner','name_color','avatar_tint','frame')),
+  item        text not null,
+  name        text not null,
+  -- Null is free to everybody, which is every row that shipped.
+  price_cents int check (price_cents is null or price_cents > 0),
+  -- An uploaded design. Null means the look is CSS or vendored artwork and
+  -- costs no bandwidth at all, which is what every shipped row is.
+  asset_path  text,
+  asset_kind  text check (asset_kind in ('png','webp','lottie')),
+  -- An animated design needs a still for the shelf, or opening the shop
+  -- pulls every animation in the catalogue at once.
+  thumb_path  text,
+  animated    boolean not null default false,
+  sort        int not null default 0,
+  -- Retiring hides an item from the shelf and stops it being newly chosen.
+  -- It is never deleted, because somebody is probably wearing it.
+  retired_at  timestamptz,
+  created_at  timestamptz not null default now(),
+  unique (kind, item)
+);
+alter table public.shop_items enable row level security;
+-- No select policy: the shelf is read through shop_catalogue(), which is the
+-- only thing that knows whether you own a given row.
+
+-- What somebody owns beyond the free rows. Nothing writes to this yet except
+-- an admin granting something by hand; a payment provider is the next writer.
+create table public.entitlements (
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  item_key   text not null references public.shop_items(key) on delete cascade,
+  source     text not null check (source in ('gift','purchase','earned')),
+  note       text,
+  granted_at timestamptz not null default now(),
+  primary key (profile_id, item_key)
+);
+alter table public.entitlements enable row level security;
+create index entitlements_profile on public.entitlements (profile_id);
 
 create table public.leagues (
   id          uuid primary key default gen_random_uuid(),
@@ -1398,9 +1460,16 @@ $$;
 create function public.set_avatar(p_avatar text)
 returns public.profiles
 language plpgsql security definer set search_path = public as $$
-declare p public.profiles;
+declare p public.profiles; spec text := nullif(btrim(p_avatar), '');
 begin
-  update public.profiles set avatar = nullif(btrim(p_avatar), '')
+  -- "gi:<emblem>|c=<tint>" is an item (two, in fact); a bare emoji is not,
+  -- and never will be, so it skips the catalogue entirely.
+  if spec like 'gi:%' then
+    perform public.check_wear('emblem', split_part(substring(spec from 4), '|', 1));
+    perform public.check_wear('avatar_tint',
+                              coalesce(substring(spec from 'c=([a-z]+)'), ''));
+  end if;
+  update public.profiles set avatar = spec
    where user_id = auth.uid() returning * into p;
   if not found then raise exception 'NO_PROFILE'; end if;
   return p;
@@ -1426,6 +1495,7 @@ returns public.profiles language plpgsql security definer set search_path = publ
 declare me uuid := public.my_profile_id(); row public.profiles;
 begin
   if me is null then raise exception 'NO_PROFILE'; end if;
+  perform public.check_wear('player_banner', coalesce(p_banner, ''));
   update public.profiles set banner = nullif(p_banner, '') where id = me returning * into row;
   return row;
 end $$;
@@ -1873,6 +1943,15 @@ begin
   if me is null then raise exception 'NO_PROFILE'; end if;
   if not exists (select 1 from public.leagues where id = p_league and owner_id = me) then
     raise exception 'Only the person who created a league can change its crest';
+  end if;
+  -- Four separate slots, four separate catalogue checks. The crest marks are
+  -- their own set: a league is a place and a player is a person, so they do
+  -- not wear the same artwork.
+  if p_badge is not null then
+    perform public.check_wear('shape',  coalesce(p_badge->>'shape', ''));
+    perform public.check_wear('metal',  coalesce(p_badge->>'color', ''));
+    perform public.check_wear('crest',  coalesce(p_badge->>'emblem', ''));
+    perform public.check_wear('league_banner', coalesce(p_badge->>'skin', ''));
   end if;
   if p_badge is not null and (
        coalesce(length(p_badge->>'shape'), 0)  > 20 or
@@ -2660,7 +2739,87 @@ returns public.profiles language plpgsql security definer set search_path = publ
 declare me uuid := public.my_profile_id(); row public.profiles;
 begin
   if me is null then raise exception 'NO_PROFILE'; end if;
+  perform public.check_wear('name_color', coalesce(p_color, ''));
   update public.profiles set name_color = nullif(p_color, '') where id = me returning * into row;
+  return row;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- The shop: what you may wear, and what the shelf shows.
+-- ---------------------------------------------------------------------
+
+-- Is this cosmetic mine to put on? Free rows are everybody's; priced rows
+-- need an entitlement. A retired row cannot be newly chosen, but nothing
+-- re-checks what somebody is already wearing, so retiring an item takes it
+-- off the shelf without stripping it off the people who have it.
+create function public.may_wear(p_kind text, p_item text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case
+    -- Nothing chosen is always allowed: it is how a cosmetic comes off.
+    when coalesce(p_item, '') = '' then true
+    else exists (
+      select 1 from public.shop_items i
+       where i.kind = p_kind and i.item = p_item and i.retired_at is null
+         and (i.price_cents is null
+              or exists (select 1 from public.entitlements e
+                          where e.profile_id = public.my_profile_id()
+                            and e.item_key = i.key)))
+  end
+$$;
+
+-- The raising form, so a setter is one line per slot. LOCKED_ITEM rather than
+-- a sentence because the two clients have their own wording for it.
+create function public.check_wear(p_kind text, p_item text) returns void
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.may_wear(p_kind, p_item) then
+    raise exception 'LOCKED_ITEM';
+  end if;
+end $$;
+
+-- The shelf. One row per item on sale, with `owned` worked out per caller so
+-- the client never has to reason about entitlements itself.
+create function public.shop_catalogue()
+returns table (key text, kind text, item text, name text, price_cents int,
+               asset_path text, asset_kind text, thumb_path text,
+               animated boolean, sort int, owned boolean)
+language sql stable security definer set search_path = public as $$
+  select i.key, i.kind, i.item, i.name, i.price_cents,
+         i.asset_path, i.asset_kind, i.thumb_path, i.animated, i.sort,
+         i.price_cents is null
+           or exists (select 1 from public.entitlements e
+                       where e.profile_id = public.my_profile_id()
+                         and e.item_key = i.key)
+  from public.shop_items i
+  where i.retired_at is null
+  order by i.kind, i.sort, i.name
+$$;
+
+-- Who in this league is wearing a ring. A separate call rather than a column
+-- on league_leaderboard(), league_streaks(), the duel pair and the four more
+-- that return an avatar: widening a return type means dropping it first, and
+-- six drops to carry one short text column is the wrong trade. Only people
+-- actually wearing one come back, so this is usually empty and never large.
+create function public.league_frames(p_league uuid)
+returns table (profile_id uuid, frame text)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.frame
+  from public.league_members m
+  join public.profiles p on p.id = m.profile_id
+  where m.league_id = p_league and public.is_member(p_league)
+    and p.frame is not null and p.dormant_at is null
+$$;
+
+-- The avatar ring. Its own setter rather than a field on set_avatar(),
+-- because the ring and the mark inside it are bought separately.
+create function public.set_frame(p_frame text)
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); row public.profiles;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  perform public.check_wear('frame', coalesce(nullif(btrim(p_frame), ''), ''));
+  update public.profiles set frame = nullif(btrim(p_frame), '')
+   where id = me returning * into row;
   return row;
 end $$;
 
@@ -2816,6 +2975,101 @@ begin
    where id = p_profile returning * into p;
   if not found then raise exception 'No such profile'; end if;
   return p;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- The shop, from the control room. Uploading the file itself is Storage's
+-- own API with the admin's own JWT -- the bucket policy below is what makes
+-- that safe -- and these functions only register what was uploaded.
+-- ---------------------------------------------------------------------
+
+-- Everything, retired rows included, which is the difference from
+-- shop_catalogue(). `owned_by` is how many people hold a priced item.
+create function public.admin_shop_items()
+returns table (key text, kind text, item text, name text, price_cents int,
+               asset_path text, asset_kind text, thumb_path text,
+               animated boolean, sort int, retired_at timestamptz,
+               owned_by int)
+language sql stable security definer set search_path = public as $$
+  select i.key, i.kind, i.item, i.name, i.price_cents,
+         i.asset_path, i.asset_kind, i.thumb_path, i.animated, i.sort,
+         i.retired_at,
+         (select count(*)::int from public.entitlements e where e.item_key = i.key)
+  from public.shop_items i
+  where public.is_admin()
+  order by i.kind, i.sort, i.name
+$$;
+
+-- Register a design, or change one. Upsert on purpose: re-uploading a file
+-- and pointing the same item at it is the common case.
+create function public.admin_save_shop_item(
+  p_kind text, p_item text, p_name text,
+  p_asset_path text default null, p_asset_kind text default null,
+  p_thumb_path text default null, p_animated boolean default false,
+  p_price_cents int default null, p_sort int default 0)
+returns public.shop_items
+language plpgsql security definer set search_path = public as $$
+declare row public.shop_items; slug text;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  -- The item is what a profile stores, so it has to survive a round trip
+  -- through a text column and a URL without surprises.
+  slug := lower(btrim(coalesce(p_item, '')));
+  if slug !~ '^[a-z0-9][a-z0-9-]{1,38}$' then
+    raise exception 'A name may only use lower-case letters, numbers and dashes';
+  end if;
+  if coalesce(btrim(p_name), '') = '' then
+    raise exception 'Give the design a name people will read';
+  end if;
+  insert into public.shop_items
+    (key, kind, item, name, price_cents, asset_path, asset_kind,
+     thumb_path, animated, sort, retired_at)
+  values (p_kind || ':' || slug, p_kind, slug, btrim(p_name), p_price_cents,
+          nullif(btrim(coalesce(p_asset_path, '')), ''), p_asset_kind,
+          nullif(btrim(coalesce(p_thumb_path, '')), ''),
+          coalesce(p_animated, false), coalesce(p_sort, 0), null)
+  on conflict (key) do update set
+    name = excluded.name, price_cents = excluded.price_cents,
+    asset_path = excluded.asset_path, asset_kind = excluded.asset_kind,
+    thumb_path = excluded.thumb_path, animated = excluded.animated,
+    sort = excluded.sort, retired_at = null
+  returning * into row;
+  return row;
+end $$;
+
+-- Off the shelf, or back on it. Never a delete: somebody is wearing it.
+create function public.admin_retire_shop_item(p_key text, p_retired boolean)
+returns public.shop_items
+language plpgsql security definer set search_path = public as $$
+declare row public.shop_items;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  update public.shop_items
+     set retired_at = case when p_retired then now() else null end
+   where key = p_key returning * into row;
+  if not found then raise exception 'No such item'; end if;
+  return row;
+end $$;
+
+-- Hand somebody a priced item. Until a payment provider exists this is the
+-- only writer of entitlements, and it stays useful afterwards: a prize, an
+-- apology, a founder's gift.
+create function public.admin_grant_item(p_profile uuid, p_key text,
+                                       p_note text default null)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  insert into public.entitlements (profile_id, item_key, source, note)
+  values (p_profile, p_key, 'gift', nullif(btrim(coalesce(p_note, '')), ''))
+  on conflict (profile_id, item_key) do nothing;
+end $$;
+
+create function public.admin_revoke_item(p_profile uuid, p_key text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  delete from public.entitlements
+   where profile_id = p_profile and item_key = p_key;
 end $$;
 
 create function public.admin_delete_league(p_league uuid)
@@ -3094,6 +3348,19 @@ revoke all on function public.admin_overview()              from public, anon;
 revoke all on function public.admin_set_cap(int)            from public, anon;
 revoke all on function public.admin_set_dormant(uuid,boolean) from public, anon;
 revoke all on function public.wake_me()                     from public, anon;
+-- may_wear/check_wear decide whether a cosmetic is yours, so nothing an app
+-- signs in as may call them directly -- they are read by the setters above.
+revoke all on function public.may_wear(text,text)           from public, anon, authenticated;
+revoke all on function public.check_wear(text,text)         from public, anon, authenticated;
+revoke all on function public.shop_catalogue()              from public, anon;
+revoke all on function public.set_frame(text)               from public, anon;
+revoke all on function public.league_frames(uuid)           from public, anon;
+revoke all on function public.admin_shop_items()            from public, anon;
+revoke all on function public.admin_save_shop_item(text,text,text,text,text,text,boolean,int,int)
+  from public, anon;
+revoke all on function public.admin_retire_shop_item(text,boolean) from public, anon;
+revoke all on function public.admin_grant_item(uuid,text,text) from public, anon;
+revoke all on function public.admin_revoke_item(uuid,text)  from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
 revoke all on function public.cup_window()                  from public, anon, authenticated;
 revoke all on function public.cup_field(int)                from public, anon, authenticated;
@@ -3189,6 +3456,15 @@ grant execute on function public.admin_overview()              to authenticated;
 grant execute on function public.admin_set_cap(int)            to authenticated;
 grant execute on function public.admin_set_dormant(uuid,boolean) to authenticated;
 grant execute on function public.wake_me()                     to authenticated;
+grant execute on function public.shop_catalogue()              to authenticated;
+grant execute on function public.set_frame(text)               to authenticated;
+grant execute on function public.league_frames(uuid)           to authenticated;
+grant execute on function public.admin_shop_items()            to authenticated;
+grant execute on function public.admin_save_shop_item(text,text,text,text,text,text,boolean,int,int)
+  to authenticated;
+grant execute on function public.admin_retire_shop_item(text,boolean) to authenticated;
+grant execute on function public.admin_grant_item(uuid,text,text) to authenticated;
+grant execute on function public.admin_revoke_item(uuid,text)  to authenticated;
 -- signup_state is readable WITHOUT a profile: its whole job is to say there
 -- is no room before somebody picks a name and finds out.
 grant execute on function public.signup_state()                to anon, authenticated;
@@ -3447,5 +3723,74 @@ insert into public.bounties (idx, name, descr, points, spec) values
 (107,'FULL HOUSE','Ten people in the league log something today',60,'{"kind":"team","members":10}'),
 (108,'TRAINING PARTNER','Log within an hour of somebody else in the league',35,'{"kind":"duo"}'),
 (109,'BACK FROM THE DEAD','Bottom of the table and still turned up',40,'{"kind":"underdog"}');
+
+-- ---------------------------------------------------------------------
+-- 10. The shop catalogue.
+-- GENERATED by tools/build_shop.py from the client's own arrays -- do not
+-- edit by hand. Every row is free; price and uploaded artwork are set per
+-- row from the control room. A key missing here is somebody's cosmetic
+-- refusing to save, which is why it is generated rather than typed.
+-- ---------------------------------------------------------------------
+-- SHOP BEGIN
+insert into public.shop_items (key,kind,item,name,sort)
+select r->>0, r->>1, r->>2, r->>3, (r->>4)::int
+from jsonb_array_elements($j$[["emblem:wolf-head","emblem","wolf-head","WOLF HEAD",0],["emblem:lion","emblem","lion","LION",1],["emblem:tiger-head","emblem","tiger-head","TIGER HEAD",2],["emblem:bear-head","emblem","bear-head","BEAR HEAD",3],["emblem:gorilla","emblem","gorilla","GORILLA",4],["emblem:boar-tusks","emblem","boar-tusks","BOAR TUSKS",5],["emblem:bull","emblem","bull","BULL",6],["emblem:horse-head","emblem","horse-head","HORSE HEAD",7],["emblem:elephant","emblem","elephant","ELEPHANT",8],["emblem:rhinoceros-horn","emblem","rhinoceros-horn","RHINOCEROS HORN",9],["emblem:cobra","emblem","cobra","COBRA",10],["emblem:snake","emblem","snake","SNAKE",11],["emblem:scorpion","emblem","scorpion","SCORPION",12],["emblem:shark-bite","emblem","shark-bite","SHARK BITE",13],["emblem:octopus","emblem","octopus","OCTOPUS",14],["emblem:t-rex-skull","emblem","t-rex-skull","T REX SKULL",15],["emblem:triceratops-head","emblem","triceratops-head","TRICERATOPS HEAD",16],["emblem:raven","emblem","raven","RAVEN",17],["emblem:owl","emblem","owl","OWL",18],["emblem:eagle-head","emblem","eagle-head","EAGLE HEAD",19],["emblem:fox","emblem","fox","FOX",20],["emblem:panda","emblem","panda","PANDA",21],["emblem:cat","emblem","cat","CAT",22],["emblem:croc-jaws","emblem","croc-jaws","CROC JAWS",23],["emblem:spartan-helmet","emblem","spartan-helmet","SPARTAN HELMET",24],["emblem:viking-helmet","emblem","viking-helmet","VIKING HELMET",25],["emblem:samurai-helmet","emblem","samurai-helmet","SAMURAI HELMET",26],["emblem:centurion-helmet","emblem","centurion-helmet","CENTURION HELMET",27],["emblem:crested-helmet","emblem","crested-helmet","CRESTED HELMET",28],["emblem:dwarf-helmet","emblem","dwarf-helmet","DWARF HELMET",29],["emblem:knight-banner","emblem","knight-banner","KNIGHT BANNER",30],["emblem:skull-crack","emblem","skull-crack","SKULL CRACK",31],["emblem:flame","emblem","flame","FLAME",32],["emblem:lightning-storm","emblem","lightning-storm","LIGHTNING STORM",33],["emblem:crossed-swords","emblem","crossed-swords","CROSSED SWORDS",34],["emblem:battle-axe","emblem","battle-axe","BATTLE AXE",35],["emblem:war-axe","emblem","war-axe","WAR AXE",36],["emblem:hammer-drop","emblem","hammer-drop","HAMMER DROP",37],["emblem:trident","emblem","trident","TRIDENT",38],["emblem:bowman","emblem","bowman","BOWMAN",39],["emblem:crossbow","emblem","crossbow","CROSSBOW",40],["emblem:ninja-head","emblem","ninja-head","NINJA HEAD",41],["emblem:barbarian","emblem","barbarian","BARBARIAN",42],["emblem:pirate-captain","emblem","pirate-captain","PIRATE CAPTAIN",43],["emblem:robot-golem","emblem","robot-golem","ROBOT GOLEM",44],["emblem:cyborg-face","emblem","cyborg-face","CYBORG FACE",45],["emblem:alien-skull","emblem","alien-skull","ALIEN SKULL",46],["emblem:grim-reaper","emblem","grim-reaper","GRIM REAPER",47],["emblem:ghost","emblem","ghost","GHOST",48],["emblem:overlord-helm","emblem","overlord-helm","OVERLORD HELM",49],["emblem:dragon-head","emblem","dragon-head","DRAGON HEAD",50],["emblem:hydra","emblem","hydra","HYDRA",51],["emblem:minotaur","emblem","minotaur","MINOTAUR",52],["emblem:kraken-tentacle","emblem","kraken-tentacle","KRAKEN TENTACLE",53],["emblem:mountains","emblem","mountains","MOUNTAINS",54],["emblem:anvil-impact","emblem","anvil-impact","ANVIL IMPACT",55],["emblem:broadsword","emblem","broadsword","BROADSWORD",56],["emblem:shield-bash","emblem","shield-bash","SHIELD BASH",57],["emblem:sword-spade","emblem","sword-spade","SWORD SPADE",58],["emblem:muscle-up","emblem","muscle-up","MUSCLE UP",59],["emblem:biceps","emblem","biceps","BICEPS",60],["emblem:weight-lifting-up","emblem","weight-lifting-up","WEIGHT LIFTING UP",61],["emblem:boot-stomp","emblem","boot-stomp","BOOT STOMP",62],["emblem:punch","emblem","punch","PUNCH",63],["emblem:punch-blast","emblem","punch-blast","PUNCH BLAST",64],["emblem:fist","emblem","fist","FIST",65],["emblem:bull-horns","emblem","bull-horns","BULL HORNS",66],["emblem:star-formation","emblem","star-formation","STAR FORMATION",67],["emblem:sun","emblem","sun","SUN",68],["emblem:crescent-blade","emblem","crescent-blade","CRESCENT BLADE",69],["emblem:running-ninja","emblem","running-ninja","RUNNING NINJA",70],["emblem:rune-sword","emblem","rune-sword","RUNE SWORD",71],["crest:heraldic-sun","crest","heraldic-sun","HERALDIC SUN",0],["crest:triquetra","crest","triquetra","TRIQUETRA",1],["crest:fleur-de-lys","crest","fleur-de-lys","FLEUR DE LYS",2],["crest:camargue-cross","crest","camargue-cross","CAMARGUE CROSS",3],["crest:cross-flare","crest","cross-flare","CROSS FLARE",4],["crest:allied-star","crest","allied-star","ALLIED STAR",5],["crest:barbed-star","crest","barbed-star","BARBED STAR",6],["crest:beveled-star","crest","beveled-star","BEVELED STAR",7],["crest:falling-star","crest","falling-star","FALLING STAR",8],["crest:triple-gate","crest","triple-gate","TRIPLE GATE",9],["crest:castle","crest","castle","CASTLE",10],["crest:guarded-tower","crest","guarded-tower","GUARDED TOWER",11],["crest:radio-tower","crest","radio-tower","RADIO TOWER",12],["crest:anchor","crest","anchor","ANCHOR",13],["crest:compass","crest","compass","COMPASS",14],["crest:big-gear","crest","big-gear","BIG GEAR",15],["crest:gears","crest","gears","GEARS",16],["crest:cog","crest","cog","COG",17],["crest:battle-gear","crest","battle-gear","BATTLE GEAR",18],["crest:chess-king","crest","chess-king","CHESS KING",19],["crest:chess-knight","crest","chess-knight","CHESS KNIGHT",20],["crest:chess-rook","crest","chess-rook","CHESS ROOK",21],["crest:chess-bishop","crest","chess-bishop","CHESS BISHOP",22],["crest:archery-target","crest","archery-target","ARCHERY TARGET",23],["crest:on-target","crest","on-target","ON TARGET",24],["crest:arrow-cluster","crest","arrow-cluster","ARROW CLUSTER",25],["crest:arrowhead","crest","arrowhead","ARROWHEAD",26],["crest:angel-wings","crest","angel-wings","ANGEL WINGS",27],["crest:batwing-emblem","crest","batwing-emblem","BATWING EMBLEM",28],["crest:feathered-wing","crest","feathered-wing","FEATHERED WING",29],["crest:two-feathers","crest","two-feathers","TWO FEATHERS",30],["crest:holy-oak","crest","holy-oak","HOLY OAK",31],["crest:oak-leaf","crest","oak-leaf","OAK LEAF",32],["crest:ginkgo-leaf","crest","ginkgo-leaf","GINKGO LEAF",33],["crest:leaf-swirl","crest","leaf-swirl","LEAF SWIRL",34],["crest:heavy-lightning","crest","heavy-lightning","HEAVY LIGHTNING",35],["crest:chain-lightning","crest","chain-lightning","CHAIN LIGHTNING",36],["crest:lightning-arc","crest","lightning-arc","LIGHTNING ARC",37],["crest:thunderball","crest","thunderball","THUNDERBALL",38],["crest:mountaintop","crest","mountaintop","MOUNTAINTOP",39],["crest:rune-stone","crest","rune-stone","RUNE STONE",40],["crest:spiral-bloom","crest","spiral-bloom","SPIRAL BLOOM",41],["crest:divided-spiral","crest","divided-spiral","DIVIDED SPIRAL",42],["crest:abstract-001","crest","abstract-001","ABSTRACT 001",43],["crest:abstract-013","crest","abstract-013","ABSTRACT 013",44],["crest:abstract-024","crest","abstract-024","ABSTRACT 024",45],["crest:abstract-034","crest","abstract-034","ABSTRACT 034",46],["crest:abstract-050","crest","abstract-050","ABSTRACT 050",47],["crest:crenulated-shield","crest","crenulated-shield","CRENULATED SHIELD",48],["crest:bordered-shield","crest","bordered-shield","BORDERED SHIELD",49],["crest:checked-shield","crest","checked-shield","CHECKED SHIELD",50],["crest:edged-shield","crest","edged-shield","EDGED SHIELD",51],["crest:laurel-crown","crest","laurel-crown","LAUREL CROWN",52],["crest:royal-love","crest","royal-love","ROYAL LOVE",53],["crest:tribal-pendant","crest","tribal-pendant","TRIBAL PENDANT",54],["crest:maze-cornea","crest","maze-cornea","MAZE CORNEA",55],["player_banner:carbon","player_banner","carbon","CARBON",0],["player_banner:ember","player_banner","ember","INFERNO",1],["player_banner:frost","player_banner","frost","FROSTBITE",2],["player_banner:velocity","player_banner","velocity","VELOCITY",3],["player_banner:blueprint","player_banner","blueprint","BLUEPRINT",4],["player_banner:grunge","player_banner","grunge","GLITCH",5],["player_banner:obsidian","player_banner","obsidian","OBSIDIAN",6],["player_banner:inverted","player_banner","inverted","CLEAN SLATE",7],["player_banner:venom","player_banner","venom","VENOM",8],["player_banner:bloodline","player_banner","bloodline","BLOODLINE",9],["player_banner:glacier","player_banner","glacier","GLACIER",10],["player_banner:brass","player_banner","brass","BRASS",11],["player_banner:static","player_banner","static","STATIC",12],["player_banner:orchid","player_banner","orchid","ORCHID",13],["player_banner:moss","player_banner","moss","MOSS",14],["player_banner:ash","player_banner","ash","ASH",15],["league_banner:standard","league_banner","standard","STANDARD",0],["league_banner:stadium","league_banner","stadium","STADIUM",1],["league_banner:goldrush","league_banner","goldrush","GOLD RUSH",2],["league_banner:neon","league_banner","neon","NEON ARENA",3],["league_banner:tactical","league_banner","tactical","OVERDRIVE",4],["league_banner:varsity","league_banner","varsity","VARSITY",5],["league_banner:holo","league_banner","holo","PRISM",6],["league_banner:luxury","league_banner","luxury","DOMINION",7],["league_banner:jungle","league_banner","jungle","JUNGLE",8],["league_banner:sandstorm","league_banner","sandstorm","SANDSTORM",9],["league_banner:abyss","league_banner","abyss","ABYSS",10],["league_banner:circuit","league_banner","circuit","CIRCUIT",11],["league_banner:aurora","league_banner","aurora","AURORA",12],["league_banner:magma","league_banner","magma","MAGMA",13],["league_banner:steelwork","league_banner","steelwork","STEELWORK",14],["league_banner:nightops","league_banner","nightops","NIGHT OPS",15],["name_color:white","name_color","white","WHITE",1],["name_color:black","name_color","black","BLACK",2],["name_color:gold","name_color","gold","GOLD",3],["name_color:crimson","name_color","crimson","CRIMSON",4],["name_color:jade","name_color","jade","JADE",5],["name_color:azure","name_color","azure","AZURE",6],["name_color:violet","name_color","violet","VIOLET",7],["name_color:toxic","name_color","toxic","TOXIC",8],["avatar_tint:clear","avatar_tint","clear","CLEAR",0],["avatar_tint:crimson","avatar_tint","crimson","CRIMSON",1],["avatar_tint:ember","avatar_tint","ember","EMBER",2],["avatar_tint:gold","avatar_tint","gold","GOLD",3],["avatar_tint:jade","avatar_tint","jade","JADE",4],["avatar_tint:azure","avatar_tint","azure","AZURE",5],["avatar_tint:violet","avatar_tint","violet","VIOLET",6],["avatar_tint:steel","avatar_tint","steel","STEEL",7],["avatar_tint:bone","avatar_tint","bone","BONE",8],["avatar_tint:toxic","avatar_tint","toxic","TOXIC",9],["avatar_tint:rose","avatar_tint","rose","ROSE",10],["avatar_tint:cyan","avatar_tint","cyan","CYAN",11],["avatar_tint:copper","avatar_tint","copper","COPPER",12],["avatar_tint:ink","avatar_tint","ink","INK",13],["shape:heater","shape","heater","HEATER",0],["shape:spade","shape","spade","SPADE",1],["shape:round","shape","round","ROUND",2],["shape:pointed","shape","pointed","POINTED",3],["shape:banner","shape","banner","BANNER",4],["shape:hex","shape","hex","HEX",5],["shape:kite","shape","kite","KITE",6],["shape:blade","shape","blade","BLADE",7],["metal:crimson","metal","crimson","CRIMSON",0],["metal:gold","metal","gold","GOLD",1],["metal:steel","metal","steel","STEEL",2],["metal:jade","metal","jade","JADE",3],["metal:azure","metal","azure","AZURE",4],["metal:violet","metal","violet","VIOLET",5],["metal:ember","metal","ember","EMBER",6],["metal:bone","metal","bone","BONE",7]]$j$::jsonb) r
+on conflict (key) do update set
+  kind = excluded.kind, item = excluded.item,
+  name = excluded.name, sort = excluded.sort;
+-- SHOP END
+
+-- ---------------------------------------------------------------------
+-- The bucket uploaded designs live in.
+--
+-- Guarded, because this file has to run on a plain Postgres too -- the SQL
+-- test rig has no `storage` schema -- and dynamic, because `create policy`
+-- cannot be written conditionally any other way.
+--
+-- public = true: the artwork is cosmetic and goes through the CDN, which is
+-- the only way the bandwidth works. Writing is admin-only, checked by the
+-- same is_admin() flag as everything else, so a signed-in member who finds
+-- the endpoint cannot put a file in it.
+--
+-- allowed_mime_types is the real gate. SVG is NOT on it: an SVG can carry
+-- script, and the app inlines emblem SVGs, so one uploaded into this bucket
+-- would be one paste away from running. PNG, WebP and Lottie JSON cover
+-- everything the shop needs, animation included.
+-- ---------------------------------------------------------------------
+do $do$
+begin
+  if exists (select 1 from information_schema.tables
+              where table_schema = 'storage' and table_name = 'buckets') then
+    execute $q$
+      insert into storage.buckets (id, name, public, file_size_limit,
+                                   allowed_mime_types)
+      values ('designs', 'designs', true, 2097152,
+              array['image/png','image/webp','application/json'])
+      on conflict (id) do update set
+        public = true, file_size_limit = 2097152,
+        allowed_mime_types = array['image/png','image/webp','application/json']
+    $q$;
+
+    -- Policies are per-name, so each one is dropped first to make the file
+    -- safe to run twice. A DROP POLICY is not a DROP FUNCTION and does not
+    -- cascade into anything.
+    execute 'drop policy if exists designs_read on storage.objects';
+    execute 'drop policy if exists designs_insert on storage.objects';
+    execute 'drop policy if exists designs_update on storage.objects';
+    execute 'drop policy if exists designs_delete on storage.objects';
+
+    execute $q$create policy designs_read on storage.objects for select
+              to anon, authenticated using (bucket_id = 'designs')$q$;
+    execute $q$create policy designs_insert on storage.objects for insert
+              to authenticated
+              with check (bucket_id = 'designs' and public.is_admin())$q$;
+    execute $q$create policy designs_update on storage.objects for update
+              to authenticated
+              using (bucket_id = 'designs' and public.is_admin())$q$;
+    execute $q$create policy designs_delete on storage.objects for delete
+              to authenticated
+              using (bucket_id = 'designs' and public.is_admin())$q$;
+  end if;
+end $do$;
 
 reset check_function_bodies;
