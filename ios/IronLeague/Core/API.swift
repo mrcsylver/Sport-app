@@ -62,6 +62,19 @@ actor API {
     func restoreProfile(code: String) async throws -> Profile? {
         try await rpc("restore_profile", ["p_code": .string(code.uppercased())])
     }
+
+    /// How full the app is. Asked BEFORE showing a name box: being told there
+    /// is no room after picking a fighter name is the worst version of this.
+    func signupState() async throws -> SignupState? {
+        let rows: [SignupState] = try await rpc("signup_state")
+        return rows.first
+    }
+
+    /// Un-park a profile. Raises APP_FULL if there is no seat to wake into,
+    /// which is the whole point — the cap holds on the way back in too.
+    func wakeMe() async throws -> Profile {
+        try await rpc("wake_me")
+    }
     func renameProfile(_ name: String) async throws -> Profile {
         try await rpc("rename_profile", ["p_name": .string(name)])
     }
@@ -292,6 +305,7 @@ enum Friendly {
             "REST_DAY": "It is a rest day — only a stretch counts.",
             "WEEK_CLOSED": "That week is finished and cannot be edited.",
             "LEAGUE_FULL": "That league is full.",
+            "APP_FULL": "Iron League is at capacity right now. Nothing of yours is lost — try again in a day or two, or ask for a seat.",
             "NOT_A_MEMBER": "You are not in that league.",
             "NO_PROFILE": "Something went wrong with your profile — reopen the app."
         ]

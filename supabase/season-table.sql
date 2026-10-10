@@ -89,6 +89,7 @@ alter table public.leagues add constraint leagues_break_sane
 
 -- --------------------------------------- shapes that changed ---
 drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int) cascade;
+drop function if exists public.league_season(p_league uuid, p_season int) cascade;
 
 -- ----------------------------------------------------------- rank_points ---
 create or replace function public.rank_points(p_rank int) returns numeric
@@ -182,7 +183,7 @@ create or replace function public.league_season(p_league uuid, p_season int defa
 returns table (profile_id uuid, display_name text, avatar text, banner text,
                pinned_badges text[], name_color text, points numeric,
                weeks int, wins int, best_rank int, lifetime_wins int,
-               mine boolean)
+               mine boolean, member boolean)
 language sql stable security definer set search_path = public as $fn$
   with ranked as (
     select h.week_start, h.profile_id,
@@ -206,14 +207,18 @@ language sql stable security definer set search_path = public as $fn$
          (count(sr.week_start) filter (where sr.rk = 1))::int,
          min(sr.rk),
          coalesce(max(lf.n), 0)::int,
-         p.id = public.my_profile_id()
-  from public.league_members m
+         p.id = public.my_profile_id(), bool_and(m.member)
+  -- The roster, so a season somebody played half of still shows what they
+  -- scored in it. Somebody who left without ever scoring has nothing to show
+  -- and falls out here rather than sitting on the table at zero.
+  from public.league_roster(p_league) m
   join public.profiles p on p.id = m.profile_id
   left join season_rows sr on sr.profile_id = p.id
   left join life lf on lf.profile_id = p.id
-  where m.league_id = p_league and public.is_member(p_league)
+  where public.is_member(p_league)
   group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
            p.name_color, m.joined_at
+  having bool_and(m.member) or count(sr.week_start) > 0
   order by 7 desc, 9 desc, 10 asc nulls last, m.joined_at
 $fn$;
 

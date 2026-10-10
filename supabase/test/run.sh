@@ -52,6 +52,10 @@ echo "· the season table"
 fresh ironseason
 psql -d ironseason -f "$HERE/season.sql" 2>&1 | clean
 
+echo "· the global cap and parking an account"
+fresh ironcapg
+psql -d ironcapg -f "$HERE/usercap.sql" 2>&1 | clean
+
 echo "· the rest day, with more than one league"
 fresh ironrest
 psql -d ironrest -f "$HERE/restday.sql" 2>&1 | clean
@@ -103,6 +107,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/cup.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/membership.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/rest-day.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/launch-gate.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -185,4 +190,14 @@ psql -tAd ironlive -c "select case when public.rest_day_block(
       (select league_id  from league_members limit 1), 'pushups', now(), null)
   then 'and one league resting no longer costs somebody the leagues that are open'
   else 'THE REST DAY SPLIT DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select case when (select count(*) from information_schema.columns
+    where table_name='profiles' and column_name='dormant_at') = 1
+   and (select count(*) from public.app_settings) = 1
+  then 'and a seat can be freed by parking somebody, without deleting them'
+  else 'THE CAP AND THE PARKING DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname='public' and p.proname='league_roster') = 1
+  then 'and a finished week outlives the membership that scored it'
+  else 'THE ROSTER DID NOT SURVIVE' end;"
 echo "· all clear"

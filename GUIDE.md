@@ -1,6 +1,6 @@
 # Iron League — Guide & Rules / Guide & Règles
 
-*Last updated 3 October 2026 · app version 2.21.0*
+*Last updated 10 October 2026 · app version 2.24.0*
 
 ---
 
@@ -25,6 +25,19 @@ rivalité du lundi apparie tout le monde sans laisser personne de côté. Tu peu
 être dans plusieurs ligues : un entraînement enregistré compte dans **toutes**
 celles où tu étais déjà. Si tu rejoins une ligue plus tard, rien n'est
 rétroactif — personne n'arrive en tête le premier jour.
+
+**Si l'appli affiche « complet ».** L'appli tourne sur un serveur de taille
+fixe, donc le nombre de comptes est plafonné. Un nouvel arrivant peut tomber
+sur un écran « complet pour l'instant » : des places se libèrent régulièrement,
+et le bouton de contact te met sur la liste. **Si tu as déjà un compte, cet
+écran ne te concerne pas** — ton code de restauration te fait rentrer
+directement.
+
+Un compte inactif depuis longtemps peut être **mis en attente** pour libérer
+une place. Rien n'est supprimé : ton grade, tes badges, chaque semaine gagnée
+et tout ce que tu as enregistré restent exactement là. Tu vois un écran
+« place en attente » avec un bouton RÉESSAYER, et dès qu'une place se libère ce
+bouton te remet dedans.
 
 ## 2. L'esprit du truc
 
@@ -398,6 +411,18 @@ A league holds **36 people** — an even number on purpose, so the Monday
 rivalry pairs everybody off without leaving anyone out. You can be in several:
 one logged workout counts in **every** league you were already in. Join a
 league later and nothing is backdated — nobody arrives already winning.
+
+**If it says "full".** The app runs on a server of a fixed size, so the number
+of accounts is capped. Somebody new can land on a "full for now" screen: seats
+come free regularly, and the contact button puts you on the list. **If you
+already have an account that screen is not about you** — your restore code
+takes you straight in.
+
+An account nobody has used in a long time can be **put on hold** to free a
+seat. Nothing is deleted: your grade, your badges, every week you won and
+everything you ever logged stay exactly where they are. You get a "seat on
+hold" screen with a TRY AGAIN button, and the moment a seat frees up that
+button puts you back in.
 
 ## 2. The mindset
 

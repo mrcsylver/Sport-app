@@ -52,6 +52,9 @@ OUT = os.path.join(ROOT, "supabase", "season-table.sql")
 RESHAPED = [
     ("set_league_settings",
      "p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int"),
+    # league_season gained `member`, so a season somebody played half of still
+    # shows what they scored in it after they leave.
+    ("league_season", "p_league uuid, p_season int"),
 ]
 
 OBJECTS = ["rank_points", "league_week0", "season_index", "season_next_start",

@@ -43,6 +43,7 @@ KNOWN = {
     "GraphicsContext", "TimelineView", "GeometryReader", "Namespace",
     "NavigationStack", "NavigationLink", "Toggle", "Slider", "TextField",
     "SecureField", "Menu", "Label", "ShareLink", "Section", "Group",
+    "Link",
     "ToolbarItem", "ToolbarItemGroup", "Binding", "State", "StateObject",
     "Environment", "EnvironmentObject", "FocusState", "ViewBuilder",
     "ButtonStyle", "PrimitiveButtonStyle", "Animation", "Transition",

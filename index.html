@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.23.0">
+  <link rel="stylesheet" href="./styles.css?v=2.24.0">
 </head>
 <body>
 
@@ -95,6 +95,53 @@
     </div>
   </div>
   <p id="onboardErr" class="err"></p>
+</div>
+
+<!-- ============================ FULL ============================= -->
+<!-- The app holds a set number of people and has reached it. Deliberately not
+     a dead end: the restore box is on this screen too, because somebody
+     coming back to an account they already have is not a new sign-up and
+     should not be told the door is shut. -->
+<div id="full" class="screen onboard" hidden>
+  <div class="brand"><span class="bolt">⚡</span>
+    <h1>IRON LEAGUE</h1><p class="tag" id="fullTag">FULL FOR NOW</p></div>
+  <div class="backcard" style="margin-top:4px">
+    <h3>THE LEAGUE IS AT CAPACITY</h3>
+    <p class="muted small" id="fullWhy">We keep the app to a size it can carry
+      properly. Every seat is taken right now.</p>
+    <p class="muted small">Seats come free regularly. Send a message and you go on
+      the list — or come back in a few days and try again.</p>
+    <a id="fullContact" class="btn ghost" href="#">ASK FOR A SEAT</a>
+  </div>
+  <div class="backcard">
+    <h3>ALREADY HAVE A PROFILE?</h3>
+    <p class="muted small">Coming back is not a new sign-up. If your account is
+      still here, your code brings it straight back.</p>
+    <label class="lbl" for="fullRestore">RESTORE CODE</label>
+    <input id="fullRestore" class="input mono" maxlength="9" placeholder="XXXXXXXX"
+           autocapitalize="characters" spellcheck="false">
+    <button id="fullRestoreBtn" class="btn ghost">RESTORE PROFILE</button>
+  </div>
+  <p id="fullErr" class="err"></p>
+</div>
+
+<!-- =========================== PARKED ============================ -->
+<!-- Their account was parked to free a seat. Nothing is lost; there is just
+     no room at this second. -->
+<div id="parked" class="screen onboard" hidden>
+  <div class="brand"><span class="bolt">⚡</span>
+    <h1>IRON LEAGUE</h1><p class="tag">SEAT ON HOLD</p></div>
+  <div class="backcard" style="margin-top:4px">
+    <h3>YOUR ACCOUNT IS WAITING</h3>
+    <p class="muted small"><b id="parkedName">You</b> — nothing has been deleted.
+      Your rank, your badges, every week you won and everything you ever logged
+      are exactly where you left them.</p>
+    <p class="muted small">The app is at capacity, so your seat is on hold until
+      one frees up. Try again any time.</p>
+    <button id="parkedRetry" class="btn primary">TRY AGAIN</button>
+    <a id="parkedContact" class="btn ghost" href="#">ASK FOR A SEAT</a>
+  </div>
+  <p id="parkedErr" class="err"></p>
 </div>
 
 <!-- ============================ APP ============================= -->
@@ -642,8 +689,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.23.0"></script>
-<script src="./vendor/game-icons.js?v=2.23.0"></script>
-<script src="./app.js?v=2.23.0"></script>
+<script src="./vendor/supabase.js?v=2.24.0"></script>
+<script src="./vendor/game-icons.js?v=2.24.0"></script>
+<script src="./app.js?v=2.24.0"></script>
 </body>
 </html>

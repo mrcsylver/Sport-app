@@ -14,6 +14,10 @@ struct Profile: Codable, Identifiable, Hashable {
     var nameColor: String?
     var pinnedBadges: [String]?
     var isAdmin: Bool?
+    /// Set when an admin parked this account to free a seat. Nothing is
+    /// deleted; the profile simply does not count against the cap and cannot
+    /// be used until a seat frees up.
+    var dormantAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -24,7 +28,10 @@ struct Profile: Codable, Identifiable, Hashable {
         case nameColor = "name_color"
         case pinnedBadges = "pinned_badges"
         case isAdmin = "is_admin"
+        case dormantAt = "dormant_at"
     }
+
+    var isParked: Bool { dormantAt != nil }
 
     var usesPounds: Bool { units == "lb" }
 }
@@ -568,4 +575,17 @@ struct LeaguePreviewRow: Codable, Hashable {
     }
 
     var isFull: Bool { members >= maxMembers }
+}
+
+/// How full the app is, straight from `signup_state()`. `cap` is nil when
+/// there is no cap set at all, which is the normal state.
+struct SignupState: Codable {
+    var cap: Int?
+    var used: Int
+    var isFull: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case cap, used
+        case isFull = "is_full"
+    }
 }

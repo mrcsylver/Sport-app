@@ -92,6 +92,20 @@
     <h2>Overview</h2>
     <div class="stats" id="stats"></div>
 
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin-top:0">How many people the app will hold</h3>
+      <p class="dim">Parked accounts do not count, so parking somebody is what frees a
+        seat. Nobody is ever deleted: everything they logged stays, every week they won
+        stays theirs, and putting them back is one button — if there is room.
+        Leave it empty for no limit.</p>
+      <span class="row">
+        <input id="capInput" type="number" min="0" placeholder="no limit"
+               style="max-width:160px">
+        <button class="primary" id="capSave">SET THE CAP</button>
+        <span class="dim" id="capState"></span>
+      </span>
+    </div>
+
     <h2>Leagues</h2>
     <div class="scroll"><table id="leagues"></table></div>
 
@@ -155,6 +169,7 @@
   var players = [];
   var memberships = [];      // who is in what, for the per-league kick
   var openPlayer = null;     // whose league list is expanded
+  var overview = null;       // the cap, what is used, how many are parked
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -190,9 +205,11 @@
     var lg = await sb.rpc('admin_leagues');
     var pl = await sb.rpc('admin_players');
     var mb = await sb.rpc('admin_memberships');
+    var ov = await sb.rpc('admin_overview');
     if (lg.error || pl.error) { $('#err').textContent = (lg.error || pl.error).message; return; }
     players = pl.data || [];
     memberships = mb.error ? [] : (mb.data || []);
+    overview = (ov.error ? null : (ov.data || [])[0]) || null;
     var L = lg.data || [];
 
     if (!players.length) {
@@ -203,10 +220,20 @@
     var active = players.filter(function (p) {
       return p.last_log && Date.now() - new Date(p.last_log) < 7 * 86400000; }).length;
     var never = players.filter(function (p) { return !p.workouts; }).length;
-    $('#stats').innerHTML = [['Leagues', L.length], ['Players', players.length],
-      ['Active this week', active], ['Never logged', never]]
+    var parked = players.filter(function (p) { return p.dormant_at; }).length;
+    var seats = overview && overview.cap != null
+      ? (overview.used + ' / ' + overview.cap) : (players.length - parked);
+    $('#stats').innerHTML = [['Leagues', L.length], ['Seats used', seats],
+      ['Parked', parked], ['Active this week', active], ['Never logged', never]]
       .map(function (x) { return '<div class="stat"><b>' + x[1] + '</b><i>' + x[0] + '</i></div>'; })
       .join('');
+    $('#capInput').value = overview && overview.cap != null ? overview.cap : '';
+    $('#capState').textContent = !overview ? ''
+      : overview.cap == null ? 'No limit — anybody can sign up.'
+      : overview.is_full
+        ? 'FULL. New sign-ups see the waiting screen. Park somebody to free a seat.'
+        : (overview.cap - overview.used) + ' seat'
+          + (overview.cap - overview.used === 1 ? '' : 's') + ' left.';
 
     $('#leagues').innerHTML =
       '<tr><th>League</th><th>Code</th><th>Members</th><th>Logs</th><th>Last activity</th>' +
@@ -365,11 +392,18 @@
       return !q || p.display_name.toLowerCase().indexOf(q) >= 0; });
     $('#players').innerHTML =
       '<tr><th>Player</th><th>Leagues</th><th>Logs</th><th>Lifetime</th>' +
-      '<th>This week</th><th>Last activity</th><th>Restore code</th><th></th></tr>' +
+      '<th>This week</th><th>Last activity</th><th>Restore code</th>' +
+      '<th>Seat</th><th></th></tr>' +
       rows.map(function (p) {
         var open = openPlayer === p.id;
-        return '<tr><td class="name">' + esc(p.display_name) +
-          (p.is_admin ? '<span class="tag">ADMIN</span>' : '') + '</td>' +
+        var quiet = p.last_log
+          ? Math.floor((Date.now() - new Date(p.last_log)) / 86400000) : null;
+        return '<tr' + (p.dormant_at ? ' style="opacity:.55"' : '') +
+          '><td class="name">' + esc(p.display_name) +
+          (p.is_admin ? '<span class="tag">ADMIN</span>' : '') +
+          (p.dormant_at ? '<span class="tag">PARKED</span>' : '') +
+          (!p.dormant_at && quiet !== null && quiet >= 30
+            ? '<span class="tag">' + quiet + 'd QUIET</span>' : '') + '</td>' +
           '<td><button data-mem="' + p.id + '">' + p.leagues +
             (open ? ' \u25B4' : ' \u25BE') + '</button></td>' +
           '<td>' + p.workouts + '</td>' +
@@ -377,6 +411,10 @@
           '<td class="dim">' + when(p.last_log) + '</td>' +
           '<td class="dim" style="font-family:ui-monospace,monospace">' +
             esc(p.restore_code) + '</td>' +
+          '<td>' + (p.is_admin ? '' :
+            '<button data-park="' + p.id + '" data-to="' + (p.dormant_at ? '0' : '1') +
+            '" data-n="' + esc(p.display_name) + '">' +
+            (p.dormant_at ? 'Put back' : 'Park') + '</button>') + '</td>' +
           '<td>' + (p.is_admin ? '' : '<button class="danger" data-dp="' + p.id +
             '" data-n="' + esc(p.display_name) + '">Delete account</button>') + '</td></tr>' +
           (open ? membershipRow(p) : '');
@@ -426,6 +464,36 @@
       return;
     }
 
+    var cap = e.target.closest('#capSave');
+    if (cap) {
+      var raw = ($('#capInput').value || '').trim();
+      var rc = await sb.rpc('admin_set_cap', { p_cap: raw === '' ? null : Number(raw) });
+      if (rc.error) { $('#err').textContent = rc.error.message; return; }
+      await load();
+      return;
+    }
+    var park = e.target.closest('[data-park]');
+    if (park) {
+      var on = park.getAttribute('data-to') === '1';
+      var pn = park.getAttribute('data-n');
+      if (on && !confirm('Park ' + pn + '?\n\n' +
+            'Nothing is deleted. Everything they logged stays, every week they won ' +
+            'stays theirs, and their leagues still list them. They stop counting ' +
+            'against the cap and drop off the live boards, which frees a seat. ' +
+            'One button puts them back — if there is room.')) return;
+      var rp = await sb.rpc('admin_set_dormant',
+                            { p_profile: park.getAttribute('data-park'), p_dormant: on });
+      if (rp.error) {
+        $('#err').textContent = /APP_FULL/.test(rp.error.message)
+          ? 'The app is full, so there is no seat to put ' + pn + ' back into. ' +
+            'Raise the cap or park somebody else first.'
+          : rp.error.message;
+        return;
+      }
+      $('#err').textContent = '';
+      await load();
+      return;
+    }
     var mem = e.target.closest('[data-mem]');
     if (mem) {
       var who = mem.getAttribute('data-mem');

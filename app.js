@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.23.0';
+  var APP_VERSION = '2.24.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -803,7 +803,8 @@
     CHALLENGE_UNAVAILABLE: 'That duel is no longer open.',
     NOT_A_MEMBER: 'That duel belongs to a league you are not in.',
     REST_DAY: 'Today is a rest day — a stretching session is the only thing that counts.',
-    REST_DAY_DONE: 'You already logged your recovery today. Rest.'
+    REST_DAY_DONE: 'You already logged your recovery today. Rest.',
+    APP_FULL: 'Iron League is at capacity right now. Nothing of yours is lost — try again in a day or two, or ask for a seat.'
   };
   function niceError(e) {
     if (!e) return 'Something went wrong.';
@@ -981,7 +982,7 @@
       /^https?:\/\//.test(CFG.SUPABASE_URL);
   }
   function show(id) {
-    ['#boot', '#setup', '#onboard', '#app'].forEach(function (s) {
+    ['#boot', '#setup', '#onboard', '#full', '#parked', '#app'].forEach(function (s) {
       $(s).hidden = (s !== id);
     });
   }
@@ -1031,8 +1032,35 @@
 
     try { await loadProfile(); } catch (e) { toast(niceError(e), true); }
 
-    if (!state.profile) { startOnboarding(); return; }
+    if (!state.profile) { await startOnboarding(); return; }
+    /* Parked to free a seat. Nothing is lost — there is just no room at this
+       second — so this is a waiting room, not an error. */
+    if (state.profile.dormant_at) {
+      var woke = await sb.rpc('wake_me');
+      if (woke.error) { showParked(); return; }
+      state.profile = woke.data;
+    }
     await enterApp();
+  }
+
+  function contactUrl() {
+    return (window.APP_CONFIG && window.APP_CONFIG.CONTACT_URL) || '';
+  }
+  function wireContact(id) {
+    var a = $(id), u = contactUrl();
+    if (!u) { a.hidden = true; return; }
+    a.hidden = false; a.href = u;
+    if (/^https?:/i.test(u)) { a.target = '_blank'; a.rel = 'noopener'; }
+  }
+  function showParked() {
+    show('#parked');
+    $('#parkedName').textContent = state.profile
+      ? state.profile.display_name : 'Your account';
+    wireContact('#parkedContact');
+  }
+  function showFull() {
+    show('#full');
+    wireContact('#fullContact');
   }
 
   /* The setup screen doubles as the "cannot reach the server" screen. */
@@ -1079,6 +1107,13 @@
   }
 
   async function startOnboarding() {
+    /* Ask before showing a name box. Being told there is no room AFTER
+       picking a fighter name is the worst version of this. */
+    try {
+      var st = await sb.rpc('signup_state');
+      var row = !st.error && st.data && st.data[0];
+      if (row && row.is_full) { showFull(); return; }
+    } catch (e) { /* if we cannot tell, let them try — the server still holds */ }
     show('#onboard');
     var code = state.pendingCode;
     if (code) {
@@ -1156,7 +1191,10 @@
     btn.disabled = true; btn.textContent = 'ENTERING…';
     try {
       var p = await sb.rpc('create_profile', { p_name: name });
-      if (p.error) throw p.error;
+      if (p.error) {
+        if (/APP_FULL/.test(p.error.message || '')) { showFull(); return; }
+        throw p.error;
+      }
       state.profile = p.data;
 
       if (onboardMode === 'create') {
@@ -1187,9 +1225,12 @@
     }
   });
 
-  $('#restoreBtn').addEventListener('click', async function () {
-    var code = $('#restoreInput').value.trim();
-    $('#onboardErr').textContent = '';
+  /* Restoring works from the onboarding screen AND from the full screen:
+     somebody coming back to an account they already have is not a new
+     sign-up, and telling them the door is shut would be a lie. */
+  async function doRestore(codeEl, errEl) {
+    var code = $(codeEl).value.trim();
+    $(errEl).textContent = '';
     if (!code) return;
     try {
       var r = await sb.rpc('restore_profile', { p_code: code });
@@ -1198,8 +1239,25 @@
       toast('Welcome back, ' + r.data.display_name);
       await enterApp();
     } catch (e) {
-      $('#onboardErr').textContent = niceError(e);
+      $(errEl).textContent = niceError(e);
     }
+  }
+  $('#restoreBtn').addEventListener('click', function () {
+    doRestore('#restoreInput', '#onboardErr');
+  });
+  $('#fullRestoreBtn').addEventListener('click', function () {
+    doRestore('#fullRestore', '#fullErr');
+  });
+  $('#parkedRetry').addEventListener('click', async function () {
+    $('#parkedErr').textContent = '';
+    var w = await sb.rpc('wake_me');
+    if (w.error) {
+      $('#parkedErr').textContent = 'Still full. Nothing of yours has moved — try again later.';
+      return;
+    }
+    state.profile = w.data;
+    toast('You are back in');
+    await enterApp();
   });
 
   /* ===================================================================

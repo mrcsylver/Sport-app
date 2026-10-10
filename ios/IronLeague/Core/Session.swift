@@ -12,7 +12,11 @@ final class Session {
     /// `needsProfile`, which threw a person with a perfectly good profile back
     /// into onboarding and put their restore code, their shop and their name
     /// out of reach until they joined something.
-    enum Phase { case booting, needsProfile, noLeague, ready, failed(String) }
+    /// `full` and `parked` are the two sides of the global cap: somebody new
+    /// arriving when every seat is taken, and somebody whose own seat was put
+    /// on hold to free one. Neither is a failure — the first is a door, the
+    /// second a waiting room.
+    enum Phase { case booting, needsProfile, full, parked, noLeague, ready, failed(String) }
 
     var phase: Phase = .booting
     var profile: Profile?
@@ -92,10 +96,22 @@ final class Session {
             try await API.shared.ensureSignedIn()
             profile = try await API.shared.myProfile()
 
-            guard profile != nil else {
-                // A fresh device: signed in, but nobody yet.
-                phase = .needsProfile
+            guard let existing = profile else {
+                // A fresh device: signed in, but nobody yet. Ask the door
+                // before drawing a name box.
+                let st = try? await API.shared.signupState()
+                phase = (st?.isFull == true) ? .full : .needsProfile
                 return
+            }
+
+            // Parked to free a seat. Nothing is lost — there is just no room
+            // at this second — so try the door once, quietly.
+            if existing.isParked {
+                guard let woken = try? await API.shared.wakeMe() else {
+                    phase = .parked
+                    return
+                }
+                profile = woken
             }
 
             let mine = try await API.shared.myLeagues()
@@ -291,7 +307,27 @@ final class Session {
             Haptic.win()
             return true
         } catch {
+            // The last seat can go between asking and typing, so the door is
+            // a real answer here and not just a toast.
+            if "\(error)".contains("APP_FULL") {
+                phase = .full; Haptic.refuse(); return false
+            }
             show(Friendly.message(error)); Haptic.refuse(); return false
+        }
+    }
+
+    /// Asking again from the waiting room. A seat freed by somebody else is
+    /// the only thing that changes the answer.
+    func tryWaking() async -> Bool {
+        do {
+            let woken = try await API.shared.wakeMe()
+            profile = woken
+            await adopt(profile: woken)
+            Haptic.win()
+            return true
+        } catch {
+            Haptic.refuse()
+            return false
         }
     }
 

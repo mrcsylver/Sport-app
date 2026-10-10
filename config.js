@@ -27,5 +27,10 @@ window.APP_CONFIG = {
   DEFAULT_LEAGUE_CODE: "",
 
   // Shown in the header and on the home screen icon.
-  APP_NAME: "IRON LEAGUE"
+  APP_NAME: "IRON LEAGUE",
+
+  // Where somebody turned away by the cap is sent to ask for a seat. An
+  // email, an Instagram profile, a WhatsApp link — anything a browser can
+  // open. Leave "" and the button is hidden rather than dead.
+  CONTACT_URL: ""
 };

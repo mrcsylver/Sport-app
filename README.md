@@ -846,3 +846,47 @@ update public.profiles set is_admin = true where display_name = 'THEIR NAME';
 Deleting a player removes their account and every workout they logged, in every
 league. Deleting a league removes it for everyone, but its members keep their
 logs in any other league they are in. Neither can be undone.
+
+## Seats, and parking somebody
+
+A free Supabase project is a fixed amount of database and bandwidth, and the
+app is the same for everybody on it. **Seats** are how that is held: a number
+you set in the control room, and nothing else.
+
+Leave it empty and there is no cap — that is the shipped state and most leagues
+never need another. Set it to 250 and the 251st person to open the app sees a
+"full for now" screen with an "ask for a seat" button instead of a name box.
+Anybody who **already has a profile** is let through on that same screen: their
+restore code works, because coming back is not a new sign-up.
+
+The control room's top row counts what the cap counts:
+
+| tile | what it means |
+|---|---|
+| **Leagues** | how many exist |
+| **Seats used** | profiles that count against the cap |
+| **Parked** | profiles on hold, costing nothing |
+| **Active this week** | logged something since Monday |
+| **Never logged** | signed up and never trained |
+
+**Park** is next to every player. It frees their seat without deleting
+anything: their rank, their badges, every week they won and every workout stay
+exactly where they are, and the hall of fame still credits them for the weeks
+they won. They see a "your seat is on hold" screen with a **try again** button,
+and the moment a seat frees up that button puts them straight back in — no code
+to re-enter, nothing to rebuild. **Put back** does the same from your side.
+
+Two things it deliberately will not do. It will not let you park yourself,
+which would lock the only person who can unpark anybody out of the page that
+does it. And it will not wake somebody into a full app, not even for an admin —
+a parked account is not owed its old seat ahead of somebody waiting at the
+door.
+
+It is also deliberately manual. "Inactive for 30 days" parks the person who
+broke an ankle and keeps the person who logs one push-up a month, so the
+players table just tags quiet accounts — `47d QUIET` once somebody has not
+trained in a month — and leaves the call to you.
+
+To fill in the "ask for a seat" button, set `CONTACT_URL` in `config.js` to an
+Instagram profile, a `mailto:`, a form, anything. Leave it empty and the button
+is hidden rather than dead.

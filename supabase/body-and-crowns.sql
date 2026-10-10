@@ -121,6 +121,23 @@ on conflict (key) do update set
 -- that gained a column go first and are rebuilt below.
 drop function if exists public.weekly_history(uuid) cascade;
 drop function if exists public.my_badges(uuid) cascade;
+drop function if exists public.league_wins(uuid) cascade;
+
+-- --------------------------------------------------------- league_roster ---
+create or replace function public.league_roster(p_league uuid)
+returns table (profile_id uuid, joined_at timestamptz, member boolean)
+language sql stable security definer set search_path = public as $fn$
+  with mem as (
+    select m.profile_id, m.joined_at
+    from public.league_members m where m.league_id = p_league),
+  logged as (
+    select w.profile_id, min(w.created_at) as first_log
+    from public.workouts w where w.league_id = p_league group by 1)
+  select coalesce(m.profile_id, l.profile_id),
+         coalesce(m.joined_at, l.first_log),
+         m.profile_id is not null
+  from mem m full outer join logged l on l.profile_id = m.profile_id
+$fn$;
 
 -- -------------------------------------------------------- weekly_history ---
 create or replace function public.weekly_history(p_league uuid)
@@ -142,8 +159,7 @@ language sql stable security definer set search_path = public as $fn$
             and w.week_start < public.current_week_start()
           group by 1, 2, 3) e
     join public.profiles p on p.id = e.profile_id
-    join public.league_members m
-      on m.profile_id = p.id and m.league_id = p_league
+    join public.league_roster(p_league) m on m.profile_id = p.id
     where public.is_member(p_league)
     group by e.week_start, p.id, p.display_name, p.avatar, m.joined_at
   ) t
@@ -238,7 +254,8 @@ $fn$;
 create or replace function public.league_wins(p_league uuid)
 returns table (profile_id uuid, display_name text, avatar text,
                wins int, last_win date, weeks int, banner text,
-               pinned_badges text[], name_color text, mine boolean)
+               pinned_badges text[], name_color text, mine boolean,
+               member boolean)
 language sql stable security definer set search_path = public as $fn$
   with done as (
     select h.week_start, h.profile_id,
@@ -250,14 +267,19 @@ language sql stable security definer set search_path = public as $fn$
   won as (select profile_id, count(*)::int n, max(week_start) last
           from done where rk = 1 group by 1),
   n as (select count(distinct week_start)::int c from done)
+  -- The roster, not the membership: a crown is earned, and somebody who won
+  -- five weeks and then left still won them. Anybody who never scored and is
+  -- no longer here simply has no history to show, so they drop out on their
+  -- own rather than needing a rule.
   select p.id, p.display_name, p.avatar,
          coalesce(w.n, 0), w.last, (select c from n),
          p.banner, p.pinned_badges, p.name_color,
-         p.id = public.my_profile_id()
-  from public.league_members m
+         p.id = public.my_profile_id(), m.member
+  from public.league_roster(p_league) m
   join public.profiles p on p.id = m.profile_id
   left join won w on w.profile_id = p.id
-  where m.league_id = p_league and public.is_member(p_league)
+  where public.is_member(p_league)
+    and (m.member or w.n is not null)
   order by coalesce(w.n, 0) desc, w.last desc nulls last, m.joined_at
 $fn$;
 
@@ -426,6 +448,7 @@ revoke all on function public.set_body_form(text)           from public, anon;
 revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
 revoke all on function public.my_muscles(uuid,boolean,date)  from public, anon;
 revoke all on function public.muscle_dose(uuid)             from public, anon;
+revoke all on function public.league_roster(uuid)           from public, anon, authenticated;
 revoke all on function public.league_wins(uuid)             from public, anon;
 revoke all on function public.league_champions(uuid)        from public, anon;
 grant execute on function public.weekly_history(uuid)          to authenticated;
@@ -434,6 +457,7 @@ grant execute on function public.muscle_charge(numeric,numeric) to authenticated
 grant execute on function public.my_muscles(uuid,boolean,date) to authenticated;
 grant execute on function public.muscle_dose(uuid)             to authenticated;
 grant execute on function public.league_wins(uuid)             to authenticated;
+grant execute on function public.league_champions(uuid)        to authenticated;
 grant select on public.muscles to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;
 

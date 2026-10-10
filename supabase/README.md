@@ -275,6 +275,66 @@ an error — the web lands on the leagues tab and iOS has a `noLeague` phase. It
 used to fall through to onboarding, which hands somebody with a perfectly good
 profile a "pick a fighter name" screen and implies their rank is gone.
 
+### A finished week outlives the membership that scored it
+
+`weekly_history()`, `league_wins()` and `league_season()` used to walk
+`league_members`, which meant a week's champion vanished from the hall the
+moment they left — the league's own history rewritten by somebody else's exit.
+
+`league_roster()` is the fix: a full outer join of the membership against
+"everybody who has ever logged in this league", so the history functions see
+both. Each row carries a `member` boolean, and that boolean is what the live
+board keys on:
+
+| reads as | who | where they show |
+|---|---|---|
+| `member = true` | in the league right now | everywhere |
+| `member = false` | left, kicked, or parked | the hall and the season table only |
+
+A parked account reads exactly like somebody who left, on purpose: `member`
+means "counts right now", and a seat on hold does not count. Nobody who never
+scored leaves a ghost behind, because the outer join has nothing to join to.
+
+### Seats, and parking somebody
+
+`app_settings` is a one-row table — `only_row boolean primary key default true
+check (only_row)`, so a second row is a constraint violation rather than a
+convention — holding `user_cap`. Nil means no cap, which is the shipped state.
+
+`profiles.dormant_at` is how a seat is freed without deleting anybody. A parked
+profile keeps its restore code, its badges, every week it won and everything it
+ever logged; it is simply invisible to the live board, to streaks, to member
+counts and to league capacity, and it does not count against the cap.
+
+| function | what it answers |
+|---|---|
+| `signup_state()` | cap, used, `is_full` — asked before a name box is drawn |
+| `app_is_full()` | the same question as a boolean, for the guards |
+| `wake_me()` | un-park me, or raise `APP_FULL` |
+| `admin_overview()` | the control room's five tiles |
+| `admin_set_cap(int)` | set or clear the cap |
+| `admin_set_dormant(uuid, boolean)` | park or un-park somebody |
+
+The column is `is_full`, not `full`, because `full` is a reserved word in a
+`FROM` clause and `select ... from signup_state()` is how every caller reads it.
+
+Three rules the tests pin down, because each one is a way to get this wrong:
+
+* **the cap holds on the way back in.** `create_profile()` raises `APP_FULL`,
+  and so does waking — a parked account is not owed its old seat ahead of
+  somebody at the door. `restore_profile()` is the one exception and only when
+  the profile is *not* parked: moving a live account to another phone is not a
+  new sign-up, and the row already exists either way.
+* **an admin cannot park themselves**, which would lock the only person able to
+  unpark anybody out of the room that does it.
+* **nobody is woken into a full app**, not even by an admin, or the count the
+  cap exists to hold stops meaning anything.
+
+`admin_set_dormant()` is deliberately manual. An "inactive for 30 days" rule
+parks the person who broke an ankle and keeps the person who logs one push-up a
+month, so the control room tags quiet accounts (`Nd QUIET` at thirty days) and
+leaves the decision to a human.
+
 ### The cup
 
 `cup.sql` adds a straight knockout for the top of the season, played over its
@@ -405,6 +465,7 @@ Do not hand-edit these:
 | `cup.sql` | `tools/build_cup_migration.py` |
 | `membership.sql` | `tools/build_membership_migration.py` |
 | `rest-day.sql` | `tools/build_restday_migration.py` |
+| `launch-gate.sql` | `tools/build_launchgate_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

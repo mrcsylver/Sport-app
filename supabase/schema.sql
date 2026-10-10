@@ -136,6 +136,13 @@ drop function if exists public.set_league_badge(p_league uuid, p_badge jsonb) ca
 drop function if exists public.shares_league_with(p_profile uuid) cascade;
 drop function if exists public.week_bounty_points(p_league uuid, p_week date) cascade;
 drop function if exists public.week_combo_bonus(p_league uuid, p_week date) cascade;
+drop function if exists public.league_roster(p_league uuid) cascade;
+drop function if exists public.signup_state() cascade;
+drop function if exists public.app_is_full() cascade;
+drop function if exists public.wake_me() cascade;
+drop function if exists public.admin_overview() cascade;
+drop function if exists public.admin_set_cap(p_cap int) cascade;
+drop function if exists public.admin_set_dormant(p_profile uuid, p_dormant boolean) cascade;
 drop function if exists public.weekly_history(p_league uuid) cascade;
 drop function if exists public.workouts_stamp() cascade;
 drop function if exists public.workouts_update_guard() cascade;
@@ -451,6 +458,23 @@ $$;
 
 -- One row per athlete. There is no password: the app signs each device in
 -- anonymously, and the profile is attached to that anonymous account.
+-- One row, holding the handful of things that have to be changeable from the
+-- control room at three in the morning rather than by a migration.
+--
+-- user_cap is how many ACTIVE accounts the app will hold. null means no
+-- limit, which is where it starts. It is a number you can raise the moment
+-- you see the database shrug, which is the whole reason it is a row and not
+-- a constant.
+create table public.app_settings (
+  only_row   boolean primary key default true check (only_row),
+  user_cap   int check (user_cap is null or user_cap >= 0),
+  updated_at timestamptz not null default now()
+);
+insert into public.app_settings (only_row, user_cap) values (true, null);
+alter table public.app_settings enable row level security;
+create policy app_settings_read on public.app_settings for select
+  to anon, authenticated using (true);
+
 -- restore_code lets someone move their profile to a new phone.
 create table public.profiles (
   id           uuid primary key default gen_random_uuid(),
@@ -459,6 +483,11 @@ create table public.profiles (
                  check (char_length(btrim(display_name)) between 2 and 18),
   restore_code text not null unique
                  default upper(substr(md5(gen_random_uuid()::text), 1, 8)),
+  -- Parked by the control room to free a seat. NOT a deletion: everything
+  -- they logged stays, every week they won stays theirs, and clearing this
+  -- puts them straight back. They simply stop counting against the cap and
+  -- stop appearing on live boards until there is room for them again.
+  dormant_at   timestamptz,
   -- "gi:<icon>|c=<colour>|p=<emoji>": an emblem, its tint, and an optional
   -- emoji pinned to it. A bare emoji (what people picked first) still parses.
   avatar       text check (avatar is null or char_length(avatar) between 1 and 80),
@@ -711,7 +740,11 @@ begin
   if cap is null then
     raise exception 'League not found';
   end if;
-  select count(*) into taken from public.league_members where league_id = new.league_id;
+  -- Parked accounts do not hold a seat: that is the point of parking one.
+  select count(*) into taken
+    from public.league_members m
+    join public.profiles p on p.id = m.profile_id
+   where m.league_id = new.league_id and p.dormant_at is null;
   if taken >= cap then
     raise exception 'LEAGUE_FULL';
   end if;
@@ -806,6 +839,25 @@ create policy challenges_read on public.challenges for select to authenticated
 -- ---------------------------------------------------------------------
 
 -- Sign-up: pick a display name. Called once per device/account.
+-- How full the app is. Readable WITHOUT a profile, because the point of it is
+-- to tell somebody there is no room before they pick a name and find out.
+-- Dormant accounts do not count: parking one is what frees the seat.
+create function public.signup_state()
+returns table (cap int, used int, is_full boolean)
+language sql stable security definer set search_path = public as $$
+  select s.user_cap,
+         (select count(*)::int from public.profiles where dormant_at is null),
+         s.user_cap is not null
+           and (select count(*) from public.profiles where dormant_at is null)
+               >= s.user_cap
+  from public.app_settings s where s.only_row
+$$;
+
+create function public.app_is_full() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select is_full from public.signup_state()), false)
+$$;
+
 create function public.create_profile(p_name text)
 returns public.profiles
 language plpgsql security definer set search_path = public as $$
@@ -815,6 +867,9 @@ begin
   if auth.uid() is null then raise exception 'NOT_SIGNED_IN'; end if;
   select * into p from public.profiles where user_id = auth.uid();
   if found then return p; end if;
+  -- Checked here rather than only on the phone, because the phone is not the
+  -- thing holding the line.
+  if public.app_is_full() then raise exception 'APP_FULL'; end if;
   insert into public.profiles (user_id, display_name)
   values (auth.uid(), btrim(p_name))
   returning * into p;
@@ -857,9 +912,31 @@ begin
     delete from public.profiles where id = existing.id;
   end if;
 
-  update public.profiles set user_id = auth.uid()
+  -- Coming back to a parked account. They kept everything — the rank, the
+  -- badges, every week they won — but the seat went to somebody else, so
+  -- they only get it back if one is free.
+  if target.dormant_at is not null and public.app_is_full() then
+    raise exception 'APP_FULL';
+  end if;
+
+  update public.profiles set user_id = auth.uid(), dormant_at = null
    where id = target.id returning * into target;
   return target;
+end $$;
+
+-- A parked account opening the app. Wakes itself if there is room; otherwise
+-- says so, and the person waits rather than losing anything.
+create function public.wake_me() returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare p public.profiles;
+begin
+  select * into p from public.profiles where user_id = auth.uid();
+  if not found then raise exception 'NO_PROFILE'; end if;
+  if p.dormant_at is null then return p; end if;
+  if public.app_is_full() then raise exception 'APP_FULL'; end if;
+  update public.profiles set dormant_at = null
+   where id = p.id returning * into p;
+  return p;
 end $$;
 
 -- What a league looks like from the outside, before you join it.
@@ -867,7 +944,9 @@ create function public.league_preview(p_code text)
 returns table (id uuid, name text, code text, members int, max_members int)
 language sql security definer set search_path = public as $$
   select l.id, l.name, l.code,
-         (select count(*)::int from public.league_members m where m.league_id = l.id),
+         (select count(*)::int from public.league_members m
+           join public.profiles p on p.id = m.profile_id
+          where m.league_id = l.id and p.dormant_at is null),
          l.max_members
   from public.leagues l
   where l.code = upper(btrim(p_code))
@@ -972,7 +1051,9 @@ returns table (id uuid, name text, code text, owner_id uuid, members int,
                created_at timestamptz)
 language sql stable security definer set search_path = public as $$
   select l.id, l.name, l.code, l.owner_id,
-         (select count(*)::int from public.league_members m2 where m2.league_id = l.id),
+         (select count(*)::int from public.league_members m2
+           join public.profiles p2 on p2.id = m2.profile_id
+          where m2.league_id = l.id and p2.dormant_at is null),
          l.max_members, m.joined_at,
          l.badge, l.rest_dow, l.season_weeks, l.catchup_dow, l.created_at
   from public.leagues l
@@ -1015,6 +1096,7 @@ language sql stable security definer set search_path = public as $$
   left join bb on bb.profile_id = p.id
   left join lt on lt.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
+    and p.dormant_at is null
   order by 4 desc, 8 asc
 $$;
 
@@ -1190,6 +1272,7 @@ language sql stable security definer set search_path = public as $$
   join public.profiles p on p.id = m.profile_id
   left join runs r on r.profile_id = p.id
   where m.league_id = p_league and public.is_member(p_league)
+    and p.dormant_at is null
   group by p.id, p.display_name, p.avatar, p.banner
   order by 5 desc, 6 desc, 7 desc
 $$;
@@ -1200,6 +1283,38 @@ $$;
 -- on a Thursday quest was recorded as a week lost. Both bonuses are in now,
 -- and joined_at rides along so a tie is broken here the way the live board
 -- breaks it — which is also what decides who won the week.
+-- Everybody a league's BOARDS should show: the people in it now, plus anybody
+-- who ever logged into it.
+--
+-- This exists because history has to outlive a membership. weekly_history used
+-- to inner-join league_members purely to fetch joined_at for the tie-break,
+-- which meant anybody who left — or was taken out to free a seat — stopped
+-- having won the weeks they won. The Hall of Fame re-ranked, crowns moved, the
+-- season table reshuffled and the cup reseeded, all retroactively. A roster is
+-- a fact about now; a finished week is a fact about then, and nothing about
+-- leaving should be able to edit it.
+--
+-- `joined_at` falls back to their first workout in the league, because the
+-- tie-break needs an order and "when they first showed up" is the honest
+-- answer once the membership row is gone.
+create function public.league_roster(p_league uuid)
+returns table (profile_id uuid, joined_at timestamptz, member boolean)
+language sql stable security definer set search_path = public as $$
+  with mem as (
+    select m.profile_id, m.joined_at
+    from public.league_members m where m.league_id = p_league),
+  logged as (
+    select w.profile_id, min(w.created_at) as first_log
+    from public.workouts w where w.league_id = p_league group by 1)
+  select coalesce(m.profile_id, l.profile_id),
+         coalesce(m.joined_at, l.first_log),
+         -- `member` means "counts right now", so a parked account reads the
+         -- same as somebody who left: still in the history, off the roster.
+         m.profile_id is not null and p.dormant_at is null
+  from mem m full outer join logged l on l.profile_id = m.profile_id
+  join public.profiles p on p.id = coalesce(m.profile_id, l.profile_id)
+$$;
+
 create function public.weekly_history(p_league uuid)
 returns table (week_start date, profile_id uuid, display_name text, avatar text,
                points numeric, entries bigint, joined_at timestamptz)
@@ -1219,8 +1334,7 @@ language sql stable security definer set search_path = public as $$
             and w.week_start < public.current_week_start()
           group by 1, 2, 3) e
     join public.profiles p on p.id = e.profile_id
-    join public.league_members m
-      on m.profile_id = p.id and m.league_id = p_league
+    join public.league_roster(p_league) m on m.profile_id = p.id
     where public.is_member(p_league)
     group by e.week_start, p.id, p.display_name, p.avatar, m.joined_at
   ) t
@@ -1597,7 +1711,7 @@ create function public.league_season(p_league uuid, p_season int default null)
 returns table (profile_id uuid, display_name text, avatar text, banner text,
                pinned_badges text[], name_color text, points numeric,
                weeks int, wins int, best_rank int, lifetime_wins int,
-               mine boolean)
+               mine boolean, member boolean)
 language sql stable security definer set search_path = public as $$
   with ranked as (
     select h.week_start, h.profile_id,
@@ -1621,14 +1735,18 @@ language sql stable security definer set search_path = public as $$
          (count(sr.week_start) filter (where sr.rk = 1))::int,
          min(sr.rk),
          coalesce(max(lf.n), 0)::int,
-         p.id = public.my_profile_id()
-  from public.league_members m
+         p.id = public.my_profile_id(), bool_and(m.member)
+  -- The roster, so a season somebody played half of still shows what they
+  -- scored in it. Somebody who left without ever scoring has nothing to show
+  -- and falls out here rather than sitting on the table at zero.
+  from public.league_roster(p_league) m
   join public.profiles p on p.id = m.profile_id
   left join season_rows sr on sr.profile_id = p.id
   left join life lf on lf.profile_id = p.id
-  where m.league_id = p_league and public.is_member(p_league)
+  where public.is_member(p_league)
   group by p.id, p.display_name, p.avatar, p.banner, p.pinned_badges,
            p.name_color, m.joined_at
+  having bool_and(m.member) or count(sr.week_start) > 0
   order by 7 desc, 9 desc, 10 asc nulls last, m.joined_at
 $$;
 
@@ -1669,7 +1787,8 @@ $$;
 create function public.league_wins(p_league uuid)
 returns table (profile_id uuid, display_name text, avatar text,
                wins int, last_win date, weeks int, banner text,
-               pinned_badges text[], name_color text, mine boolean)
+               pinned_badges text[], name_color text, mine boolean,
+               member boolean)
 language sql stable security definer set search_path = public as $$
   with done as (
     select h.week_start, h.profile_id,
@@ -1681,14 +1800,19 @@ language sql stable security definer set search_path = public as $$
   won as (select profile_id, count(*)::int n, max(week_start) last
           from done where rk = 1 group by 1),
   n as (select count(distinct week_start)::int c from done)
+  -- The roster, not the membership: a crown is earned, and somebody who won
+  -- five weeks and then left still won them. Anybody who never scored and is
+  -- no longer here simply has no history to show, so they drop out on their
+  -- own rather than needing a rule.
   select p.id, p.display_name, p.avatar,
          coalesce(w.n, 0), w.last, (select c from n),
          p.banner, p.pinned_badges, p.name_color,
-         p.id = public.my_profile_id()
-  from public.league_members m
+         p.id = public.my_profile_id(), m.member
+  from public.league_roster(p_league) m
   join public.profiles p on p.id = m.profile_id
   left join won w on w.profile_id = p.id
-  where m.league_id = p_league and public.is_member(p_league)
+  where public.is_member(p_league)
+    and (m.member or w.n is not null)
   order by coalesce(w.n, 0) desc, w.last desc nulls last, m.joined_at
 $$;
 
@@ -2577,7 +2701,8 @@ $$;
 create function public.admin_players()
 returns table (id uuid, display_name text, avatar text, restore_code text,
                leagues int, workouts bigint, lifetime numeric, week_points numeric,
-               last_log timestamptz, created_at timestamptz, is_admin boolean)
+               last_log timestamptz, created_at timestamptz, is_admin boolean,
+               dormant_at timestamptz)
 language sql stable security definer set search_path = public as $$
   with wk as (select public.current_week_start() as w),
   lg as (select distinct league_id from public.league_members),
@@ -2613,7 +2738,7 @@ language sql stable security definer set search_path = public as $$
                    where lp.profile_id = p.id), 0),
          coalesce((select total from board where board.profile_id = p.id), 0)::numeric,
          (select max(w.created_at) from public.workouts w where w.profile_id = p.id),
-         p.created_at, p.is_admin
+         p.created_at, p.is_admin, p.dormant_at
   from public.profiles p
   where public.is_admin()
   order by p.created_at
@@ -2646,6 +2771,51 @@ begin
     raise exception 'That person is not in that league';
   end if;
   perform public.drop_membership(p_league, p_profile);
+end $$;
+
+-- The cap, and who is parked against it, for the control room.
+create function public.admin_overview()
+returns table (cap int, used int, dormant int, is_full boolean, leagues int)
+language sql stable security definer set search_path = public as $$
+  select s.cap, s.used,
+         (select count(*)::int from public.profiles where dormant_at is not null),
+         s.is_full,
+         (select count(*)::int from public.leagues)
+  from public.signup_state() s
+  where public.is_admin()
+$$;
+
+create function public.admin_set_cap(p_cap int) returns int
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if p_cap is not null and p_cap < 0 then raise exception 'A cap cannot be negative'; end if;
+  update public.app_settings set user_cap = p_cap, updated_at = now() where only_row;
+  return p_cap;
+end $$;
+
+-- Park somebody, or put them back. NOT a deletion: everything they logged
+-- stays, every week they won stays theirs, and their leagues are still
+-- listed against their name. They stop counting against the cap and drop off
+-- live boards, which is what frees the seat.
+create function public.admin_set_dormant(p_profile uuid, p_dormant boolean)
+returns public.profiles
+language plpgsql security definer set search_path = public as $$
+declare p public.profiles;
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  if p_profile = public.my_profile_id() then
+    raise exception 'You cannot park your own account from here';
+  end if;
+  -- Waking somebody needs a free seat, same as anybody else arriving.
+  if not p_dormant and public.app_is_full() then
+    raise exception 'APP_FULL';
+  end if;
+  update public.profiles
+     set dormant_at = case when p_dormant then now() else null end
+   where id = p_profile returning * into p;
+  if not found then raise exception 'No such profile'; end if;
+  return p;
 end $$;
 
 create function public.admin_delete_league(p_league uuid)
@@ -2918,6 +3088,12 @@ revoke all on function public.set_body_form(text)           from public, anon;
 revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
 revoke all on function public.my_muscles(uuid,boolean,date)  from public, anon;
 revoke all on function public.muscle_dose(uuid)             from public, anon;
+revoke all on function public.league_roster(uuid)           from public, anon, authenticated;
+revoke all on function public.app_is_full()                 from public, anon, authenticated;
+revoke all on function public.admin_overview()              from public, anon;
+revoke all on function public.admin_set_cap(int)            from public, anon;
+revoke all on function public.admin_set_dormant(uuid,boolean) from public, anon;
+revoke all on function public.wake_me()                     from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
 revoke all on function public.cup_window()                  from public, anon, authenticated;
 revoke all on function public.cup_field(int)                from public, anon, authenticated;
@@ -3009,6 +3185,13 @@ grant execute on function public.admin_players()               to authenticated;
 grant execute on function public.admin_delete_league(uuid)     to authenticated;
 grant execute on function public.admin_delete_profile(uuid)    to authenticated;
 grant execute on function public.admin_memberships()           to authenticated;
+grant execute on function public.admin_overview()              to authenticated;
+grant execute on function public.admin_set_cap(int)            to authenticated;
+grant execute on function public.admin_set_dormant(uuid,boolean) to authenticated;
+grant execute on function public.wake_me()                     to authenticated;
+-- signup_state is readable WITHOUT a profile: its whole job is to say there
+-- is no room before somebody picks a name and finds out.
+grant execute on function public.signup_state()                to anon, authenticated;
 grant execute on function public.admin_remove_member(uuid,uuid) to authenticated;
 grant execute on function public.admin_schedule()              to authenticated;
 grant execute on function public.admin_bounties()              to authenticated;

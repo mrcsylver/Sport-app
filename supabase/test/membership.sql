@@ -143,6 +143,64 @@ select case when (select count(*) from public.admin_memberships()) = 0
        then 'and the membership list is shut to them too'
        else 'THE MEMBERSHIP LIST IS READABLE BY ANYBODY' end;
 
+\echo '--- 7b. and leaving does not edit the past'
+-- The thing this nearly got wrong. weekly_history used to inner-join
+-- league_members purely for the tie-break, so anybody who left stopped having
+-- won the weeks they won: the hall of fame re-ranked, crowns moved, the
+-- season table reshuffled. A roster is a fact about now; a finished week is a
+-- fact about then.
+set request.jwt.claim.sub = '71111111-1111-1111-1111-111111111111';
+insert into public.league_members (league_id, profile_id, joined_at)
+values ('7bbb0000-0000-0000-0000-00000000000a','7aaa0000-0000-0000-0000-000000000001','2026-01-01')
+on conflict do nothing;
+alter table public.workouts disable trigger user;
+insert into public.workouts (league_id, profile_id, exercise_key, mode, amount,
+                             points, week_start, created_at)
+values ('7bbb0000-0000-0000-0000-00000000000a','7aaa0000-0000-0000-0000-000000000001',
+        'pushups','reps',10, 900, public.current_week_start() - 7,
+        (public.current_week_start() - 7)::timestamptz + interval '12 hours');
+alter table public.workouts enable trigger user;
+select '  FOUNDER won last week with ' ||
+  (select points from public.weekly_history('7bbb0000-0000-0000-0000-00000000000a')
+    where profile_id = '7aaa0000-0000-0000-0000-000000000001') || ' points';
+select public.leave_league('7bbb0000-0000-0000-0000-00000000000a');
+-- and now, having walked out, they must still have won it
+set request.jwt.claim.sub = '72222222-2222-2222-2222-222222222222';
+select case when exists (select 1 from public.weekly_history(
+                    '7bbb0000-0000-0000-0000-00000000000a')
+                  where profile_id = '7aaa0000-0000-0000-0000-000000000001')
+       then 'the week they won is still theirs after they left'
+       else 'LEAVING ERASED A FINISHED WEEK' end;
+select case when exists (select 1 from public.league_champions(
+                    '7bbb0000-0000-0000-0000-00000000000a')
+                  where profile_id = '7aaa0000-0000-0000-0000-000000000001')
+       then 'and they are still the champion of it'
+       else 'THE CROWN MOVED TO SOMEBODY ELSE' end;
+select case when exists (select 1 from public.league_wins(
+                    '7bbb0000-0000-0000-0000-00000000000a')
+                  where profile_id = '7aaa0000-0000-0000-0000-000000000001'
+                    and wins = 1 and member = false)
+       then 'the crowns board keeps them, marked as no longer in the league'
+       else 'THE CROWNS BOARD DROPPED THEM' end;
+select case when exists (select 1 from public.league_season(
+                    '7bbb0000-0000-0000-0000-00000000000a')
+                  where profile_id = '7aaa0000-0000-0000-0000-000000000001'
+                    and points > 0 and member = false)
+       then 'and the season table keeps what they scored in it'
+       else 'THE SEASON TABLE RESHUFFLED WITHOUT THEM' end;
+-- but they are off the LIVE board, which is a fact about now
+select case when not exists (select 1 from public.league_leaderboard(
+                    '7bbb0000-0000-0000-0000-00000000000a')
+                  where profile_id = '7aaa0000-0000-0000-0000-000000000001')
+       then 'while being off this week''s board, which is as it should be'
+       else 'A DEPARTED PLAYER IS STILL ON THE LIVE BOARD' end;
+-- somebody who left without ever scoring has nothing to show and says nothing
+select case when not exists (select 1 from public.league_wins(
+                    '7bbb0000-0000-0000-0000-00000000000b')
+                  where profile_id = '7aaa0000-0000-0000-0000-000000000001')
+       then 'and somebody who left without scoring leaves no ghost behind'
+       else 'AN EMPTY GHOST IS SITTING ON A BOARD' end;
+
 \echo '--- 8. and nobody can reach the helper the other two share'
 -- drop_membership() shipped SECURITY DEFINER with no check of its own. A new
 -- function in `public` is executable by `authenticated` unless you say

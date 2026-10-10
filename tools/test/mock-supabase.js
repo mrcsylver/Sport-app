@@ -389,6 +389,11 @@
     create_profile: function (a) {
       var p = me(); if (p) return ok(p);
       if (a.p_name.trim().length < 2) return bad('display_name_check');
+      var cap0 = window.__CAP__ == null ? null : Number(window.__CAP__);
+      if (cap0 != null &&
+          DB.profiles.filter(function (q) { return !q.dormant_at; }).length >= cap0) {
+        return bad('APP_FULL');
+      }
       p = { id: id(), user_id: uid, display_name: a.p_name.trim(),
             restore_code: 'A1B2C3D4', created_at: new Date().toISOString() };
       DB.profiles.push(p); return ok(p);
@@ -397,6 +402,14 @@
     restore_profile: function (a) {
       var t = DB.profiles.filter(function (p) { return p.restore_code === a.p_code.toUpperCase(); })[0];
       if (!t) return bad('BAD_CODE');
+      if (t.dormant_at) {
+        var cap1 = window.__CAP__ == null ? null : Number(window.__CAP__);
+        if (cap1 != null &&
+            DB.profiles.filter(function (q) { return !q.dormant_at; }).length >= cap1) {
+          return bad('APP_FULL');
+        }
+        t.dormant_at = null;
+      }
       t.user_id = uid; return ok(t);
     },
     league_preview: function (a) {
@@ -451,6 +464,47 @@
       DB.members = DB.members.filter(function (m) { return m.league_id !== l.id; });
       DB.workouts = DB.workouts.filter(function (w) { return w.league_id !== l.id; });
       save(); return ok(null);
+    },
+    /* The cap. window.__CAP__ stands in for app_settings.user_cap; null is
+       no limit, which is where a free app starts. */
+    signup_state: function () {
+      var cap = window.__CAP__ == null ? null : Number(window.__CAP__);
+      var used = DB.profiles.filter(function (p) { return !p.dormant_at; }).length;
+      return ok([{ cap: cap, used: used, is_full: cap != null && used >= cap }]);
+    },
+    wake_me: function () {
+      var p = me(); if (!p) return bad('NO_PROFILE');
+      if (!p.dormant_at) return ok(p);
+      var cap = window.__CAP__ == null ? null : Number(window.__CAP__);
+      var used = DB.profiles.filter(function (q) { return !q.dormant_at; }).length;
+      if (cap != null && used >= cap) return bad('APP_FULL');
+      p.dormant_at = null; save(); return ok(p);
+    },
+    admin_overview: function () {
+      var p = me(); if (!p || !p.is_admin) return ok([]);
+      var cap = window.__CAP__ == null ? null : Number(window.__CAP__);
+      var used = DB.profiles.filter(function (q) { return !q.dormant_at; }).length;
+      return ok([{ cap: cap, used: used,
+        dormant: DB.profiles.filter(function (q) { return !!q.dormant_at; }).length,
+        is_full: cap != null && used >= cap, leagues: DB.leagues.length }]);
+    },
+    admin_set_cap: function (a) {
+      var p = me(); if (!p || !p.is_admin) return bad('Not allowed');
+      window.__CAP__ = a.p_cap == null ? null : Number(a.p_cap);
+      return ok(window.__CAP__);
+    },
+    admin_set_dormant: function (a) {
+      var p = me(); if (!p || !p.is_admin) return bad('Not allowed');
+      if (a.p_profile === p.id) return bad('You cannot park your own account from here');
+      var t = DB.profiles.filter(function (q) { return q.id === a.p_profile; })[0];
+      if (!t) return bad('No such profile');
+      if (!a.p_dormant) {
+        var cap = window.__CAP__ == null ? null : Number(window.__CAP__);
+        var used = DB.profiles.filter(function (q) { return !q.dormant_at; }).length;
+        if (cap != null && used >= cap) return bad('APP_FULL');
+      }
+      t.dormant_at = a.p_dormant ? new Date().toISOString() : null;
+      save(); return ok(t);
     },
     my_leagues: function () {
       var p = me(); if (!p) return ok([]);

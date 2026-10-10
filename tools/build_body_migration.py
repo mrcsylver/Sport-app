@@ -30,6 +30,10 @@ OUT = os.path.join(ROOT, "supabase", "body-and-crowns.sql")
 RESHAPED = [
     ("weekly_history", "uuid"),
     ("my_badges", "uuid"),
+    # league_wins gained `member`, so the crowns board can keep somebody who
+    # earned five of them and then left. A return type cannot be widened in
+    # place, so the old shape goes first.
+    ("league_wins", "uuid"),
 ]
 
 # weekly_history is dropped and rebuilt, and two of these read it, so it goes
@@ -37,12 +41,15 @@ RESHAPED = [
 # schema.sql turns it off: these functions reference each other and Postgres
 # resolves a SQL body at create time, so a strict run stops at the first
 # forward reference whatever order they are in.
-OBJECTS = ["weekly_history", "muscle_charge", "muscle_dose", "my_muscles",
-           "league_wins",
+# league_roster goes in ahead of weekly_history, which now reads it: history
+# has to outlive a membership, or anybody who leaves stops having won the
+# weeks they won.
+OBJECTS = ["league_roster", "weekly_history", "muscle_charge", "muscle_dose",
+           "my_muscles", "league_wins",
            "league_champions", "set_body_form", "my_badges", "workouts_update_guard"]
 
 WANTED = ("muscle_charge", "muscle_dose", "my_muscles", "league_wins",
-          "league_champions",
+          "league_champions", "league_roster",
           "set_body_form", "weekly_history", "my_badges", "public.muscles")
 
 HEAD = """-- ======================================================================
