@@ -37,5 +37,5 @@ window.APP_CONFIG = {
   // Where somebody turned away by the cap is sent to ask for a seat. An
   // email, an Instagram profile, a WhatsApp link — anything a browser can
   // open. Leave "" and the button is hidden rather than dead.
-  CONTACT_URL: ""
+  CONTACT_URL: "mailto:mrcsylver@gmail.com"
 };

@@ -56,6 +56,10 @@ echo "· the global cap and parking an account"
 fresh ironcapg
 psql -d ironcapg -f "$HERE/usercap.sql" 2>&1 | clean
 
+echo "· the leaderboard's lifetime column, scoped to one league"
+fresh ironboard
+psql -d ironboard -f "$HERE/board.sql" 2>&1 | clean
+
 echo "· the shop, and what stops you wearing what you have not got"
 fresh ironshop
 psql -d ironshop -f "$HERE/shop.sql" 2>&1 | clean
@@ -113,6 +117,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/rest-day.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/launch-gate.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/shop.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/faster-board.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -205,6 +210,13 @@ psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
     where n.nspname='public' and p.proname='league_roster') = 1
   then 'and a finished week outlives the membership that scored it'
   else 'THE ROSTER DID NOT SURVIVE' end;"
+psql -tAd ironlive -c "select case when (
+  select count(*) from leagues l
+  cross join lateral life_scored_in(l.id) s
+  join life_scored_all() a on a.profile_id = s.profile_id
+  where s.points is distinct from a.points) = 0
+  then 'and the faster board gives the same lifetime as the slow one'
+  else 'THE FASTER BOARD MOVED A LIFETIME' end;"
 psql -tAd ironlive -c "select case when (select count(*) from shop_items) >= 190
    and exists (select 1 from information_schema.columns
                 where table_name = 'profiles' and column_name = 'frame')

@@ -940,6 +940,28 @@ without opening anything: it is drawn around your emblem on every board, every
 duel and every quest. That is what makes one worth having, and it is also the
 cheapest one to draw well.
 
+## Backing the database up
+
+**A free Supabase project has no backups.** None — the dashboard's backup tab
+is a paid feature, and the docs tell free users to export their own. The only
+copy of everything anybody has ever logged is one mistake away from gone.
+
+`.github/workflows/backup.yml` is the cheap honest fix: `pg_dump` every night
+at 03:17 UTC into GitHub's artifact storage, kept 90 days. The 13 MB database
+compresses to well under a megabyte, so it costs nothing.
+
+**It needs one secret, once.** In the Supabase dashboard, Project Settings →
+Database → Connection string → URI (the direct one on port 5432, *not* the
+pooled one — `pg_dump` needs a direct connection), with your database password
+filled in. Then in GitHub, repo Settings → Secrets and variables → Actions →
+New repository secret, named `SUPABASE_DB_URL`.
+
+Until that secret exists the workflow fails loudly on purpose, rather than
+appearing to run and backing up nothing. Once it is set, run it by hand from
+the Actions tab to check it before trusting the schedule.
+
+To restore onto a fresh project: `psql "$NEW_DB_URL" -f ironleague-YYYY-MM-DD.sql`.
+
 ## Prices, and what happens when you set one
 
 Every row in the armoury is free today. Set a price on one in the control room

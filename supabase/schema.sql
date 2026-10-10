@@ -451,6 +451,40 @@ language sql stable set search_path = public as $$
   from per group by 1
 $$;
 
+-- The same arithmetic, for the people in ONE league.
+--
+-- league_leaderboard() used life_scored_all(), which reads every workout
+-- ever logged by anybody. It then threw away all but the league's members.
+-- That is the whole app's history re-scored on every poll, every 25 seconds,
+-- for every person with the app open — so the cost per poll grew with the
+-- app and the number of polls grew with the app, and the product of those
+-- two is what falls over first. Measured at 290 people and a year of
+-- training each: 357 ms a poll, with the sort spilling to disk.
+--
+-- Only the PEOPLE are narrowed, never the leagues: a lifetime still counts
+-- what somebody logged everywhere, which is why the filter is on
+-- profile_id and the `distinct on (group_id)` is untouched. Same number out,
+-- proven against life_scored_all() for every member of every league in
+-- supabase/test/board.sql. Same shape at 290 people: 38 ms.
+create function public.life_scored_in(p_league uuid)
+returns table (profile_id uuid, points numeric)
+language sql stable set search_path = public as $$
+  with mine as (
+    select m.profile_id from public.league_members m where m.league_id = p_league),
+  one as (
+    select distinct on (group_id)
+           group_id, profile_id, week_start, exercise_key, points
+    from public.workouts
+    where profile_id in (select profile_id from mine)
+    order by group_id, league_id),
+  per as (select o.profile_id, o.week_start, o.exercise_key,
+                 sum(o.points) as raw, max(x.cap) as cap
+          from one o left join public.exercises x on x.key = o.exercise_key
+          group by 1, 2, 3)
+  select profile_id, sum(public.tier_points(raw, cap))::numeric
+  from per group by 1
+$$;
+
 
 -- ---------------------------------------------------------------------
 -- 3. Tables
@@ -1142,7 +1176,7 @@ language sql stable security definer set search_path = public as $$
   ws as (select * from public.week_scored(p_league, (select w from wk))),
   -- Lifetime follows the person, not the league, and is discounted the same
   -- way — week by week, so a year of training is never run through one curve.
-  lt as (select * from public.life_scored_all())
+  lt as (select * from public.life_scored_in(p_league))
   select p.id, p.display_name, p.avatar,
          (coalesce(ws.points, 0) + coalesce(cb.bonus, 0)
                                  + coalesce(bb.bounty, 0))::numeric,
@@ -3343,6 +3377,7 @@ revoke all on function public.muscle_charge(numeric,numeric) from public, anon;
 revoke all on function public.my_muscles(uuid,boolean,date)  from public, anon;
 revoke all on function public.muscle_dose(uuid)             from public, anon;
 revoke all on function public.league_roster(uuid)           from public, anon, authenticated;
+revoke all on function public.life_scored_in(uuid)          from public, anon, authenticated;
 revoke all on function public.app_is_full()                 from public, anon, authenticated;
 revoke all on function public.admin_overview()              from public, anon;
 revoke all on function public.admin_set_cap(int)            from public, anon;

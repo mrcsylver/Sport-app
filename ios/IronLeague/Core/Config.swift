@@ -17,7 +17,7 @@ enum Config {
     /// Where somebody turned away at the door is sent to ask for a seat —
     /// an Instagram profile, a mailto:, a form, whatever. Leave it empty and
     /// the button is hidden rather than dead. Mirrors CONTACT_URL in config.js.
-    static let contactURL = ""
+    static let contactURL = "mailto:mrcsylver@gmail.com"
 
     /// Shown at the foot of the leagues tab, so a bug report can say which
     /// build it came from.

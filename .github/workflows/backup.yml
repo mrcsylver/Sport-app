@@ -1,0 +1,86 @@
+# A nightly dump of the database, kept as a build artifact.
+#
+# A free Supabase project has NO backups. None. The dashboard's backup tab is
+# a Pro feature, and the docs tell free users to export their own. There are
+# 2,400 workouts in there and the only copy of them is one accidental DELETE
+# away from being gone.
+#
+# This is the cheapest honest fix: pg_dump on a schedule, into GitHub's
+# artifact storage, which is free for a public repository and generous for a
+# private one. The dump of a 13 MB database compresses to well under a
+# megabyte, so ninety days of them is nothing.
+#
+# SETUP — one secret, once:
+#   Supabase dashboard -> Project Settings -> Database -> Connection string
+#   -> URI, and tick "Use connection pooling"... actually DON'T: pg_dump wants
+#   a direct connection, so take the plain URI on port 5432 and swap in your
+#   database password.
+#   GitHub -> repo Settings -> Secrets and variables -> Actions -> New
+#   repository secret, named SUPABASE_DB_URL, pasted in whole.
+#
+# The secret is a FULL-ACCESS database password. It is never printed: the
+# workflow passes it through the environment and GitHub masks it in logs.
+# If this repository is public, be certain the secret is a repository secret
+# and not committed anywhere.
+#
+# TO RESTORE, on a new project:
+#   psql "$NEW_DB_URL" -f ironleague-YYYY-MM-DD.sql
+
+name: Nightly database backup
+
+on:
+  schedule:
+    # 03:17 UTC — off the hour on purpose, because everything else in the
+    # world runs at :00 and the runners queue.
+    - cron: '17 3 * * *'
+  workflow_dispatch:        # and a button, for the first run and for a test
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install a matching pg_dump
+        run: |
+          # Ubuntu's default client is older than the server; a mismatched
+          # pg_dump refuses outright rather than producing a bad dump.
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt \
+            $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+          sudo sed -i 's|deb |deb [signed-by=/usr/share/keyrings/pgdg.gpg] |' \
+            /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL is not set. See the comment at the"
+            echo "::error::top of .github/workflows/backup.yml for the two steps."
+            exit 1
+          fi
+          STAMP=$(date -u +%Y-%m-%d)
+          # --no-owner and --no-acl so the dump restores into a fresh project
+          # whose roles are named differently. Schema and data together: a
+          # backup you cannot restore without also finding the right schema.sql
+          # is not a backup.
+          pg_dump "$DB_URL" \
+            --no-owner --no-acl \
+            --schema=public --schema=auth \
+            --file="ironleague-$STAMP.sql"
+          gzip -9 "ironleague-$STAMP.sql"
+          ls -lh ironleague-*.sql.gz
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+
+      - name: Keep it
+        uses: actions/upload-artifact@v4
+        with:
+          name: ironleague-db-${{ env.STAMP }}
+          path: ironleague-*.sql.gz
+          retention-days: 90
+          if-no-files-found: error

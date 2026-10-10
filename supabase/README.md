@@ -335,6 +335,48 @@ parks the person who broke an ankle and keeps the person who logs one push-up a
 month, so the control room tags quiet accounts (`Nd QUIET` at thirty days) and
 leaves the decision to a human.
 
+### One poll was re-scoring the whole app
+
+`league_leaderboard()` read `life_scored_all()`, which has no `WHERE` clause:
+every workout ever logged, by anybody, in any league, sorted to dedupe the
+multi-league fan-out and scored in full. The board then threw away every row
+but its own members'.
+
+The app polls that every 25 seconds, per person with it open. So the cost of
+a poll grew with the app, the number of polls grew with the app, and the
+product of the two is what runs out of CPU first — well before the database
+runs out of room. Measured on a database seeded to 290 people with a year of
+training each (49,300 workouts, 13 MB):
+
+| part of the board | cost |
+|---|---|
+| `life_scored_all()` | **357 ms** |
+| `week_bounty_points()` | 11 ms |
+| `week_scored()` | 2.7 ms |
+| `week_combo_bonus()` | 2.7 ms |
+
+and the sort spilled to disk — 654 temp blocks — on every call.
+
+`life_scored_in(p_league)` narrows the **people** to that league's members and
+nothing else. The same board costs 38 ms, and it now scales with how many
+people are in a league rather than with how big the app has become.
+
+The thing it must never do is change a number, so `supabase/test/board.sql`
+proves it equal to `life_scored_all()` for every (league, member) pair, and
+the migration replay in `run.sh` asserts the same after the file is applied.
+Two traps it is built around:
+
+* **only the people are narrowed, never the leagues.** A lifetime counts what
+  somebody logged everywhere, so the filter is on `profile_id` and the
+  `distinct on (group_id)` dedup is untouched. Filtering by `league_id`
+  instead would quietly hide a person's work in their other leagues.
+* **`life_scored_all()` stays.** `admin_players()` genuinely does want
+  everybody at once, and that page is read by one person, rarely.
+
+A covering index on `(group_id, league_id)` was tried first and rejected: it
+turned 370 ms into 345 ms and cost 4.4 MB. The dedup was never the problem —
+scoring 290 people to show 29 was.
+
 ### The shop had no lock on it
 
 `set_banner`, `set_avatar`, `set_name_color` and `set_league_badge` took any
@@ -531,6 +573,7 @@ Do not hand-edit these:
 | `rest-day.sql` | `tools/build_restday_migration.py` |
 | `launch-gate.sql` | `tools/build_launchgate_migration.py` |
 | `shop.sql` | `tools/build_shop_migration.py` |
+| `faster-board.sql` | `tools/build_board_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

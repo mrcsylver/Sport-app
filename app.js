@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.25.0';
+  var APP_VERSION = '2.26.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -4251,18 +4251,77 @@
   /* ===================================================================
      14. Keep it live
      =================================================================== */
+  /* The board polls every 25 seconds, which is right when a league is live
+     on a Sunday evening and wasteful when a phone has been left on the table
+     since Tuesday. A hidden tab was already skipped; a VISIBLE idle one was
+     not, and it is the common case — somebody opens the app, gets distracted,
+     and leaves it polling for an hour.
+
+     So it backs off: each poll that finds the same board doubles the wait, up
+     to five minutes. Anything that means somebody is actually there — a log,
+     a tap, coming back to the tab — snaps it straight back to 25 seconds.
+     A league that is moving never notices this; a forgotten tab stops asking.
+
+     The server side of the same problem is league_leaderboard(), which used
+     to re-score the whole app on every one of these. See life_scored_in(). */
+  var POLL_MIN = 25000, POLL_MAX = 300000;
+  var pollWait = POLL_MIN;
   var autoTimer = null;
-  function startAutoRefresh() {
-    if (autoTimer) clearInterval(autoTimer);
-    autoTimer = setInterval(function () {
-      if (document.hidden || !$('#logModal').hidden) return;
-      loadBoard();
-      if (state.view === 'duel') loadDuels();
-    }, 25000);
+  var lastBoardSig = null;
+
+  /* Cheap enough to run every poll: what the table would look like if it had
+     only names and numbers on it. */
+  function boardSignature() {
+    return state.board.map(function (r) {
+      return r.profile_id + ':' + r.points;
+    }).join('|');
   }
+
+  function startAutoRefresh() {
+    pollWait = POLL_MIN;
+    schedulePoll();
+  }
+  function schedulePoll() {
+    if (autoTimer) clearTimeout(autoTimer);
+    autoTimer = setTimeout(pollNow, pollWait);
+  }
+  async function pollNow() {
+    /* A hidden tab, or one with the log sheet open, is not asking for a
+       refresh — and refreshing underneath an open sheet moves what somebody
+       is in the middle of reading. */
+    if (document.hidden || !$('#logModal').hidden) { schedulePoll(); return; }
+    await loadBoard();
+    if (state.view === 'duel') loadDuels();
+    var sig = boardSignature();
+    if (sig === lastBoardSig) {
+      pollWait = Math.min(pollWait * 2, POLL_MAX);
+    } else {
+      lastBoardSig = sig;
+      pollWait = POLL_MIN;
+    }
+    schedulePoll();
+  }
+  /* Somebody is here. Whatever the board has been doing, start asking
+     properly again. */
+  function wakePolling() {
+    /* Already at the fast rate: the pending timer is 25 s away at worst, so
+       leave it alone. Rescheduling on every tap would push the next poll
+       another 25 s out each time, and somebody scrolling a leaderboard would
+       be the one person who never gets a fresh one. */
+    if (pollWait === POLL_MIN) return;
+    pollWait = POLL_MIN;
+    schedulePoll();
+  }
+  window.__poll__ = { wait: function () { return pollWait; }, wake: wakePolling };
+
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && state.leagueId) { state.feeds = {}; refreshAll(); }
+    if (!document.hidden && state.leagueId) {
+      state.feeds = {}; refreshAll(); wakePolling();
+    }
   });
+  /* A tap anywhere is a person. Passive and capture so it costs nothing and
+     cannot be swallowed by something calling stopPropagation. */
+  document.addEventListener('pointerdown', wakePolling, { passive: true, capture: true });
 
   /* ===================================================================
      15. PWA plumbing
