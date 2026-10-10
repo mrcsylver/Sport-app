@@ -950,17 +950,34 @@ copy of everything anybody has ever logged is one mistake away from gone.
 at 03:17 UTC into GitHub's artifact storage, kept 90 days. The 13 MB database
 compresses to well under a megabyte, so it costs nothing.
 
-**It needs one secret, once.** In the Supabase dashboard, Project Settings →
-Database → Connection string → URI (the direct one on port 5432, *not* the
-pooled one — `pg_dump` needs a direct connection), with your database password
-filled in. Then in GitHub, repo Settings → Secrets and variables → Actions →
-New repository secret, named `SUPABASE_DB_URL`.
+**It needs one secret, once:**
+
+1. Supabase dashboard → the **Connect** button at the **top of the page**,
+   next to the branch name. (It is not under Settings any more.)
+2. Pick **Session pooler** — *not* Direct connection.
+3. Copy the whole URI and replace `[YOUR-PASSWORD]` with your database
+   password.
+4. GitHub → this repo → Settings → Secrets and variables → Actions → New
+   repository secret, named `SUPABASE_DB_URL`.
+
+**Why the session pooler and not the direct connection**, which is what you
+would reasonably reach for: on the free plan the direct endpoint
+(`db.<ref>.supabase.co`) resolves to **IPv6 only**, and GitHub's hosted
+runners are **IPv4-only** — it can never connect. The shared session pooler
+(`...pooler.supabase.com:5432`) is IPv4 on every plan, and Supabase's own
+migration guide says to use session mode for `pg_dump`. The workflow checks
+for a direct-connection string and tells you, rather than failing with a DNS
+error nobody reads six weeks later.
+
+Note the username in that string is `postgres.<project-ref>`, not `postgres`,
+which is why you copy the whole thing rather than assembling it.
 
 Until that secret exists the workflow fails loudly on purpose, rather than
 appearing to run and backing up nothing. Once it is set, run it by hand from
 the Actions tab to check it before trusting the schedule.
 
-To restore onto a fresh project: `psql "$NEW_DB_URL" -f ironleague-YYYY-MM-DD.sql`.
+To restore onto a fresh project:
+`gunzip -c ironleague-YYYY-MM-DD.sql.gz | psql "$NEW_DB_URL"`.
 
 ## Prices, and what happens when you set one
 

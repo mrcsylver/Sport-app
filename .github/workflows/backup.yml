@@ -1,30 +1,46 @@
 # A nightly dump of the database, kept as a build artifact.
 #
-# A free Supabase project has NO backups. None. The dashboard's backup tab is
-# a Pro feature, and the docs tell free users to export their own. There are
-# 2,400 workouts in there and the only copy of them is one accidental DELETE
-# away from being gone.
+# A free Supabase project has NO backups. None. The dashboard's Backups page
+# is a paid feature, and the docs tell free users to export their own. There
+# are 2,400 workouts in there and the only copy of them is one accidental
+# DELETE away from being gone.
 #
 # This is the cheapest honest fix: pg_dump on a schedule, into GitHub's
 # artifact storage, which is free for a public repository and generous for a
-# private one. The dump of a 13 MB database compresses to well under a
-# megabyte, so ninety days of them is nothing.
+# private one. A 13 MB database compresses to well under a megabyte, so
+# ninety days of them costs nothing.
 #
-# SETUP — one secret, once:
-#   Supabase dashboard -> Project Settings -> Database -> Connection string
-#   -> URI, and tick "Use connection pooling"... actually DON'T: pg_dump wants
-#   a direct connection, so take the plain URI on port 5432 and swap in your
-#   database password.
-#   GitHub -> repo Settings -> Secrets and variables -> Actions -> New
-#   repository secret, named SUPABASE_DB_URL, pasted in whole.
+# ---------------------------------------------------------------------------
+# SETUP — one secret, once.
 #
-# The secret is a FULL-ACCESS database password. It is never printed: the
-# workflow passes it through the environment and GitHub masks it in logs.
-# If this repository is public, be certain the secret is a repository secret
-# and not committed anywhere.
+#   1. Supabase dashboard -> the "Connect" button at the TOP of the page,
+#      next to the branch name. (It is not under Settings any more.)
+#   2. Pick "Session pooler". NOT "Direct connection".
+#   3. Copy the whole URI and put your database password in place of
+#      [YOUR-PASSWORD].
+#   4. GitHub -> this repo -> Settings -> Secrets and variables -> Actions
+#      -> New repository secret, named SUPABASE_DB_URL.
 #
-# TO RESTORE, on a new project:
-#   psql "$NEW_DB_URL" -f ironleague-YYYY-MM-DD.sql
+# WHY THE SESSION POOLER AND NOT THE DIRECT CONNECTION. On the free plan the
+# direct endpoint (db.<ref>.supabase.co:5432) resolves to IPv6 only, and
+# GitHub's hosted runners are IPv4-only — so a direct connection cannot be
+# reached from here at all. The shared session pooler
+# (aws-<n>-<region>.pooler.supabase.com:5432) is IPv4 on every plan, and
+# Supabase's own migration guide says to use session mode for pg_dump. Note
+# the username on that string is postgres.<project-ref>, not postgres; copy
+# the whole thing rather than assembling it.
+#
+# The secret is a FULL-ACCESS database password. It is never printed: it is
+# passed through the environment and GitHub masks secrets in logs. If this
+# repository is public, make certain it is a repository secret and is not
+# committed anywhere.
+#
+# TO RESTORE onto a fresh project:
+#   gunzip -c ironleague-YYYY-MM-DD.sql.gz | psql "$NEW_DB_URL"
+# The public schema restores cleanly. The auth schema may need a few lines
+# commented out if the new project runs a different Postgres or GoTrue
+# version — run it once without --single-transaction to find them.
+# ---------------------------------------------------------------------------
 
 name: Nightly database backup
 
@@ -44,8 +60,9 @@ jobs:
     steps:
       - name: Install a matching pg_dump
         run: |
-          # Ubuntu's default client is older than the server; a mismatched
-          # pg_dump refuses outright rather than producing a bad dump.
+          # The server is Postgres 17.6. Ubuntu's default client is older,
+          # and a pg_dump older than its server refuses outright rather than
+          # producing a half-good dump.
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt \
             $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
@@ -61,9 +78,21 @@ jobs:
         run: |
           if [ -z "$DB_URL" ]; then
             echo "::error::SUPABASE_DB_URL is not set. See the comment at the"
-            echo "::error::top of .github/workflows/backup.yml for the two steps."
+            echo "::error::top of .github/workflows/backup.yml for the steps."
             exit 1
           fi
+          # A direct-connection string cannot work from here: on the free plan
+          # that host is IPv6-only and GitHub's runners are IPv4-only. Saying
+          # so now beats a DNS error nobody reads in six weeks' time.
+          case "$DB_URL" in
+            *db.*.supabase.co*)
+              echo "::error::That looks like the DIRECT connection string."
+              echo "::error::On the free plan it is IPv6-only and GitHub runners"
+              echo "::error::are IPv4-only, so it can never connect. Use the"
+              echo "::error::Session pooler string from the Connect dialog:"
+              echo "::error::  ...pooler.supabase.com:5432"
+              exit 1 ;;
+          esac
           STAMP=$(date -u +%Y-%m-%d)
           # --no-owner and --no-acl so the dump restores into a fresh project
           # whose roles are named differently. Schema and data together: a
