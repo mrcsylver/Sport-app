@@ -725,6 +725,8 @@ p.ms-next b{color:var(--txt);font-weight:800}
 
 .tag-soon{font:800 9px/1 var(--display);letter-spacing:.12em;color:var(--bg);
   background:var(--muted);border-radius:3px;padding:3px 5px;margin-left:auto;margin-right:8px}
+/* An account nobody can sign back into is the one state worth shouting about. */
+.tag-soon.warn{background:var(--red);color:#fff}
 .shop-i{display:flex;align-items:center;gap:11px;padding:12px 0;
   border-bottom:1px solid var(--line)}
 .shop-i:last-child{border-bottom:0}

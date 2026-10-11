@@ -1,11 +1,11 @@
 # The browser tests
 
-Twenty-three Playwright runs against the real `index.html` and `admin.html`, with
+Twenty-four Playwright runs against the real `index.html` and `admin.html`, with
 Supabase replaced by `mock-supabase.js` — a hand-written stand-in that keeps a
 database in `localStorage` and answers the same RPCs the server does.
 
 ```bash
-node tools/test/run.js        # …through run23.js
+node tools/test/run.js        # …through run24.js
 ```
 
 Each file prints a list of PASS/FAIL lines, reports any JavaScript error the
@@ -43,6 +43,7 @@ them somewhere else.
 | `run21.js` | the seat cap: the full door, a parked seat, and getting back in |
 | `run22.js` | the armoury: locked tiles, a granted item, rings, uploads |
 | `run23.js` | the poll that backs off when a league goes quiet |
+| `run24.js` | attaching Google or an email to an account that already exists |
 
 ## Before a release
 
@@ -72,3 +73,14 @@ still two points a minute in here long after it was not.
 
 The SQL itself is tested separately, against a real Postgres. See
 `supabase/README.md`.
+
+## Seed a rest day, or seed none
+
+A league seeded without `rest_dow` gets the column default, which is Sunday.
+On a Sunday the exercise picker offers only stretches and `log_workout`
+raises `REST_DAY`, so a suite that merely logs a workout fails one day in
+seven for reasons that have nothing to do with what it is testing. Nine of
+them did exactly that until it was noticed on a Sunday.
+
+Seed `rest_dow: []` unless the suite is *about* rest days, in which case seed
+the day it needs. Never leave it to the default.

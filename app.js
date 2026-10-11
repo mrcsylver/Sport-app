@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.26.0';
+  var APP_VERSION = '2.27.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -950,6 +950,9 @@
   var sb = null;
   var state = {
     profile: null,
+    /* The auth.users row behind the profile: which provider, which email,
+       whether it is still a throwaway. */
+    user: null,
     leagues: [],
     leagueId: null,
     week: currentWeekStart(),
@@ -1042,12 +1045,28 @@
     try {
       var got = await sb.auth.getSession();
       if (!got.data.session) {
+        /* Coming back from Google: the session arrives in the URL fragment
+           and the client picks it up on its own, but only after it has had
+           a tick to parse it. Without this the first load after a redirect
+           looks signed-out and starts a SECOND anonymous account. */
+        if (/[#&](access_token|code)=/.test(location.hash + location.search)) {
+          await new Promise(function (r) { setTimeout(r, 400); });
+          got = await sb.auth.getSession();
+        }
+      }
+      if (!got.data.session) {
         var anon = await sb.auth.signInAnonymously();
         if (anon.error) throw anon.error;
       }
+      await loadUser();
     } catch (e) {
       failSetup(e);
       return;
+    }
+    /* Google hands the session back in the address bar. Leaving it there
+       means a refresh replays it, and it is ugly on a poster-scanned link. */
+    if (/[#&](access_token|code)=/.test(location.hash + location.search)) {
+      try { history.replaceState(null, '', authRedirect()); } catch (e) {}
     }
 
     try { await loadProfile(); } catch (e) { toast(niceError(e), true); }
@@ -1061,6 +1080,185 @@
       state.profile = woke.data;
     }
     await enterApp();
+  }
+
+  /* ===================================================================
+     5b. Who you are, durably
+     ---------------------------------------------------------------------
+     The app has always signed people in anonymously: no email, no password,
+     a device-bound identity that a restore code could move. That is a fine
+     front door and it stays — somebody can still be logging push-ups twenty
+     seconds after scanning a poster — but it is a bad place to LEAVE people.
+     An anonymous account dies with its browser storage.
+
+     The fix is Supabase's manual identity linking: adding Google or an email
+     to an anonymous account keeps the SAME auth.users.id. Nothing in the
+     database moves — profiles.user_id still points where it pointed, so
+     every workout, every crown and every league survives the upgrade with
+     no migration at all. That is the whole reason this is safe to ship to
+     people who already have accounts.
+
+     Google is the only one of the three that proves an address is real.
+     Email here is a username that looks like an email, because confirmations
+     are off and there is no password reset behind it; the restore code is
+     still the recovery path and the UI says so rather than implying
+     otherwise.
+     =================================================================== */
+  function signInCfg() {
+    var d = { GOOGLE: false, EMAIL: true, ANON: true };
+    var c = (window.APP_CONFIG && window.APP_CONFIG.SIGN_IN) || {};
+    return { GOOGLE: !!c.GOOGLE, EMAIL: c.EMAIL !== false, ANON: c.ANON !== false };
+  }
+
+  /* What the current session actually is. `anon` means a throwaway identity
+     that dies with this browser; `google` is verified; `email` is not. */
+  function authState() {
+    var u = state.user;
+    if (!u) return { kind: 'none', email: null, verified: false };
+    var ids = u.identities || [];
+    var google = ids.filter(function (i) { return i.provider === 'google'; })[0];
+    if (google) {
+      return { kind: 'google', email: u.email || (google.identity_data || {}).email,
+               verified: true };
+    }
+    if (u.email) return { kind: 'email', email: u.email, verified: !!u.email_confirmed_at };
+    return { kind: 'anon', email: null, verified: false };
+  }
+  function isAnon() { return authState().kind === 'anon'; }
+
+  async function loadUser() {
+    var u = await sb.auth.getUser();
+    state.user = (u.data && u.data.user) || null;
+  }
+
+  /* Where Google sends somebody back to. The app is one page, so it is just
+     this page — but it has to be the deployed URL rather than whatever the
+     browser happens to show, or the redirect lands nowhere. */
+  function authRedirect() {
+    return location.origin + location.pathname;
+  }
+
+  /* Linking vs signing in is the whole distinction here. If there is already
+     an anonymous session with a profile on it, LINK — that keeps the id and
+     therefore keeps their history. Only sign in fresh when there is nothing
+     to lose. */
+  async function googleAuth() {
+    var opts = { provider: 'google', options: { redirectTo: authRedirect() } };
+    if (state.profile && isAnon()) {
+      var l = await sb.auth.linkIdentity(opts);
+      if (l.error) throw l.error;
+      return;
+    }
+    var r = await sb.auth.signInWithOAuth(opts);
+    if (r.error) throw r.error;
+  }
+
+  /* Email on an account that already has a profile is an upgrade in place.
+     The password has to go on in a second call: Supabase will not set one
+     until the address is attached. */
+  async function linkEmail(email, password) {
+    var e = await sb.auth.updateUser({ email: email });
+    if (e.error) throw e.error;
+    var p = await sb.auth.updateUser({ password: password });
+    if (p.error) throw p.error;
+    await loadUser();
+  }
+  async function emailSignUp(email, password) {
+    var r = await sb.auth.signUp({ email: email, password: password });
+    if (r.error) throw r.error;
+    await loadUser();
+  }
+  async function emailSignIn(email, password) {
+    var r = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (r.error) throw r.error;
+    await loadUser();
+  }
+
+  /* Signing out of an ANONYMOUS account is how people lose everything, so it
+     is refused unless they have somewhere to sign back in from. The restore
+     code is not somewhere: it is a string on a settings screen they have
+     probably never opened. */
+  function canSignOut() { return !isAnon(); }
+  async function signOutNow() {
+    await sb.auth.signOut();
+    try { localStorage.removeItem(LS.league); } catch (e) {}
+    location.reload();
+  }
+
+  /* The account section. Drawn from the session rather than from anything
+     stored, so it is always telling the truth about what would survive. */
+  function renderAccount() {
+    var a = authState(), cfg = signInCfg();
+    var tag = $('#acctTag'), state_ = $('#acctState');
+    if (!tag) return;
+
+    tag.textContent = a.kind === 'google' ? 'VERIFIED'
+                    : a.kind === 'email'  ? 'SAVED'
+                    : 'AT RISK';
+    tag.classList.toggle('warn', a.kind === 'anon');
+
+    state_.textContent =
+      a.kind === 'google' ? 'Signed in with Google. Your account follows you to any phone.'
+    : a.kind === 'email'  ? 'Signed in with an email and password. Your account follows you to any phone.'
+    : 'No sign-in attached. This account lives in this browser only.';
+
+    $('#acctLink').hidden = a.kind !== 'anon';
+    $('#acctDone').hidden = a.kind === 'anon';
+    $('#acctWho').textContent = a.email
+      ? a.email + (a.kind === 'google' ? ' · Google' : '') : '';
+    $('#googleBtn').hidden = !cfg.GOOGLE;
+    $('#emailWrap').hidden = !cfg.EMAIL;
+    /* Signing out of an anonymous account throws it away, so the button is
+       simply not there until there is a way back in. */
+    $('#signOutBtn').hidden = !canSignOut();
+
+    /* The restore code stops being the whole account and becomes the backup
+       for the one sign-in method that cannot reset a password. */
+    $('#restoreWhy').textContent = a.kind === 'google'
+      ? 'A backup. Google already moves your profile between phones.'
+      : a.kind === 'email'
+        ? 'Keep this. There is no password reset, so it is how you get back in.'
+        : 'Write it down. Right now it is the ONLY way back into this account.';
+  }
+
+  function wireAccount() {
+    $('#googleBtn').addEventListener('click', async function () {
+      $('#acctErr').textContent = '';
+      try { await googleAuth(); }
+      catch (e) { $('#acctErr').textContent = niceError(e); }
+    });
+
+    $('#emailBtn').addEventListener('click', async function () {
+      var email = ($('#acctEmail').value || '').trim();
+      var pass = $('#acctPass').value || '';
+      var err = $('#acctErr');
+      err.textContent = '';
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        err.textContent = 'That does not look like an email address.'; return;
+      }
+      if (pass.length < 8) {
+        err.textContent = 'Use at least 8 characters.'; return;
+      }
+      var btn = this;
+      btn.disabled = true; btn.textContent = 'SAVING…';
+      try {
+        await linkEmail(email, pass);
+        renderAccount();
+        toast('Account saved — you can sign in anywhere now');
+      } catch (e) {
+        err.textContent = /already|registered|exists/i.test(e.message || '')
+          ? 'That email is already on another account. Sign out and sign in with it instead.'
+          : niceError(e);
+      } finally {
+        btn.disabled = false; btn.textContent = 'SAVE EMAIL & PASSWORD';
+      }
+    });
+
+    $('#signOutBtn').addEventListener('click', async function () {
+      if (!confirm('Sign out? You will need your email and password, or Google, '
+                 + 'to get back in.')) return;
+      await signOutNow();
+    });
   }
 
   function contactUrl() {
@@ -1314,6 +1512,7 @@
     buildPointsTable();
     buildComboRules();
     loadRestState();
+    renderAccount();
     /* The catalogue before anything draws an avatar: a ring is looked up in
        it, so loading it afterwards means one frame of ringless boards. */
     await loadShop();
@@ -1854,6 +2053,7 @@
   window.__renderCup__ = renderCup;
   window.__fixFor__ = fixFor;
   window.__EXNAME__ = function (k) { var e = exercise(k); return e ? e.name : k; };
+  window.__renderAccount__ = renderAccount;   // reachable from a test
 
   function renderHall() {
     var box = $('#hall');
@@ -3438,6 +3638,7 @@
     shelfPick(e, 'data-ring', function (v) { saveFrame(v); });
   });
   $('#shopRingOff').addEventListener('click', function () { saveFrame(''); });
+  wireAccount();
 
   async function saveFrame(key) {
     try {

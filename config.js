@@ -29,6 +29,19 @@ window.APP_CONFIG = {
   // Shown in the header and on the home screen icon.
   APP_NAME: "IRON LEAGUE",
 
+  // Sign-in methods offered on the door and in settings.
+  //
+  // GOOGLE: a verified identity, free, and the only one that proves an email
+  // address is real. Leave false until the Google Cloud console side is set
+  // up, or the button appears and fails.
+  // EMAIL: email + password. With "Confirm email" off in Supabase these are
+  // NOT verified addresses -- it is a username that looks like an email, and
+  // there is no password reset. The restore code is the recovery path.
+  // ANON: let somebody in with no account at all, as the app has always
+  // worked. Keeps the "logging push-ups in twenty seconds" path open; they
+  // are nudged to secure the account once they have something worth keeping.
+  SIGN_IN: { GOOGLE: false, EMAIL: true, ANON: true },
+
   // The currency the shop prints prices in. A symbol, not a code: it sits in
   // front of a number on a small tile. Nothing charges anybody yet — this is
   // what the labels say.

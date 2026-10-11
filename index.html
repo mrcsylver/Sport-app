@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.26.0">
+  <link rel="stylesheet" href="./styles.css?v=2.27.0">
 </head>
 <body>
 
@@ -483,8 +483,52 @@
           </div>
 
           <h4>Restore code</h4>
-          <p class="muted small">Write it down. It moves your profile to a new phone.</p>
+          <p class="muted small" id="restoreWhy">Write it down. It moves your
+            profile to a new phone.</p>
           <div class="codebox mono" id="restoreCode">--------</div>
+        </div>
+      </details>
+
+      <!-- Signing in. An anonymous account dies with this browser's storage,
+           so this section exists to get people off one — without ever making
+           it a wall at the front door. -->
+      <details class="sect" id="sectAccount">
+        <summary><span>ACCOUNT</span><span class="tag-soon" id="acctTag">—</span></summary>
+        <div class="sect-b">
+          <p class="muted small" id="acctState"></p>
+
+          <div id="acctLink">
+            <h4>Make it permanent</h4>
+            <p class="muted small" id="acctWhy">Right now this account only
+              exists in this browser. Clear your data or lose the phone and it
+              is gone. Attaching a sign-in keeps everything — your rank, your
+              crowns, every workout — and nothing moves.</p>
+
+            <button id="googleBtn" class="btn primary" type="button" hidden>
+              CONTINUE WITH GOOGLE</button>
+
+            <div id="emailWrap">
+              <label class="lbl" for="acctEmail">EMAIL</label>
+              <input id="acctEmail" class="input" type="email" inputmode="email"
+                     autocomplete="email" placeholder="you@example.com"
+                     autocapitalize="none" spellcheck="false">
+              <label class="lbl" for="acctPass">PASSWORD</label>
+              <input id="acctPass" class="input" type="password"
+                     autocomplete="new-password" placeholder="8 characters or more">
+              <button id="emailBtn" class="btn ghost" type="button">SAVE EMAIL &amp; PASSWORD</button>
+              <p class="muted small" id="emailCaveat">We do not send a confirmation,
+                so a typo here is permanent and there is no password reset.
+                Check it, and keep your restore code either way.</p>
+            </div>
+          </div>
+
+          <div id="acctDone" hidden>
+            <h4>Signed in</h4>
+            <p class="muted small" id="acctWho"></p>
+            <button id="signOutBtn" class="btn ghost" type="button">SIGN OUT</button>
+          </div>
+
+          <p id="acctErr" class="err"></p>
         </div>
       </details>
 
@@ -706,8 +750,8 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.26.0"></script>
-<script src="./vendor/game-icons.js?v=2.26.0"></script>
-<script src="./app.js?v=2.26.0"></script>
+<script src="./vendor/supabase.js?v=2.27.0"></script>
+<script src="./vendor/game-icons.js?v=2.27.0"></script>
+<script src="./app.js?v=2.27.0"></script>
 </body>
 </html>

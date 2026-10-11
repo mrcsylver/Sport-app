@@ -18,9 +18,11 @@ insert into public.profiles (id, user_id, display_name, restore_code) values
   ('bbbb0000-0000-0000-0000-000000000001','b1111111-1111-1111-1111-111111111111','DOUBLE','BRD1'),
   ('bbbb0000-0000-0000-0000-000000000002','b2222222-2222-2222-2222-222222222222','SINGLE','BRD2'),
   ('bbbb0000-0000-0000-0000-000000000003','b3333333-3333-3333-3333-333333333333','ELSEWHERE','BRD3');
-insert into public.leagues (id, name, code, owner_id) values
-  ('bbbb1111-0000-0000-0000-00000000000a','ALPHA','BRDAAA','bbbb0000-0000-0000-0000-000000000001'),
-  ('bbbb1111-0000-0000-0000-00000000000b','BETA', 'BRDBBB','bbbb0000-0000-0000-0000-000000000001');
+-- rest_dow '{}' on purpose: the default is Sunday, and a suite that cannot
+-- log a workout one day in seven is a suite that lies about the other six.
+insert into public.leagues (id, name, code, owner_id, rest_dow) values
+  ('bbbb1111-0000-0000-0000-00000000000a','ALPHA','BRDAAA','bbbb0000-0000-0000-0000-000000000001','{}'),
+  ('bbbb1111-0000-0000-0000-00000000000b','BETA', 'BRDBBB','bbbb0000-0000-0000-0000-000000000001','{}');
 -- DOUBLE is in both leagues, SINGLE only in alpha, ELSEWHERE only in beta.
 insert into public.league_members (league_id, profile_id, joined_at) values
   ('bbbb1111-0000-0000-0000-00000000000a','bbbb0000-0000-0000-0000-000000000001','2026-01-05'),
