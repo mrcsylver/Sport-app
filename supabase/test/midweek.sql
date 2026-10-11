@@ -5,9 +5,11 @@ on conflict (id) do nothing;
 insert into public.profiles (id, user_id, display_name, restore_code) values
   ('eeee0000-0000-0000-0000-000000000001','55555555-5555-5555-5555-555555555555',
    'QUENTIN','MW1') on conflict do nothing;
-insert into public.leagues (id, name, code, owner_id) values
+-- rest_dow '{}': the column defaults to Sunday and this fixture logs a
+-- workout, so without it the whole migration replay fails on Sundays.
+insert into public.leagues (id, name, code, owner_id, rest_dow) values
   ('ffff0000-0000-0000-0000-000000000001','MIDWEEK','MWTEST',
-   'eeee0000-0000-0000-0000-000000000001') on conflict do nothing;
+   'eeee0000-0000-0000-0000-000000000001','{}') on conflict do nothing;
 insert into public.league_members (league_id, profile_id) values
   ('ffff0000-0000-0000-0000-000000000001','eeee0000-0000-0000-0000-000000000001')
 on conflict do nothing;

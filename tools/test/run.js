@@ -56,7 +56,8 @@ const SEED = `
   function d(iso, days){ var p=iso.split('-'); var x=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]+days)); return x.toISOString().slice(0,10); }
   var DB = window.__DB__;
   var cur = W();
-  var L = { id:'lg1', name:'THE IRON CIRCLE', code:'X7K2Q9', owner_id:'p1', max_members:20 };
+  var L = { id:'lg1', name:'THE IRON CIRCLE', code:'X7K2Q9', owner_id:'p1', max_members:20,
+            rest_dow:[] };   // no rest day: this suite must pass on a Sunday too
   DB.leagues.push(L);
   var names = ['MARCO','LEO','SARAH','TOM','NINA','BIG DAVE'];
   names.forEach(function(n,i){

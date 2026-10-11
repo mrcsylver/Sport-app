@@ -35,7 +35,8 @@ const srv=http.createServer((q,s)=>{let p=decodeURIComponent(q.url.split('?')[0]
 // 24 athletes, two finished weeks, so tiers + most improved both have data
 const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__calc__;
  if(DB.leagues.length) return;
- DB.leagues.push({id:'lg1',name:'LEAGUE 1',code:'8FE7BB',owner_id:'p1',max_members:30});
+ DB.leagues.push({id:'lg1',name:'LEAGUE 1',code:'8FE7BB',owner_id:'p1',max_members:30,
+   rest_dow:[]});   // no rest day: this suite must pass on a Sunday too
  var animals=['🦍','🦊','🐺','🦁','🐯','🐻','🦅','🐗','🦈','🐍','🦂','🐢'];
  for(var i=1;i<=24;i++){
    DB.profiles.push({id:'p'+i,user_id:'u'+i,display_name:'ATHLETE'+i,restore_code:'RC'+i,

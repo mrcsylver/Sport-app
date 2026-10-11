@@ -40,7 +40,8 @@ const SEED=`(function(){var DB=window.__DB__;
  if(DB.leagues.length) return;
  DB.profiles.push({id:'p1',user_id:'u1',display_name:'MARCO',restore_code:'RC1',avatar:'🦍'});
  ['A','B','C'].forEach(function(x,i){
-   DB.leagues.push({id:'lg'+i,name:'LEAGUE '+x,code:'CODE0'+i,owner_id:'p1',max_members:30});
+   DB.leagues.push({id:'lg'+i,name:'LEAGUE '+x,code:'CODE0'+i,owner_id:'p1',max_members:30,
+     rest_dow:[]});   // no rest day: these must not depend on which day they are run
    DB.members.push({league_id:'lg'+i,profile_id:'p1',joined_at:'2026-01-0'+(i+1)});});
  window.__save__();
 })();`;

@@ -27,7 +27,8 @@ const srv=http.createServer((q,s)=>{let p=decodeURIComponent(q.url.split('?')[0]
 // One shared in-memory DB across both "phones" via a server-side store
 const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__calc__;
  if(DB.leagues.length) return;
- DB.leagues.push({id:'lg1',name:'LEAGUE 1',code:'8FE7BB',owner_id:'p1',max_members:30});
+ DB.leagues.push({id:'lg1',name:'LEAGUE 1',code:'8FE7BB',owner_id:'p1',max_members:30,
+   rest_dow:[]});   // no rest day: these must not depend on which day they are run
  [['p1','u1','MARCO','🦍'],['p2','u2','SARAH','🦊']].forEach(function(x,i){
    DB.profiles.push({id:x[0],user_id:x[1],display_name:x[2],restore_code:'RC'+i,avatar:x[3]});
    DB.members.push({league_id:'lg1',profile_id:x[0],joined_at:'2026-01-0'+(i+1)});});

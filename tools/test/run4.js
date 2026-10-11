@@ -37,7 +37,8 @@ const srv=http.createServer((q,s)=>{let p=decodeURIComponent(q.url.split('?')[0]
  s.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'}); s.end(fs.readFileSync(f));});
 
 const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__calc__;
- DB.leagues.push({id:'lg1',name:'LEAGUE 1',code:'8FE7BB',owner_id:'p1',max_members:30});
+ DB.leagues.push({id:'lg1',name:'LEAGUE 1',code:'8FE7BB',owner_id:'p1',max_members:30,
+   rest_dow:[]});   // no rest day: these must not depend on which day they are run
  ['MARCO','SARAH'].forEach(function(n,i){DB.profiles.push({id:'p'+(i+1),user_id:'u'+(i+1),display_name:n,restore_code:'RC'+i});
    DB.members.push({league_id:'lg1',profile_id:'p'+(i+1),joined_at:'2026-01-0'+(i+1)});});
  var cur=W(); var id=0;

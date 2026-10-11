@@ -16,7 +16,7 @@ const srv=http.createServer((q,s)=>{let p=decodeURIComponent(q.url.split('?')[0]
 const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
  function back(n){var d=new Date(ws+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7*n);return d.toISOString().slice(0,10);}
  function wk0(n){var d=new Date(ws+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7*n);return d.toISOString();}
- DB.leagues.push({id:'lg1',name:'IRON CIRCLE',code:'8FE7BB',owner_id:'p1',max_members:36,rest_dow:[7],season_weeks:38,created_at:wk0(8)});
+ DB.leagues.push({id:'lg1',name:'IRON CIRCLE',code:'8FE7BB',owner_id:'p1',max_members:36,rest_dow:[],season_weeks:38,created_at:wk0(8)});
  DB.profiles.push({id:'p1',user_id:'u1',display_name:'MARCO',restore_code:'RC1',body_form:'neutral'});
  DB.profiles.push({id:'p2',user_id:'u2',display_name:'SARAH',restore_code:'RC2'});
  DB.members.push({league_id:'lg1',profile_id:'p1',joined_at:'2026-01-01'});

@@ -10,8 +10,10 @@ on conflict (id) do nothing;
 insert into public.profiles (id, user_id, display_name, restore_code, is_admin) values
   ('aaaaaaaa-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','MARCO','RC1', true),
   ('aaaaaaaa-0000-0000-0000-000000000002','22222222-2222-2222-2222-222222222222','SARAH','RC2', false);
-insert into public.leagues (id, name, code, owner_id) values
-  ('bbbbbbbb-0000-0000-0000-000000000001','IRON','TESTAA','aaaaaaaa-0000-0000-0000-000000000001');
+-- rest_dow '{}': the column defaults to Sunday, and this suite logs workouts.
+-- Without it every assertion below fails one day in seven.
+insert into public.leagues (id, name, code, owner_id, rest_dow) values
+  ('bbbbbbbb-0000-0000-0000-000000000001','IRON','TESTAA','aaaaaaaa-0000-0000-0000-000000000001','{}');
 insert into public.league_members (league_id, profile_id) values
   ('bbbbbbbb-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000001'),
   ('bbbbbbbb-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000002');
