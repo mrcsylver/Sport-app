@@ -40,7 +40,7 @@ window.APP_CONFIG = {
   // ANON: let somebody in with no account at all, as the app has always
   // worked. Keeps the "logging push-ups in twenty seconds" path open; they
   // are nudged to secure the account once they have something worth keeping.
-  SIGN_IN: { GOOGLE: false, EMAIL: true, ANON: true },
+  SIGN_IN: { GOOGLE: true, EMAIL: true, ANON: true },
 
   // The currency the shop prints prices in. A symbol, not a code: it sits in
   // front of a number on a small tile. Nothing charges anybody yet — this is
