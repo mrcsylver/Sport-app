@@ -16,9 +16,17 @@
 application, hors ligne comprise.
 
 **Création de compte :** choisis un nom, et **prends immédiatement une capture
-d'écran de ton code de restauration** (8 caractères, dans Réglages). C'est la
-seule chose qui permet de récupérer ton profil sur un autre téléphone. Il n'y
-a ni email ni mot de passe.
+d'écran de ton code de restauration** (8 caractères, dans Réglages). C'est ce
+qui permet de récupérer ton profil sur un autre téléphone.
+
+**Rattache ton compte (recommandé) :** dans Réglages → ACCOUNT, tu peux relier
+ton profil à ton compte Google, ou à un email et un mot de passe. C'est le même
+profil : rien n'est recréé, rien n'est perdu. Fais-le et ton compte survit à un
+téléphone cassé, perdu ou changé, sans dépendre d'une capture d'écran.
+
+Ton code de restauration n'est demandable que **dix fois par heure** : au-delà,
+l'appli arrête de répondre pendant une heure, même au bon code. C'est ce qui
+empêche quelqu'un d'essayer des codes au hasard jusqu'à tomber sur le tien.
 
 Une ligue accueille **36 personnes** — un nombre pair exprès, pour que la
 rivalité du lundi apparie tout le monde sans laisser personne de côté. Tu peux
@@ -414,8 +422,16 @@ chaque quête. Il n'y en a que si l'admin en a mis en ligne.
 Screen". It then behaves like a real app, offline included.
 
 **Account:** pick a name, then **screenshot your restore code immediately**
-(8 characters, in Settings). It is the only thing that moves your profile to
-another phone. There is no email and no password.
+(8 characters, in Settings). It is what moves your profile to another phone.
+
+**Attach your account (recommended):** in Settings → ACCOUNT you can link your
+profile to your Google account, or to an email and a password. It is the same
+profile — nothing is recreated and nothing is lost. Do it and your account
+survives a broken, lost or replaced phone without depending on a screenshot.
+
+A restore code can only be tried **ten times an hour**: past that the app stops
+answering for an hour, the right code included. That is what stops somebody
+trying codes at random until they land on yours.
 
 A league holds **36 people** — an even number on purpose, so the Monday
 rivalry pairs everybody off without leaving anyone out. You can be in several:

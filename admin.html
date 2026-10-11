@@ -274,8 +274,12 @@
     if (code) {
       var r = await sb.rpc('restore_profile', { p_code: code.toUpperCase() });
       if (r.error) throw r.error;
-      if (!r.data) throw new Error('That restore code does not match any profile.');
-      return r.data;
+      /* Zero rows, not an error, for a code that matches nothing -- the
+         function records the failed attempt for its throttle and a raise
+         would roll that write back. See supabase/restore-throttle.sql. */
+      var got = Array.isArray(r.data) ? r.data[0] : r.data;
+      if (!got || !got.id) throw new Error('That restore code does not match any profile.');
+      return got;
     }
     var m = await sb.rpc('admin_players');           // already signed in?
     if (m.error) throw m.error;

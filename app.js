@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.29.0';
+  var APP_VERSION = '2.30.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -805,6 +805,7 @@
     LEAGUE_FULL: 'That league is full — 30 fighters maximum.',
     NO_SUCH_LEAGUE: 'No league found with that code. Check the 6 characters.',
     BAD_CODE: 'That restore code does not match any profile.',
+    TOO_MANY_TRIES: 'Too many wrong codes from this device. Wait an hour and try again.',
     DEVICE_HAS_DATA: 'This phone already has a profile with workouts on it.',
     NO_PROFILE: 'Pick your name first.',
     TOO_MANY_LEAGUES: 'You already own 10 leagues.',
@@ -1453,8 +1454,14 @@
     try {
       var r = await sb.rpc('restore_profile', { p_code: code });
       if (r.error) throw r.error;
-      state.profile = r.data;
-      toast('Welcome back, ' + r.data.display_name);
+      /* A code that matches nothing comes back as ZERO ROWS rather than an
+         error: the function has to record the failed attempt for its
+         throttle, and raising would roll that write back. The reason is
+         written out in supabase/restore-throttle.sql. */
+      var got = Array.isArray(r.data) ? r.data[0] : r.data;
+      if (!got || !got.id) throw new Error('BAD_CODE');
+      state.profile = got;
+      toast('Welcome back, ' + got.display_name);
       await enterApp();
     } catch (e) {
       $(errEl).textContent = niceError(e);

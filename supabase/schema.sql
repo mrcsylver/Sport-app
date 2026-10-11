@@ -615,6 +615,24 @@ create table public.entitlements (
 alter table public.entitlements enable row level security;
 create index entitlements_profile on public.entitlements (profile_id);
 
+-- Failed restore attempts, so a code cannot be guessed at machine speed.
+--
+-- A restore code is 8 hex characters: 32 bits. Among friends that is plenty,
+-- because the only way to try one is to type it. Behind a QR code on a public
+-- wall it is a number a script can walk, and a hit hands over somebody else's
+-- entire account.
+--
+-- Keyed by auth.uid() rather than by IP, because Postgres cannot see the IP
+-- from PostgREST. That is only a throttle worth having because signing in
+-- anonymously -- the cheap way to get a fresh uid -- is itself behind a
+-- CAPTCHA. The two together are the fence; either alone is a gate.
+create table public.restore_tries (
+  user_id    uuid not null,
+  tried_at   timestamptz not null default now()
+);
+create index restore_tries_idx on public.restore_tries (user_id, tried_at desc);
+alter table public.restore_tries enable row level security;
+
 create table public.leagues (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (char_length(btrim(name)) between 2 and 28),
@@ -985,39 +1003,64 @@ begin
 end $$;
 
 -- Moving to a new phone: type your restore code, get your profile back.
+--
+-- Returns ZERO ROWS for a code that matches nothing, instead of raising
+-- BAD_CODE the way every other refusal here does. That is not a style
+-- choice. PostgREST runs one call as one transaction, so an exception on
+-- the way out rolls back everything the call wrote -- including the failed
+-- attempt the throttle below had just recorded. Written with a raise, the
+-- counter counted to zero forever and the lock never closed.
 create function public.restore_profile(p_code text)
-returns public.profiles
+returns setof public.profiles
 language plpgsql security definer set search_path = public as $$
 declare
   target   public.profiles;
   existing public.profiles;
   logs     int;
+  tries    int;
 begin
   if auth.uid() is null then raise exception 'NOT_SIGNED_IN'; end if;
 
+  -- Ten wrong guesses in an hour and this caller stops being answered at
+  -- all -- a right code included, so a script that finally hits one cannot
+  -- spend it. The count is of FAILURES only, so somebody typing their own
+  -- code correctly is never affected however often they do it.
+  select count(*) into tries from public.restore_tries
+   where user_id = auth.uid() and tried_at > now() - interval '1 hour';
+  if tries >= 10 then raise exception 'TOO_MANY_TRIES'; end if;
+
   select * into target from public.profiles
    where restore_code = upper(btrim(p_code));
-  if not found then raise exception 'BAD_CODE'; end if;
-  if target.user_id = auth.uid() then return target; end if;
-
-  -- If this device already made a throwaway profile, drop it (only if unused).
-  select * into existing from public.profiles where user_id = auth.uid();
-  if found then
-    select count(*) into logs from public.workouts where profile_id = existing.id;
-    if logs > 0 then raise exception 'DEVICE_HAS_DATA'; end if;
-    delete from public.profiles where id = existing.id;
+  if not found then
+    insert into public.restore_tries (user_id) values (auth.uid());
+    -- Old rows are not worth a scheduled job: clear this caller's own
+    -- expired ones on the way past and the table stays small by itself.
+    delete from public.restore_tries
+     where user_id = auth.uid() and tried_at <= now() - interval '1 hour';
+    return;
   end if;
 
-  -- Coming back to a parked account. They kept everything — the rank, the
-  -- badges, every week they won — but the seat went to somebody else, so
-  -- they only get it back if one is free.
-  if target.dormant_at is not null and public.app_is_full() then
-    raise exception 'APP_FULL';
+  if target.user_id <> auth.uid() then
+    -- If this device already made a throwaway profile, drop it (only if unused).
+    select * into existing from public.profiles where user_id = auth.uid();
+    if found then
+      select count(*) into logs from public.workouts where profile_id = existing.id;
+      if logs > 0 then raise exception 'DEVICE_HAS_DATA'; end if;
+      delete from public.profiles where id = existing.id;
+    end if;
+
+    -- Coming back to a parked account. They kept everything -- the rank, the
+    -- badges, every week they won -- but the seat went to somebody else, so
+    -- they only get it back if one is free.
+    if target.dormant_at is not null and public.app_is_full() then
+      raise exception 'APP_FULL';
+    end if;
+
+    update public.profiles set user_id = auth.uid(), dormant_at = null
+     where id = target.id returning * into target;
   end if;
 
-  update public.profiles set user_id = auth.uid(), dormant_at = null
-   where id = target.id returning * into target;
-  return target;
+  return next target;
 end $$;
 
 -- A parked account opening the app. Wakes itself if there is room; otherwise

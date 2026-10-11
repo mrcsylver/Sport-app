@@ -30,6 +30,8 @@
   /* SHOP END */
   DB.entitlements = DB.entitlements || [];
   DB.authEmails = DB.authEmails || {};
+  /* uid -> the times a wrong restore code was typed, for the throttle. */
+  DB.restoreTries = DB.restoreTries || {};
   DB.authPasswords = DB.authPasswords || {};
   DB.authIdentities = DB.authIdentities || {};
   /* Enough of the exercise table for the control room's picker. The app
@@ -436,9 +438,17 @@
       DB.profiles.push(p); return ok(p);
     },
     rename_profile: function (a) { var p = me(); if (!p) return bad('NO_PROFILE'); p.display_name = a.p_name.trim(); return ok(p); },
+    /* Zero rows for a code that matches nothing, never an exception, because
+       that is what the real one does -- and the reason it does is in
+       supabase/restore-throttle.sql. Ten failures in an hour and the caller
+       stops being answered at all, the right code included. */
     restore_profile: function (a) {
+      var now = Date.now(), hour = 60 * 60 * 1000;
+      var mine = (DB.restoreTries[uid] || []).filter(function (ts) { return ts > now - hour; });
+      DB.restoreTries[uid] = mine;
+      if (mine.length >= 10) return bad('TOO_MANY_TRIES');
       var t = DB.profiles.filter(function (p) { return p.restore_code === a.p_code.toUpperCase(); })[0];
-      if (!t) return bad('BAD_CODE');
+      if (!t) { mine.push(now); return ok([]); }
       if (t.dormant_at) {
         var cap1 = window.__CAP__ == null ? null : Number(window.__CAP__);
         if (cap1 != null &&
@@ -447,7 +457,7 @@
         }
         t.dormant_at = null;
       }
-      t.user_id = uid; return ok(t);
+      t.user_id = uid; return ok([t]);
     },
     league_preview: function (a) {
       var l = DB.leagues.filter(function (x) { return x.code === a.p_code.toUpperCase(); })[0];

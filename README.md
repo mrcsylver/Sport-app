@@ -579,7 +579,15 @@ pick up the new files.
 **A friend changed phone / cleared their browser and lost their profile**
 Every profile has a **restore code** (LEAGUES tab → MY PROFILE). On the new phone,
 tap *"Changed phone? Restore your profile"* on the first screen and type that code.
-Tell everyone to screenshot their code once.
+Tell everyone to screenshot their code once — and better, to attach their account
+to Google or to an email in Settings → ACCOUNT, which survives a lost phone with
+nothing to screenshot.
+
+**Somebody says the restore screen stopped answering them**
+Ten wrong codes in an hour and that device is refused for an hour, the right code
+included: that is the throttle that stops a script walking the 32-bit code space.
+It is per device, so nobody else is affected, and it clears by itself. If they are
+sure of their code, they mistyped it ten times — an hour later it works.
 
 **Nobody logged anything for a week**
 Supabase pauses free projects after ~1 week with no activity. Open your Supabase

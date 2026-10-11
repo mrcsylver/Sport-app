@@ -64,6 +64,10 @@ echo "· the shop, and what stops you wearing what you have not got"
 fresh ironshop
 psql -d ironshop -f "$HERE/shop.sql" 2>&1 | clean
 
+echo "· guessing a restore code at machine speed"
+fresh ironguess
+psql -d ironguess -f "$HERE/guessing.sql" 2>&1 | clean
+
 echo "· the rest day, with more than one league"
 fresh ironrest
 psql -d ironrest -f "$HERE/restday.sql" 2>&1 | clean
@@ -118,6 +122,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/launch-gate.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/shop.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/faster-board.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/restore-throttle.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -222,5 +227,19 @@ psql -tAd ironlive -c "select case when (select count(*) from shop_items) >= 190
                 where table_name = 'profiles' and column_name = 'frame')
   then 'and the shop came through the migration with a lock on it'
   else 'THE SHOP CATALOGUE DID NOT SURVIVE' end;"
+# Exactly one restore_profile may be visible, and it must be the SETOF one: the
+# throttle inside it only works because a wrong code is answered with no rows
+# rather than an exception. A one-row version left callable by a replay would
+# put the old, unthrottled door back.
+psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname='public' and p.proname='restore_profile') = 1
+   and (select p.proretset from pg_proc p
+         join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname='public' and p.proname='restore_profile')
+   and exists (select 1 from information_schema.tables
+                where table_name = 'restore_tries')
+  then 'and exactly one restore_profile is callable, the throttled one'
+  else 'THE UNTHROTTLED RESTORE DOOR IS BACK' end;"
 
 echo "· all clear"

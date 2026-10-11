@@ -43,6 +43,11 @@
 --  Coming back to a parked account needs a free seat, same as anybody else
 --  arriving: restore_profile() and wake_me() both raise APP_FULL rather than
 --  letting the app quietly go over. Nothing is lost by waiting.
+--
+--  restore_profile() itself is no longer in this file. It has since changed
+--  return type, which `create or replace` cannot do, so carrying it here
+--  made this file fail on any database that already had the newer shape.
+--  supabase/restore-throttle.sql owns it now, APP_FULL branch included.
 -- ======================================================================
 begin;
 set local check_function_bodies = off;
@@ -216,7 +221,7 @@ language sql stable security definer set search_path = public as $fn$
   ws as (select * from public.week_scored(p_league, (select w from wk))),
   -- Lifetime follows the person, not the league, and is discounted the same
   -- way — week by week, so a year of training is never run through one curve.
-  lt as (select * from public.life_scored_all())
+  lt as (select * from public.life_scored_in(p_league))
   select p.id, p.display_name, p.avatar,
          (coalesce(ws.points, 0) + coalesce(cb.bonus, 0)
                                  + coalesce(bb.bounty, 0))::numeric,
@@ -364,42 +369,6 @@ begin
   return p;
 end $fn$;
 
--- ------------------------------------------------------- restore_profile ---
-create or replace function public.restore_profile(p_code text)
-returns public.profiles
-language plpgsql security definer set search_path = public as $fn$
-declare
-  target   public.profiles;
-  existing public.profiles;
-  logs     int;
-begin
-  if auth.uid() is null then raise exception 'NOT_SIGNED_IN'; end if;
-
-  select * into target from public.profiles
-   where restore_code = upper(btrim(p_code));
-  if not found then raise exception 'BAD_CODE'; end if;
-  if target.user_id = auth.uid() then return target; end if;
-
-  -- If this device already made a throwaway profile, drop it (only if unused).
-  select * into existing from public.profiles where user_id = auth.uid();
-  if found then
-    select count(*) into logs from public.workouts where profile_id = existing.id;
-    if logs > 0 then raise exception 'DEVICE_HAS_DATA'; end if;
-    delete from public.profiles where id = existing.id;
-  end if;
-
-  -- Coming back to a parked account. They kept everything — the rank, the
-  -- badges, every week they won — but the seat went to somebody else, so
-  -- they only get it back if one is free.
-  if target.dormant_at is not null and public.app_is_full() then
-    raise exception 'APP_FULL';
-  end if;
-
-  update public.profiles set user_id = auth.uid(), dormant_at = null
-   where id = target.id returning * into target;
-  return target;
-end $fn$;
-
 -- --------------------------------------------------------------- wake_me ---
 create or replace function public.wake_me() returns public.profiles
 language plpgsql security definer set search_path = public as $fn$
@@ -506,7 +475,6 @@ $fn$;
 
 -- -------------------------------------------------------- grants ---
 revoke all on function public.create_profile(text)          from public, anon;
-revoke all on function public.restore_profile(text)         from public, anon;
 revoke all on function public.league_preview(text)          from public, anon;
 revoke all on function public.my_leagues()                  from public, anon;
 revoke all on function public.league_leaderboard(uuid,date) from public, anon;
@@ -519,7 +487,6 @@ revoke all on function public.admin_set_dormant(uuid,boolean) from public, anon;
 revoke all on function public.wake_me()                     from public, anon;
 revoke all on function public.league_wins(uuid)             from public, anon;
 grant execute on function public.create_profile(text)          to authenticated;
-grant execute on function public.restore_profile(text)         to authenticated;
 grant execute on function public.league_preview(text)          to authenticated;
 grant execute on function public.my_leagues()                  to authenticated;
 grant execute on function public.league_leaderboard(uuid,date) to authenticated;

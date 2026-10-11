@@ -59,8 +59,14 @@ actor API {
     func createProfile(name: String) async throws -> Profile {
         try await rpc("create_profile", ["p_name": .string(name)])
     }
+    /// Zero rows for a code that matches nothing — not an error. The server
+    /// has to record the failed attempt for its ten-an-hour throttle, and one
+    /// call is one transaction, so raising would roll that write back. The
+    /// whole story is in supabase/restore-throttle.sql.
     func restoreProfile(code: String) async throws -> Profile? {
-        try await rpc("restore_profile", ["p_code": .string(code.uppercased())])
+        let rows: [Profile] = try await rpc(
+            "restore_profile", ["p_code": .string(code.uppercased())])
+        return rows.first
     }
 
     /// How full the app is. Asked BEFORE showing a name box: being told there
@@ -328,6 +334,7 @@ enum Friendly {
             "WEEK_CLOSED": "That week is finished and cannot be edited.",
             "LEAGUE_FULL": "That league is full.",
             "APP_FULL": "Iron League is at capacity right now. Nothing of yours is lost — try again in a day or two, or ask for a seat.",
+            "TOO_MANY_TRIES": "Too many wrong codes from this phone. Wait an hour and try again.",
             "LOCKED_ITEM": "That one is not yours yet.",
             "NOT_A_MEMBER": "You are not in that league.",
             "NO_PROFILE": "Something went wrong with your profile — reopen the app."

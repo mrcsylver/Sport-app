@@ -41,10 +41,19 @@ RESHAPED = [
 ]
 
 # league_roster first: weekly_history reads it, and four more read that.
+#
+# restore_profile() is NOT here, though this file is the one that taught it
+# APP_FULL. It has since become `returns setof public.profiles` (see
+# supabase/restore-throttle.sql for why), and a return type cannot be changed
+# by `create or replace` -- so lifting the current definition into this file
+# made it fail outright on any database already carrying the new shape,
+# including a fresh one built from schema.sql. restore-throttle.sql owns the
+# function now, carries the APP_FULL branch this file added, and runs after
+# it, so a replay from an old database still ends up in the right place.
 OBJECTS = ["league_roster", "weekly_history", "league_wins", "league_season",
            "league_leaderboard", "league_streaks", "my_leagues",
            "league_preview", "enforce_league_capacity",
-           "signup_state", "app_is_full", "create_profile", "restore_profile",
+           "signup_state", "app_is_full", "create_profile",
            "wake_me", "admin_overview", "admin_set_cap", "admin_set_dormant",
            "admin_players"]
 
@@ -95,6 +104,11 @@ HEAD = """-- ===================================================================
 --  Coming back to a parked account needs a free seat, same as anybody else
 --  arriving: restore_profile() and wake_me() both raise APP_FULL rather than
 --  letting the app quietly go over. Nothing is lost by waiting.
+--
+--  restore_profile() itself is no longer in this file. It has since changed
+--  return type, which `create or replace` cannot do, so carrying it here
+--  made this file fail on any database that already had the newer shape.
+--  supabase/restore-throttle.sql owns it now, APP_FULL branch included.
 -- ======================================================================
 begin;
 set local check_function_bodies = off;

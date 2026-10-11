@@ -7,8 +7,9 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 `bounty-pool.sql`, `catch-up-day.sql`, `dashboard-points.sql`,
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
 `progressions.sql`, `season-table.sql`, `season-stats.sql`, `cup.sql`,
-`membership.sql` and `rest-day.sql` are migrations for a database that is
-already running. They only add; nothing logged is touched, and all of
+`membership.sql`, `rest-day.sql`, `launch-gate.sql`, `shop.sql`,
+`faster-board.sql` and `restore-throttle.sql` are migrations for a database
+that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -412,6 +413,54 @@ Three things it is careful about:
 is the next writer of it; until then `admin_grant_item()` hands things out by
 name, which stays useful afterwards — a prize, an apology, a founder's gift.
 
+### Ten guesses an hour at a restore code
+
+A restore code is 8 hex characters: 32 bits, and whoever has one owns the
+account it belongs to — its history, its badges, every week it won. That was a
+sensible trade while the only way to try a code was to type it into a phone and
+everybody with the app was a friend. It stops being one the day the app is
+advertised on a wall, because then 32 bits is a number a script walks.
+
+`restore_profile()` now refuses a caller after ten failures in a rolling hour —
+**the right code included**, which is the only part that matters: a script that
+finally lands on a real code still cannot spend it. The count is of failures
+only, so somebody typing their own code correctly is never affected however
+often they do it, and the window rolls, so a lockout is an hour and not
+forever. `restore_tries` is the log; RLS is on with no policy at all, so the
+only thing that can read or write it is the `SECURITY DEFINER` function itself
+and a caller cannot clear their own record.
+
+It is keyed on `auth.uid()`, because Postgres cannot see the caller's IP from
+PostgREST. That is only worth having because the cheap way to get a fresh uid —
+signing in anonymously — is itself behind a CAPTCHA. The two together are the
+fence; either one alone is a gate.
+
+**The part that is not obvious.** The obvious way to write this is: record the
+failure, then `raise exception 'BAD_CODE'` the way every other refusal in the
+file does. It does not work. PostgREST runs one call as one transaction, so the
+raise rolls back the row that records the failure that caused it. The counter
+counted to zero forever, the lock never closed, and nothing about the app
+looked any different from outside — the caller gets the same refusal either
+way. The first version shipped here was written that way and
+`supabase/test/guessing.sql` section 2 is the check that found it.
+
+So a code that matches nothing is answered with **zero rows** instead, which
+means the return type went from `public.profiles` to `setof public.profiles`.
+`create or replace` cannot change a return type, so `restore-throttle.sql`
+moves the old version into the `retired` schema in the same transaction —
+the same trick `season-stats.sql` used, reversible with one `ALTER`.
+
+That also took `restore_profile` out of `launch-gate.sql`, which used to carry
+it: a generated migration lifts the *current* definition out of `schema.sql`,
+and lifting the new one into a file that runs before this one made that file
+fail outright on any database already holding the new shape. The APP_FULL
+branch `launch-gate.sql` added to the function is still there — it travels in
+`restore-throttle.sql` now, which runs after it.
+
+Both clients read an empty answer as "no profile has that code", which is what
+a wrong code means anyway, so **this file goes in before the app, not after**.
+The other order would leave a real refusal looking like a crash.
+
 ### Uploaded designs, and the bucket they live in
 
 `profiles.frame` is a ring drawn around an avatar on every row of every board.
@@ -548,6 +597,13 @@ was actually executed:
 - `revoke all on function public.is_rest_day()` named a signature that does
   not exist (a default argument does not create a second one), so the run
   stopped there and the revoke never applied.
+- `restore_profile`'s new throttle recorded its failures and then raised,
+  which rolled the record back, so the lock never closed. Nothing about the
+  call looked different from outside — only counting the rows afterwards
+  showed it.
+- `launch-gate.sql`, generated months earlier, carried a `create or replace`
+  of that same function and so stopped running the moment its return type
+  changed. The suite applies every migration three times for exactly this.
 
 Both are fixed. The suite exists so the next one is found here.
 
@@ -574,6 +630,7 @@ Do not hand-edit these:
 | `launch-gate.sql` | `tools/build_launchgate_migration.py` |
 | `shop.sql` | `tools/build_shop_migration.py` |
 | `faster-board.sql` | `tools/build_board_migration.py` |
+| `restore-throttle.sql` | `tools/build_restore_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |
