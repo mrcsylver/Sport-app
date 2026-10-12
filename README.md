@@ -477,6 +477,48 @@ count beside their name in **Players**. That removes the membership and
 nothing else: the account, the restore code and everything logged in other
 leagues stay.
 
+### Is it growing
+
+**Growth**, in the control room, is three questions a week at a time. There is
+no analytics product behind it, no tracking script, no third party: both tables
+are derived on read from rows that already exist, the same way divisions,
+streaks and the season table are.
+
+| | |
+|---|---|
+| **Landed** | How many people opened the app at all |
+| **Joined** | How many of those typed a name |
+| **Of those** | Joined over landed — the conversion |
+| **Logged that week** | How many people actually trained |
+| **Sessions** | How many workouts went in |
+
+Landed is the one worth understanding. The app signs in anonymously the moment
+a page loads, and only writes a profile when somebody types a name — which is
+why a curious scan costs nothing and never takes a seat. So **a sign-in with no
+profile behind it is exactly one person who scanned a poster, saw the first
+screen and left.**
+
+That makes the conversion column the one number that separates two failures
+that look identical from the outside: if landed stays flat the poster is not
+working, and if landed climbs while joined does not, the poster is working and
+**the first screen is not**. Those need opposite fixes.
+
+It counts devices rather than people — a phone that clears its data and comes
+back lands twice — so landed is a ceiling and the percentage is a floor. Week
+over week it is still the right shape to watch.
+
+**Does anybody come back** is the other half, and the harder one. Each row is
+everybody who joined in one week, and how many of them logged something in the
+week *after*, two weeks after, four weeks after. Not "at any point since",
+which flatters every row and tells you nothing.
+
+A week that has not **finished** reads as a dash, not a zero. On a Tuesday,
+"did last week's joiners come back this week?" is a question about one day, and
+answering it `0` would make every recent group look like a disaster.
+
+Each poster carries its own league code, so the leagues table beside it already
+says which poster worked.
+
 ---
 
 # 🏆 THE CUP

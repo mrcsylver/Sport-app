@@ -106,6 +106,23 @@
       </span>
     </div>
 
+    <h2>Growth</h2>
+    <p class="dim"><b>Landed</b> is how many people opened the app at all — the app
+      signs in the moment a page loads, but only writes a profile when somebody
+      types a name, so a landing with no profile behind it is one person who
+      scanned a poster, saw the first screen and left. <b>Joined</b> over landed is
+      the conversion: if landed climbs and joined does not, the poster is working
+      and the first screen is not. One phone that clears its data and comes back
+      lands twice, so landed is a ceiling and the percentage is a floor.</p>
+    <div class="scroll"><table id="growth"></table></div>
+
+    <h3 style="margin-bottom:4px">Does anybody come back</h3>
+    <p class="dim">Everybody who joined in one week, and how many of them logged
+      something in the week after, two weeks after, four weeks after. Not "at any
+      point since", which flatters every row and tells you nothing. A week that
+      has not happened yet is blank, not zero.</p>
+    <div class="scroll"><table id="retention"></table></div>
+
     <h2>Leagues</h2>
     <div class="scroll"><table id="leagues"></table></div>
 
@@ -236,7 +253,7 @@
 
 <script src="./config.js"></script>
 <script src="./vendor/supabase.js"></script>
-<script src="./captcha.js?v=2.35.0"></script>
+<script src="./captcha.js?v=2.36.0"></script>
 <script>
 (function () {
   var CFG = window.APP_CONFIG || {};
@@ -385,6 +402,16 @@
     paintExercisePicker();
     await loadDesigns();
     await loadBounties();
+
+    /* Last, and both at once. Growth is the one panel nobody opens the
+       control room FOR — seats, players and the shop are why it is open —
+       so it must not hold any of them up. Two round trips in sequence in
+       the middle of load() pushed the designs table a second later, which
+       is how run22 found this. */
+    var two = await Promise.all([sb.rpc('admin_growth', { p_weeks: 12 }),
+                                 sb.rpc('admin_retention', { p_weeks: 8 })]);
+    paintGrowth(two[0].error ? [] : (two[0].data || []),
+                two[1].error ? [] : (two[1].data || []));
   }
 
   /* ---- designs --------------------------------------------------------
@@ -662,6 +689,53 @@
           '" data-n="' + esc(p.display_name) + '" data-l="' + esc(m.league_name) +
           '">Remove from this league</button></div>';
       }).join('') + '</td></tr>';
+  }
+
+  /* A week is a row and the newest is on top, because the question being
+     asked is always "is this week better than last week" and nobody wants to
+     scroll to find out. The bar is the one thing worth drawing: five columns
+     of digits hide a trend that a row of widths shows instantly. */
+  function paintGrowth(g, r) {
+    var most = Math.max.apply(null, g.map(function (x) { return x.landed; })
+                                     .concat(g.map(function (x) { return x.joined; }))
+                                     .concat([1]));
+    $('#growth').innerHTML =
+      '<tr><th>Week</th><th>Landed</th><th>Joined</th><th>Of those</th>' +
+      '<th>Logged that week</th><th>Sessions</th><th></th></tr>' +
+      g.map(function (x) {
+        var pct = x.landed ? Math.round(100 * x.joined / x.landed) : null;
+        return '<tr><td class="dim">' + week(x.week_start) + '</td>' +
+          '<td>' + x.landed + '</td><td class="name">' + x.joined + '</td>' +
+          '<td class="dim">' + (pct === null ? '—' : pct + '%') + '</td>' +
+          '<td>' + x.active + '</td><td class="dim">' + x.workouts + '</td>' +
+          '<td style="width:34%">' + bar(x.landed, most, 'var(--line)') +
+            bar(x.joined, most, 'var(--red)') + '</td></tr>';
+      }).join('') || '<tr><td class="dim">Nothing yet.</td></tr>';
+
+    $('#retention').innerHTML =
+      '<tr><th>Joined in</th><th>People</th><th>Back a week later</th>' +
+      '<th>Two weeks</th><th>Four weeks</th></tr>' +
+      r.filter(function (x) { return x.size > 0; }).map(function (x) {
+        return '<tr><td class="dim">' + week(x.week_start) + '</td>' +
+          '<td class="name">' + x.size + '</td>' +
+          back(x.back_1, x.size) + back(x.back_2, x.size) + back(x.back_4, x.size) +
+          '</tr>';
+      }).join('') || '<tr><td class="dim">Nobody has joined yet.</td></tr>';
+  }
+  /* null is "that week has not happened", which is not the same answer as
+     nobody came back, and must not read like it. */
+  function back(n, size) {
+    if (n === null || n === undefined) return '<td class="dim">—</td>';
+    return '<td>' + n + ' <span class="dim">(' +
+           Math.round(100 * n / size) + '%)</span></td>';
+  }
+  function bar(n, most, colour) {
+    return '<div style="height:7px;border-radius:4px;margin:2px 0;background:' +
+           colour + ';width:' + Math.max(n / most * 100, n ? 2 : 0) + '%"></div>';
+  }
+  function week(d) {
+    var t = new Date(d + 'T00:00:00');
+    return t.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   }
 
   function paintPlayers() {

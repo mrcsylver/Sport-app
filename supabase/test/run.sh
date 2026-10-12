@@ -76,6 +76,10 @@ echo "· the door beside the functions"
 fresh ironpriv
 psql -d ironpriv -f "$HERE/privilege.sql" 2>&1 | clean
 
+echo "· is the thing growing, and does anybody come back"
+fresh irongrow
+psql -d irongrow -f "$HERE/growth.sql" 2>&1 | clean
+
 echo "· what a request with no session at all can reach"
 fresh ironanon
 psql -d ironanon -f "$HERE/anonreach.sql" 2>&1 | clean
@@ -143,6 +147,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/shut-the-side-door.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/player-card.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/anon-has-no-business.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/growth.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'

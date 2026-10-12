@@ -1,9 +1,18 @@
 -- Enough of Supabase to run schema.sql against a plain Postgres: the auth
 -- schema, the two roles, and a uid() that a test can set.
 create schema if not exists auth;
+-- `created_at` is here because admin_growth() counts landings out of this
+-- table: a row with no profile behind it is one person who scanned the
+-- poster, saw the first screen and left. Without the column that number
+-- could not be tested at all, which is how it would have shipped untested.
+-- `is_anonymous` is the same shape of thing: an anonymous sign-in is still
+-- the `authenticated` role, and forgetting that is what left eleven
+-- functions open to `anon`.
 create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
-  email text
+  email text,
+  created_at timestamptz not null default now(),
+  is_anonymous boolean not null default true
 );
 create or replace function auth.uid() returns uuid
 language sql stable as $$
