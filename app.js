@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.31.2';
+  var APP_VERSION = '2.32.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -792,6 +792,16 @@
     n = Math.round(Number(n) * 100) / 100;
     return (n % 1 === 0) ? String(n) : String(Math.round(n * 10) / 10);
   }
+  /* A size box, read back as a number the server will accept. An empty or
+     nonsense box means 36, which is what the league would have been anyway,
+     rather than an error in front of somebody trying to start a league. */
+  function leagueSize(sel) {
+    var el = $(sel);
+    var n = el ? Math.round(Number(el.value)) : NaN;
+    if (!isFinite(n) || n < 2) return 36;
+    return Math.min(100, n);
+  }
+
   var toastTimer;
   function toast(msg, bad) {
     var t = $('#toast');
@@ -811,6 +821,9 @@
     DEVICE_HAS_DATA: 'This phone already has a profile with workouts on it.',
     NO_PROFILE: 'Pick your name first.',
     TOO_MANY_LEAGUES: 'You already own 10 leagues.',
+    BAD_SIZE: 'A league holds between 2 and 100 people.',
+    LEAGUE_SHRINK: 'That is fewer than the people already in. Nobody is removed '
+                 + 'to make a league smaller — take them out first.',
     NOT_SIGNED_IN: 'Connection lost — reload the page.',
     WEEK_CLOSED: 'That week is over — its entries are locked.',
     ALREADY_IN_CHALLENGE: 'You already have a duel open. Finish or cancel it first.',
@@ -1004,8 +1017,16 @@
     restDone: false
   };
   var LS = {
-    league: 'ironleague.league'
+    league: 'ironleague.league',
+    /* Set the first time a workout lands, and never cleared. It is what
+       makes the nudge and the share prompt wait until somebody actually has
+       something worth keeping and something worth showing. */
+    logged: 'ironleague.logged',
+    nudgeOff: 'ironleague.nudge.off',
+    sharePrompted: 'ironleague.share.asked'
   };
+  function flag(k) { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } }
+  function setFlag(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
 
   /* ===================================================================
      5. Boot
@@ -1239,6 +1260,9 @@
     $('#acctDone').hidden = a.kind === 'anon';
     $('#acctWho').textContent = a.email
       ? a.email + (a.kind === 'google' ? ' · Google' : '') : '';
+    /* The banner is the same fact said louder, so it is painted from here
+       rather than at each of the three places that redraw this panel. */
+    paintNudge();
     $('#googleBtn').hidden = !cfg.GOOGLE;
     $('#emailWrap').hidden = !cfg.EMAIL;
     /* Signing out of an anonymous account throws it away, so the button is
@@ -1451,7 +1475,8 @@
       if (onboardMode === 'create') {
         var lname = ($('#firstLeague').value || '').trim();
         if (lname.length < 2) throw new Error('Give your new league a name.');
-        var c = await sb.rpc('create_league', { p_name: lname.slice(0, 28) });
+        var c = await sb.rpc('create_league', {
+          p_name: lname.slice(0, 28), p_size: leagueSize('#firstSize') });
         if (c.error) throw c.error;
         state.leagueId = c.data.id;
       } else {
@@ -1734,6 +1759,21 @@
 
   /* Divisions are a live cut of the current table: the top ten are Gold,
      the next ten Silver, the rest Bronze. Log something and you climb. */
+  /* How many people each division holds, for a table of n.
+     Up to 36 this is the fixed 2/3/10/15/6 and nothing about an existing
+     league moves. Past it -- a league can hold 100 now -- the BOTTOM THREE
+     grow in the same proportion they already have, and the top two never do:
+     a Royal Guard of six is not a Royal Guard, and the whole point of those
+     five places is that one good evening can push you out of them.
+     Without this the overflow all landed in COMMONER, so a league of 100 was
+     five divisions and then a crowd of seventy. */
+  function tierSizes(n) {
+    var fixed = TIERS.map(function (t) { return t.size; });
+    if (n <= 36) return fixed;
+    var rest = n - 5, v = Math.round(rest * 10 / 31), f = Math.round(rest * 15 / 31);
+    return [2, 3, v, f, rest - v - f];
+  }
+
   function withTiers(rows) {
     if (rows.length < TIER_MINIMUM) return null;     // one division is not a division
     var sorted = rows.slice().sort(function (a, b) {
@@ -1741,10 +1781,11 @@
       if (d) return d;
       return new Date(a.joined_at) - new Date(b.joined_at);
     });
+    var sizes = tierSizes(sorted.length);
     var out = [], i = 0;
-    TIERS.forEach(function (t) {
-      var members = sorted.slice(i, i + t.size);
-      i += t.size;
+    TIERS.forEach(function (t, k) {
+      var members = sorted.slice(i, i + sizes[k]);
+      i += sizes[k];
       if (members.length) out.push({ tier: t, rows: members });
     });
     if (i < sorted.length && out.length) {          // more people than tiers allow for
@@ -1792,7 +1833,7 @@
         '<span class="chev">' + (open ? '▲' : '▼') + '</span>' +
       '</button>' +
       (open ? '<div class="feed" data-feed="' + p.profile_id + '">' +
-                (state.feeds[p.profile_id] ? feedHtml(state.feeds[p.profile_id]) :
+                (state.feeds[p.profile_id] ? feedHtml(state.feeds[p.profile_id], p.profile_id) :
                  '<div class="muted small" style="padding:8px 0">Loading…</div>') +
               '</div>' : '') +
     '</div>';
@@ -1835,9 +1876,16 @@
     box.innerHTML = html;
   }
 
-  function feedHtml(rows) {
+  function feedHtml(rows, pid) {
+    var mine = state.profile && pid === state.profile.id;
+    /* The share button belongs on an EMPTY week too -- or rather it does
+       not: there is nothing to show. */
     if (!rows.length) return '<div class="muted small" style="padding:8px 0">Nothing logged this week.</div>';
     var me = state.profile ? state.profile.id : null;
+    var shareBtn = mine
+      ? '<button type="button" class="btn ghost sm shareweek" data-shareweek="1"' +
+        ' style="width:100%;margin-top:10px">SHARE THIS WEEK</button>'
+      : '';
 
     /* A busy week is forty lines long. Group by day and collapse all but the
        most recent, so opening someone's feed shows a week at a glance. */
@@ -1881,7 +1929,7 @@
           '</div>';
         }).join('') : '') +
       '</div>';
-    }).join('');
+    }).join('') + shareBtn;
   }
 
   async function loadFeed(profileId) {
@@ -1893,7 +1941,7 @@
     if (r.error) { toast(niceError(r.error), true); return; }
     state.feeds[profileId] = r.data || [];
     var box = document.querySelector('[data-feed="' + profileId + '"]');
-    if (box) box.innerHTML = feedHtml(state.feeds[profileId]);
+    if (box) box.innerHTML = feedHtml(state.feeds[profileId], profileId);
   }
 
   document.addEventListener('click', function (e) {
@@ -1903,7 +1951,7 @@
     state.feedDay[k] = !open;
     var feed = h.closest('.feed');
     var pid = feed && feed.getAttribute('data-feed');
-    if (pid && state.feeds[pid]) feed.innerHTML = feedHtml(state.feeds[pid]);
+    if (pid && state.feeds[pid]) feed.innerHTML = feedHtml(state.feeds[pid], pid);
   });
 
   $('#board').addEventListener('click', async function (e) {
@@ -1931,6 +1979,11 @@
       Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
       return;
     }
+    if (e.target.closest('[data-shareweek]')) {
+      e.preventDefault();
+      doShare(true);
+      return;
+    }
     var btn = e.target.closest('[data-toggle]');
     if (!btn) return;
     var id = btn.getAttribute('data-toggle');
@@ -1938,6 +1991,133 @@
     renderBoard();
     if (state.open[id] && !state.feeds[id]) loadFeed(id);
   });
+
+  /* ===================================================================
+     9b. Two nudges, both of which earn their place
+     ---------------------------------------------------------------------
+     THE BANNER. An anonymous account dies with its browser storage, and the
+     ACCOUNT panel that fixes it sits inside Settings behind a disclosure
+     nobody opens. So one line, across the top, once somebody has actually
+     logged something -- before that there is nothing to lose and the bar is
+     just noise. A cross dismisses it for good; attaching anything removes it
+     by itself.
+
+     THE SHARE PROMPT. A league of one is not a league, and the moment
+     somebody has a score worth showing is the moment to ask them to put
+     somebody next to it. Once, ever, to everybody -- a prompt that comes
+     back is an advert.
+     =================================================================== */
+  function paintNudge() {
+    var el = $('#nudge'); if (!el) return;
+    el.hidden = !(state.profile && isAnon() && flag(LS.logged) && !flag(LS.nudgeOff));
+  }
+
+  function wireNudge() {
+    $('#nudgeX').addEventListener('click', function () {
+      setFlag(LS.nudgeOff);
+      paintNudge();
+    });
+    $('#nudgeGo').addEventListener('click', function () {
+      switchView('me');
+      var sect = $('#sectAccount');
+      if (sect) {
+        sect.open = true;
+        setTimeout(function () { sect.scrollIntoView({ block: 'center' }); }, 60);
+      }
+    });
+  }
+
+  /* What somebody's week says, in a message. Built from the board row rather
+     than the feed, because the board is always loaded and the feed only
+     exists once a dropdown has been opened. */
+  function myRow() {
+    var me = state.profile ? state.profile.id : null;
+    if (!me) return null;
+    return (state.board || []).filter(function (r) { return r.profile_id === me; })[0] || null;
+  }
+
+  function shareText(detail) {
+    var l = league(), r = myRow();
+    var name = state.profile ? state.profile.display_name : 'I';
+    var pts = r ? num(r.points) : 0;
+    var head = name + ' — ' + pts + ' pts this week'
+             + (l ? ' in ' + l.name : '') + '.';
+    if (!detail) return head + '\nThink you can beat that?';
+
+    /* The dropdown version: what the week was actually made of. Five lines
+       at most -- a share sheet is not a logbook, and a message nobody reads
+       to the end is a message that did not get sent. */
+    var rows = (state.feeds[state.profile.id] || []);
+    var by = {};
+    rows.forEach(function (w) {
+      var k = w.exercise_key;
+      if (!by[k]) by[k] = { pts: 0, amount: 0, mode: w.mode };
+      by[k].pts += Number(w.points) || 0;
+      by[k].amount += Number(w.amount) || 0;
+    });
+    var lines = Object.keys(by).sort(function (a, b) { return by[b].pts - by[a].pts; })
+      .slice(0, 5).map(function (k) {
+        var ex = exercise(k), u = unitFor(k, by[k].mode);
+        return '· ' + (ex ? ex.name : k) + ' ' + num(by[k].amount) + ' ' + u.short;
+      });
+    var more = Object.keys(by).length - lines.length;
+    if (more > 0) lines.push('· and ' + more + ' more');
+    return head + (lines.length ? '\n' + lines.join('\n') : '') +
+           '\nThink you can beat that?';
+  }
+
+  /* One share, two ways out: the sheet where there is one, the clipboard
+     where there is not. Desktop Chrome has no navigator.share, and a button
+     that silently does nothing there is worse than no button. */
+  async function doShare(detail) {
+    var l = league();
+    var url = l ? shareUrl(l.code) : location.origin + location.pathname;
+    var text = shareText(detail);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: l ? l.name : 'Iron League', text: text, url: url });
+        return;
+      } catch (e) {
+        /* A cancelled share sheet throws, and is not a failure. */
+        if (e && e.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text + '\n' + url);
+      toast('Copied — paste it to whoever you want to beat');
+    } catch (e) {
+      toast('Could not copy. Long-press the invite link in LEAGUES.', true);
+    }
+  }
+
+  function maybeAskToShare() {
+    if (flag(LS.sharePrompted)) return;
+    if (!state.profile || !league()) return;
+    setFlag(LS.sharePrompted);
+    var r = myRow();
+    $('#shareSub').textContent = r
+      ? num(r.points) + ' points this week. Send it to somebody and find out '
+        + 'whether they can take it.'
+      : 'Send your league link to somebody and find out whether they can take it.';
+    $('#sharePop').hidden = false;
+    document.body.classList.add('modal-open');
+  }
+
+  function closeSharePop() {
+    $('#sharePop').hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  function wireShare() {
+    $('#shareSkip').addEventListener('click', closeSharePop);
+    $('#shareGo').addEventListener('click', async function () {
+      closeSharePop();
+      await doShare(false);
+    });
+    $('#sharePop').addEventListener('click', function (e) {
+      if (e.target === $('#sharePop')) closeSharePop();
+    });
+  }
 
   /* ===================================================================
      10. Hall of fame
@@ -2096,6 +2276,7 @@
   /* The CAPTCHA wiring, so a test can prove a token reaches the three
      calls Supabase checks and is not spent on the ones it does not. */
   window.__capOpts__ = capOpts;
+  window.__tierSizes__ = tierSizes;   // reachable from a test
   window.__sb__ = function () { return sb; };
 
   function renderHall() {
@@ -2298,7 +2479,8 @@
       'To add friends to "' + league().name + '", close this and send them ' +
       'your invite link instead.\n\nCreate a new league anyway?')) return;
     try {
-      var c = await sb.rpc('create_league', { p_name: name });
+      var c = await sb.rpc('create_league', {
+        p_name: name, p_size: leagueSize('#newLeagueSize') });
       if (c.error) throw c.error;
       $('#newLeagueInput').value = '';
       state.leagueId = c.data.id;
@@ -3682,6 +3864,8 @@
   });
   $('#shopRingOff').addEventListener('click', function () { saveFrame(''); });
   wireAccount();
+  wireNudge();
+  wireShare();
 
   async function saveFrame(key) {
     try {
@@ -3755,7 +3939,12 @@
   var DOW = [[1,'MON'],[2,'TUE'],[3,'WED'],[4,'THU'],[5,'FRI'],[6,'SAT'],[7,'SUN']];
 
 
-  function paintLeagueRules() {
+  /* `keepState` leaves the line under the buttons alone. Repainting after a
+     REFUSED save used to end with ruleState(rulesSummary()), which writes
+     "Saved · …" — so the one path where something did not save was the one
+     path that claimed it had, with the real reason on screen for about a
+     frame. */
+  function paintLeagueRules(keepState) {
     var l = league(), mine = l && state.profile && l.owner_id === state.profile.id;
     $('#leagueOwnerBox').hidden = !mine;
     $('#deleteLeagueBtn').hidden = !mine;
@@ -3781,13 +3970,23 @@
              '" data-catch="' + d[0] + '"' + (mine && !off ? '' : ' disabled') + '>' +
              d[1] + '</button>';
     }).join('');
+    var sz = $('#lgSize');
+    if (sz) {
+      sz.value = String(l.max_members);
+      sz.disabled = !mine;
+      /* The floor, said out loud: the box refuses a number below the people
+         already in, and a number box that silently rejects you is worse than
+         no number box. */
+      $('#lgSizeNow').textContent = l.members + ' in now · ' + l.members +
+        ' is the lowest this can go';
+    }
     $('#seasonWeeks').value = l.season_weeks == null ? '' : String(l.season_weeks);
     /* season_break rides on league_season_state, not on the league row:
        widening my_leagues would have meant dropping a function every client
        polls on boot. */
     var brk = state.seasonInfo && state.seasonInfo.season_break;
     $('#seasonBreak').value = String(brk == null ? 2 : brk);
-    if (mine) ruleState(rulesSummary());
+    if (mine && !keepState) ruleState(rulesSummary());
     /* The two things somebody is actually afraid of before they tap it: that
        they are taking the league down with them, and that they are losing
        what they earned. Neither is true, so say so. */
@@ -3859,7 +4058,8 @@
           p_league: state.leagueId, p_rest_dow: dows,
           p_catchup_dow: picked ? Number(picked.getAttribute('data-catch')) : null,
           p_season_weeks: wk === '' ? null : Number(wk),
-          p_season_break: Number($('#seasonBreak').value || 0)
+          p_season_break: Number($('#seasonBreak').value || 0),
+          p_max_members: leagueSize('#lgSize')
         });
         if (r.error) throw r.error;
         await loadLeagues();
@@ -3867,8 +4067,9 @@
       } catch (err) {
         ruleState(niceError(err), true);
         /* Put the buttons back to what the league actually says, so the screen
-           never shows a rule that is not in force. */
-        paintLeagueRules();
+           never shows a rule that is not in force -- but keep the reason it
+           did not save, which is the only thing on screen worth reading. */
+        paintLeagueRules(true);
       }
     }, 500);
   }
@@ -3891,6 +4092,11 @@
 
   $('#seasonWeeks').addEventListener('change', saveRules);
   $('#seasonBreak').addEventListener('change', saveRules);
+  /* `change` and not `input`: a number box fires on every keystroke, and
+     typing 100 would send 1, then 10, then 100 -- the first two of which a
+     league with 40 people in it refuses, so the box would flash two errors
+     on the way to a legal number. */
+  $('#lgSize').addEventListener('change', saveRules);
 
   /* An account with no league at all is a real state, not an error: somebody
      between groups, or somebody who only wanted the logbook. The boot path
@@ -4349,6 +4555,8 @@
     document.body.style.overflow = '';
     document.body.classList.remove('modal-open');
     modal.editing = null;
+    var ask = state.askShare;
+    state.askShare = false;
     if (state.session.length || force === true) {
       state.feeds = {};
       await refreshAll();
@@ -4356,6 +4564,9 @@
       if (state.view === 'stats') loadStats();
       if (state.view === 'duel') loadDuels();
     }
+    /* After the board has refreshed, so the number in the prompt is the one
+       they are about to send. */
+    if (ask) maybeAskToShare();
   }
   $('#logBtn').addEventListener('click', openModal);
   $('#cancelEditBtn').addEventListener('click', function () { closeModal(); });
@@ -4426,6 +4637,14 @@
                : went > 1 ? ' · counted in ' + went + ' leagues' : ''));
       $('#amountInput').value = unitFor(modal.key, modal.mode).def;
       updatePreview();
+      /* The first workout is what makes both of these worth showing: before
+         it there is nothing to lose and nothing to brag about. The share
+         prompt waits for the sheet to close rather than appearing on a
+         timer underneath it -- somebody may be about to log a second set,
+         and interrupting that is how an app gets shut. */
+      setFlag(LS.logged);
+      paintNudge();
+      state.askShare = true;
     } catch (e) {
       $('#modalErr').textContent = niceError(e);
     } finally {

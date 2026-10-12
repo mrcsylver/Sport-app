@@ -82,18 +82,60 @@ final class Session {
         return Config.currency + String(format: "%.2f", Double(it.priceCents ?? 0) / 100)
     }
 
+    /// The link that drops somebody straight into this league. The same one
+    /// the web app builds, because it is the same app and the same code.
+    var inviteURL: URL? {
+        guard let code = league?.code else { return nil }
+        return URL(string: "https://mrcsylver.github.io/Sport-app/#/join/\(code)")
+    }
+
+    /// One decimal under ten, none above — the same rounding the board uses,
+    /// so a message never disagrees with the screen it was sent from.
+    private func tidy(_ v: Double) -> String {
+        v.formatted(.number.precision(.fractionLength(v < 10 ? 1 : 0)))
+    }
+
+    /// Your week, as a message worth sending. Five lines at most: a share
+    /// sheet is not a logbook, and a message nobody reads to the end is a
+    /// message that did not get sent.
+    func shareWeekText(from feed: [WorkoutRow]) -> String {
+        let name = profile?.displayName ?? "I"
+        let pts = standings.first { $0.profileId == profile?.id }?.points ?? 0
+        var out = "\(name) — \(tidy(pts)) pts this week"
+        if let l = league?.name { out += " in \(l)" }
+        out += "."
+
+        var totals: [String: (amount: Double, points: Double)] = [:]
+        for row in feed {
+            var t = totals[row.exerciseKey] ?? (0, 0)
+            t.amount += row.amount
+            t.points += row.points
+            totals[row.exerciseKey] = t
+        }
+        let top = totals.sorted { $0.value.points > $1.value.points }.prefix(5)
+        for (key, t) in top {
+            let ex = exercises.first { $0.key == key }
+            out += "\n· \(ex?.name ?? key) \(tidy(t.amount))"
+        }
+        if totals.count > top.count {
+            out += "\n· and \(totals.count - top.count) more"
+        }
+        return out + "\nThink you can beat that?"
+    }
+
     /// Divisions: ten per division, ranked on live points. Below eleven
     /// people there is only one group, so showing divisions would be theatre.
     var divisions: [DivisionGroup] {
         guard standings.count >= Tuning.divisionMinimum else { return [] }
         let sorted = standings.sorted { $0.points > $1.points }
+        let sizes = Division.sizes(for: sorted.count)
         var out: [DivisionGroup] = []
         var i = 0
         var counted = 0
         var numbering: String?
         for d in Division.allCases {
             guard i < sorted.count else { break }
-            let end = min(i + d.size, sorted.count)
+            let end = min(i + (sizes[d] ?? d.size), sorted.count)
             var slice = Array(sorted[i..<end])
             // whoever spills past the last division joins it rather than
             // forming a sixth
@@ -379,10 +421,10 @@ final class Session {
 
     // MARK: - Leagues
 
-    func createLeague(name: String) async -> Bool {
+    func createLeague(name: String, size: Int = 36) async -> Bool {
         do {
             let made = try await API.shared.createLeague(
-                name: name.trimmingCharacters(in: .whitespaces))
+                name: name.trimmingCharacters(in: .whitespaces), size: size)
             leagues = try await API.shared.myLeagues()
             await switchLeague(made.id)
             phase = .ready
@@ -444,13 +486,15 @@ final class Session {
     }
 
     func saveLeagueSettings(restDow: [Int], seasonWeeks: Int?,
-                            catchupDow: Int?, seasonBreak: Int?) async {
+                            catchupDow: Int?, seasonBreak: Int?,
+                            maxMembers: Int? = nil) async {
         guard let id = leagueId else { return }
         do {
             _ = try await API.shared.setLeagueSettings(id, restDow: restDow,
                                                        seasonWeeks: seasonWeeks,
                                                        catchupDow: catchupDow,
-                                                       seasonBreak: seasonBreak)
+                                                       seasonBreak: seasonBreak,
+                                                       maxMembers: maxMembers)
             leagues = try await API.shared.myLeagues()
             show("League settings saved.")
             Haptic.win()

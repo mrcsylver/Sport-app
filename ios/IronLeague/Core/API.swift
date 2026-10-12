@@ -142,8 +142,15 @@ actor API {
                                                      ["p_code": .string(code.uppercased())])
         return rows.first
     }
-    func createLeague(name: String) async throws -> League {
-        try await rpc("create_league", ["p_name": .string(name)])
+    /// `size` is how many people the league holds, 2…100. The web app and
+    /// this one both default to 36 — the five divisions come to exactly that
+    /// — but a league advertised to a whole gym needs the real number, since
+    /// somebody arriving at a full one is simply turned away.
+    func createLeague(name: String, size: Int = 36) async throws -> League {
+        try await rpc("create_league", [
+            "p_name": .string(name),
+            "p_size": .integer(max(2, min(100, size)))
+        ])
     }
     func joinLeague(code: String) async throws -> League {
         try await rpc("join_league_by_code", ["p_code": .string(code.uppercased())])
@@ -291,14 +298,19 @@ actor API {
     /// `seasonWeeks` is nil for a league that just keeps going — the column
     /// only accepts null or 1…52, so a zero would be rejected by the check.
     /// `seasonBreak` is weeks of off-season between seasons, 0…6.
+    /// `maxMembers` is nil to leave the size alone. It can go up at any time
+    /// and never below the people already in — nobody is removed to make a
+    /// league smaller, so the server raises LEAGUE_SHRINK instead.
     func setLeagueSettings(_ id: UUID, restDow: [Int], seasonWeeks: Int?,
-                           catchupDow: Int?, seasonBreak: Int?) async throws -> League {
+                           catchupDow: Int?, seasonBreak: Int?,
+                           maxMembers: Int? = nil) async throws -> League {
         try await rpc("set_league_settings", [
             "p_league": .string(id.uuidString),
             "p_rest_dow": .array(restDow.map { .integer($0) }),
             "p_season_weeks": seasonWeeks.map { .integer($0) } ?? .null,
             "p_catchup_dow": catchupDow.map { .integer($0) } ?? .null,
-            "p_season_break": seasonBreak.map { .integer($0) } ?? .null
+            "p_season_break": seasonBreak.map { .integer($0) } ?? .null,
+            "p_max_members": maxMembers.map { .integer(max(2, min(100, $0))) } ?? .null
         ])
     }
     func setLeagueBadge(_ id: UUID, badge: League.Badge) async throws -> League {
@@ -342,6 +354,8 @@ enum Friendly {
             "LEAGUE_FULL": "That league is full.",
             "APP_FULL": "Iron League is at capacity right now. Nothing of yours is lost — try again in a day or two, or ask for a seat.",
             "TOO_MANY_TRIES": "Too many wrong codes from this phone. Wait an hour and try again.",
+            "LEAGUE_SHRINK": "That is fewer than the people already in. Nobody is removed to make a league smaller.",
+            "BAD_SIZE": "A league holds between 2 and 100 people.",
             "LOCKED_ITEM": "That one is not yours yet.",
             "NOT_A_MEMBER": "You are not in that league.",
             "NO_PROFILE": "Something went wrong with your profile — reopen the app."

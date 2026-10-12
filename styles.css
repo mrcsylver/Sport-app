@@ -508,6 +508,33 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
   color:var(--txt);padding:11px 16px;border-radius:4px;font-size:14px;max-width:88vw;
   box-shadow:0 12px 40px -12px #000;animation:up2 .2s ease}
 .toast.bad{border-left-color:var(--red)}
+/* A number box with its explanation beside it, not under it: the number is
+   short and the sentence is long, and stacking them wastes a whole row. */
+/* The one-line nudge about attaching an account. A bar, not a card: it has
+   to be impossible to miss and equally impossible to resent, so it is one
+   line, it has a cross, and once crossed it never comes back. */
+.nudge{display:flex;align-items:center;gap:4px;background:var(--panel-2);
+  border-bottom:1px solid var(--line-2);border-left:3px solid var(--gold)}
+.nudge[hidden]{display:none}
+.nudge-t{flex:1;background:none;border:0;color:var(--txt);font:inherit;
+  font-size:13px;text-align:left;padding:10px 4px 10px 12px;cursor:pointer}
+.nudge-x{background:none;border:0;color:var(--muted);font-size:20px;line-height:1;
+  padding:8px 12px;cursor:pointer}
+
+/* The share prompt. Once, after a workout lands. */
+.sharepop{position:fixed;inset:0;z-index:92;display:grid;place-items:center;
+  background:#000000d9;padding:22px}
+.sharepop[hidden]{display:none}
+.sharecard{background:var(--panel-2);border:1px solid var(--line-2);
+  border-top:3px solid var(--red);border-radius:6px;padding:22px 20px;
+  text-align:center;max-width:min(380px,92vw);animation:up2 .18s ease}
+.share-k{font-weight:700;letter-spacing:.1em;font-size:11px;color:var(--muted);margin:0}
+.share-h{font-size:19px;font-weight:800;margin:8px 0 6px;color:var(--txt)}
+.sharecard .linkbtn{display:block;width:100%}
+
+.sizerow{display:flex;gap:10px;align-items:flex-start}
+.sizerow .input{width:92px;flex:0 0 auto;text-align:center}
+.sizerow .muted{flex:1;margin:0;align-self:center}
 body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))}
 .week-chev{color:var(--muted);font-size:11px;margin-left:8px}
 @keyframes up2{from{opacity:0;transform:translate(-50%,10px)}}

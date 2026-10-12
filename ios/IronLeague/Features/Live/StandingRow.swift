@@ -26,7 +26,10 @@ struct StandingRow: View {
                 FeedList(rows: feed, exercises: session.exercises,
                          onDelete: isMe ? { row in
                              Task { await session.deleteLog(row) }
-                         } : nil)
+                         } : nil,
+                         shareText: isMe && !feed.isEmpty
+                             ? session.shareWeekText(from: feed) : nil,
+                         shareURL: session.inviteURL)
                     .padding(.horizontal, 14)
                     .padding(.bottom, 12)
                     .transition(.opacity.combined(with: .move(edge: .top)))

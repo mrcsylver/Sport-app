@@ -9,6 +9,7 @@ struct OnboardingView: View {
     @State private var name = ""
     @State private var code = ""
     @State private var leagueName = ""
+    @State private var leagueSize: Double = 36
     @State private var restoreCode = ""
     @State private var mode: Mode = .join
     @State private var preview: LeaguePreviewRow?
@@ -188,14 +189,33 @@ struct OnboardingView: View {
                             .font(Theme.display(22, .heavy))
                             .foregroundStyle(Theme.ink)
                             .textInputAutocapitalization(.words)
-                        Text("You get a code to send to whoever you want in it. Up to thirty people.")
+                        Text("You get a code to send to whoever you want in it.")
+                            .font(.caption2).foregroundStyle(Theme.inkFaint)
+                        HStack {
+                            Text("HOW MANY FIGHTERS")
+                                .font(Theme.display(10, .heavy)).kerning(1.2)
+                                .foregroundStyle(Theme.inkFaint)
+                            Spacer()
+                            Text("\(Int(leagueSize))")
+                                .font(Theme.mono(13, .bold))
+                                .foregroundStyle(Theme.ink)
+                        }
+                        .padding(.top, 6)
+                        Slider(value: $leagueSize, in: 2...100, step: 1)
+                            .tint(Theme.flame)
+                        Text("A whole gym is not a group of friends. Put the real "
+                           + "number in — it can go up later, never down.")
                             .font(.caption2).foregroundStyle(Theme.inkFaint)
                     }
                 }
 
                 HeatButton(title: busy ? "…" : "CREATE LEAGUE", systemImage: "flag.fill") {
                     busy = true
-                    Task { _ = await session.createLeague(name: leagueName); busy = false }
+                    Task {
+                        _ = await session.createLeague(name: leagueName,
+                                                       size: Int(leagueSize))
+                        busy = false
+                    }
                 }
                 .disabled(busy || leagueName.trimmingCharacters(in: .whitespaces).count < 2)
                 .opacity(leagueName.trimmingCharacters(in: .whitespaces).count < 2 ? 0.5 : 1)

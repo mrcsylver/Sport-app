@@ -38,6 +38,14 @@
      token reaches the calls that need it and is not demanded where it is
      not. Every token seen lands in window.__CAP_SEEN__. */
   window.__CAP_SEEN__ = window.__CAP_SEEN__ || [];
+  /* The share prompt is a once-ever-per-browser thing, and a fresh browser
+     context is exactly that -- so without this it would appear in the middle
+     of every suite that logs a workout and sit over whatever the test wanted
+     to click next. Marked as already asked unless a test says otherwise:
+     window.__ASK_SHARE__ = true opts in, and run28 is the one that does. */
+  if (!window.__ASK_SHARE__) {
+    try { localStorage.setItem('ironleague.share.asked', '1'); } catch (e) {}
+  }
   DB.authPasswords = DB.authPasswords || {};
   DB.authIdentities = DB.authIdentities || {};
   /* Enough of the exercise table for the control room's picker. The app
@@ -480,8 +488,10 @@
     },
     create_league: function (a) {
       var p = me(); if (!p) return bad('NO_PROFILE');
+      var size = a.p_size == null ? 36 : Math.round(Number(a.p_size));
+      if (!isFinite(size) || size < 2 || size > 100) return bad('BAD_SIZE');
       var l = { id: id(), name: a.p_name, code: 'K' + Math.random().toString(36).slice(2, 7).toUpperCase(),
-                owner_id: p.id, max_members: 20 };
+                owner_id: p.id, max_members: size };
       DB.leagues.push(l);
       DB.members.push({ league_id: l.id, profile_id: p.id, joined_at: new Date().toISOString() });
       return ok(l);
@@ -1033,6 +1043,13 @@
           return bad('An off-season is 0 to 6 weeks');
         }
         l.season_break = Number(a.p_season_break);
+      }
+      if (a.p_max_members != null) {
+        var n = Math.round(Number(a.p_max_members));
+        if (!isFinite(n) || n < 2 || n > 100) return bad('BAD_SIZE');
+        var inNow = DB.members.filter(function (m) { return m.league_id === l.id; }).length;
+        if (n < inNow) return bad('LEAGUE_SHRINK');
+        l.max_members = n;
       }
       save(); return ok(l);
     },

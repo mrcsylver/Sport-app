@@ -59,6 +59,7 @@ drop function if exists public.challenge_status(p_cancelled timestamptz, p_accep
 drop function if exists public.combo_threshold() cascade;
 drop function if exists public.create_challenge(p_league uuid) cascade;
 drop function if exists public.create_league(p_name text) cascade;
+drop function if exists public.create_league(p_name text, p_size int) cascade;
 drop function if exists public.create_profile(p_name text) cascade;
 drop function if exists public.current_bounty(p_league uuid) cascade;
 drop function if exists public.current_week_start() cascade;
@@ -109,6 +110,7 @@ drop function if exists public.rank_points(p_rank int) cascade;
 drop function if exists public.season_index(p_league uuid, p_week date) cascade;
 drop function if exists public.season_next_start(p_league uuid, p_week date) cascade;
 drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int, p_season_break int) cascade;
+drop function if exists public.set_league_settings(p_league uuid, p_rest_dow int[], p_season_weeks int, p_catchup_dow int, p_season_break int, p_max_members int) cascade;
 drop function if exists public.league_champions(p_league uuid) cascade;
 drop function if exists public.cup_window() cascade;
 drop function if exists public.cup_field(p_eligible int) cascade;
@@ -639,10 +641,14 @@ create table public.leagues (
   code        text not null unique
                 default upper(substr(md5(gen_random_uuid()::text), 1, 6)),
   owner_id    uuid not null references public.profiles(id) on delete cascade,
-  -- 36, not a round number: the divisions come to exactly this, and an even
-  -- league is what lets the Monday rivalry pair everybody off without
-  -- leaving one person without an opponent.
-  max_members int  not null default 36 check (max_members between 2 and 36),
+  -- 36 by default, not a round number: the five divisions come to exactly
+  -- this, and an even league is what lets the Monday rivalry pair everybody
+  -- off without leaving one person without an opponent. The creator can set
+  -- anything from 2 to 100 -- a campus gym is not a group of friends, and a
+  -- poster pointing a hundred people at a 36-seat league turns the 37th away
+  -- at the door. Past 36 the bottom three divisions grow to fit; the two at
+  -- the top never do, because being in them is the whole point of them.
+  max_members int  not null default 36 check (max_members between 2 and 100),
   -- composable crest: {"shape":..,"color":..,"emblem":..}; null falls back to
   -- one derived from the league id, so every league looks distinct from day one
   badge       jsonb,
@@ -1091,7 +1097,7 @@ language sql security definer set search_path = public as $$
   where l.code = upper(btrim(p_code))
 $$;
 
-create function public.create_league(p_name text)
+create function public.create_league(p_name text, p_size int default 36)
 returns public.leagues
 language plpgsql security definer set search_path = public as $$
 declare
@@ -1102,7 +1108,11 @@ begin
   if (select count(*) from public.leagues where owner_id = me) >= 10 then
     raise exception 'TOO_MANY_LEAGUES';
   end if;
-  insert into public.leagues (name, owner_id) values (btrim(p_name), me)
+  if coalesce(p_size, 36) < 2 or coalesce(p_size, 36) > 100 then
+    raise exception 'BAD_SIZE';
+  end if;
+  insert into public.leagues (name, owner_id, max_members)
+  values (btrim(p_name), me, coalesce(p_size, 36))
   returning * into l;
   insert into public.league_members (league_id, profile_id) values (l.id, me);
   return l;
@@ -1979,7 +1989,8 @@ end $$;
 
 create function public.set_league_settings(
   p_league uuid, p_rest_dow int[], p_season_weeks int,
-  p_catchup_dow int default null, p_season_break int default null)
+  p_catchup_dow int default null, p_season_break int default null,
+  p_max_members int default null)
 returns public.leagues language plpgsql security definer set search_path = public as $$
 declare me uuid := public.my_profile_id(); row public.leagues;
 begin
@@ -2005,10 +2016,23 @@ begin
   if p_season_break is not null and (p_season_break < 0 or p_season_break > 6) then
     raise exception 'An off-season is 0 to 6 weeks';
   end if;
+  if p_max_members is not null then
+    if p_max_members < 2 or p_max_members > 100 then
+      raise exception 'BAD_SIZE';
+    end if;
+    -- Shrinking below the people already in would not remove anybody -- the
+    -- capacity trigger only runs on the way IN -- so it would leave a league
+    -- reading 40/30 and refusing the 41st with no way to explain itself.
+    if p_max_members < (select count(*) from public.league_members
+                         where league_id = p_league) then
+      raise exception 'LEAGUE_SHRINK';
+    end if;
+  end if;
   update public.leagues
      set rest_dow = coalesce(p_rest_dow, rest_dow), season_weeks = p_season_weeks,
          catchup_dow = p_catchup_dow,
-         season_break = coalesce(p_season_break, season_break)
+         season_break = coalesce(p_season_break, season_break),
+         max_members = coalesce(p_max_members, max_members)
    where id = p_league returning * into row;
   return row;
 end $$;
@@ -3402,7 +3426,7 @@ revoke all on function public.create_profile(text)          from public, anon;
 revoke all on function public.rename_profile(text)          from public, anon;
 revoke all on function public.restore_profile(text)         from public, anon;
 revoke all on function public.league_preview(text)          from public, anon;
-revoke all on function public.create_league(text)           from public, anon;
+revoke all on function public.create_league(text,int)       from public, anon;
 revoke all on function public.join_league_by_code(text)     from public, anon;
 revoke all on function public.leave_league(uuid)            from public, anon;
 revoke all on function public.drop_membership(uuid,uuid)    from public, anon, authenticated;
@@ -3489,7 +3513,7 @@ grant execute on function public.create_profile(text)          to authenticated;
 grant execute on function public.rename_profile(text)          to authenticated;
 grant execute on function public.restore_profile(text)         to authenticated;
 grant execute on function public.league_preview(text)          to authenticated;
-grant execute on function public.create_league(text)           to authenticated;
+grant execute on function public.create_league(text,int)       to authenticated;
 grant execute on function public.join_league_by_code(text)     to authenticated;
 grant execute on function public.leave_league(uuid)            to authenticated;
 grant execute on function public.my_leagues()                  to authenticated;
@@ -3565,7 +3589,7 @@ grant execute on function public.set_pinned_badges(text[])     to authenticated;
 grant execute on function public.my_badges(uuid)               to authenticated;
 grant execute on function public.league_rivalries(uuid,date)   to authenticated;
 grant execute on function public.delete_league(uuid)           to authenticated;
-grant execute on function public.set_league_settings(uuid,int[],int,int,int) to authenticated;
+grant execute on function public.set_league_settings(uuid,int[],int,int,int,int) to authenticated;
 grant execute on function public.set_league_badge(uuid,jsonb)  to authenticated;
 grant execute on function public.my_combo_today(uuid)          to authenticated;
 grant execute on function public.week_combo_bonus(uuid, date)  to authenticated;

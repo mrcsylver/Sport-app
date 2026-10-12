@@ -7,6 +7,11 @@ struct FeedList: View {
     let rows: [WorkoutRow]
     let exercises: [Exercise]
     var onDelete: ((WorkoutRow) -> Void)? = nil
+    /// The week, written out as a message, when this feed is the viewer's
+    /// own. nil for everybody else's — offering to share somebody else's
+    /// training is a different product.
+    var shareText: String? = nil
+    var shareURL: URL? = nil
 
     @State private var openDay: String?
 
@@ -46,6 +51,21 @@ struct FeedList: View {
             VStack(spacing: 6) {
                 ForEach(days) { day in
                     dayBlock(day)
+                }
+                if let text = shareText {
+                    ShareLink(item: shareURL ?? URL(string: "https://mrcsylver.github.io/Sport-app/")!,
+                              message: Text(text)) {
+                        Label("SHARE THIS WEEK", systemImage: "square.and.arrow.up")
+                            .font(Theme.display(12, .heavy)).kerning(1.2)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .foregroundStyle(Theme.flame)
+                    .background {
+                        RoundedRectangle(cornerRadius: Theme.corner, style: .continuous)
+                            .stroke(Theme.hairline, lineWidth: 1)
+                    }
+                    .padding(.top, 4)
                 }
             }
         }

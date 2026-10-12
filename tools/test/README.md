@@ -1,11 +1,11 @@
 # The browser tests
 
-Twenty-six Playwright runs against the real `index.html` and `admin.html`, with
+Twenty-eight Playwright runs against the real `index.html` and `admin.html`, with
 Supabase replaced by `mock-supabase.js` — a hand-written stand-in that keeps a
 database in `localStorage` and answers the same RPCs the server does.
 
 ```bash
-node tools/test/run.js        # …through run26.js
+node tools/test/run.js        # …through run28.js
 ```
 
 Each file prints a list of PASS/FAIL lines, reports any JavaScript error the
@@ -46,6 +46,8 @@ them somewhere else.
 | `run24.js` | attaching Google or an email to an account that already exists |
 | `run25.js` | guessing restore codes: the empty answer, and the lockout |
 | `run26.js` | the CAPTCHA gate: off by default, and where the token goes |
+| `run27.js` | a league of up to 100: the size control, and divisions that grow |
+| `run28.js` | the two nudges: attach your account, and challenge a friend |
 
 ## Before a release
 
@@ -56,6 +58,14 @@ python3 tools/check_version.py
 Four places carry the version and they are not near each other. When they
 disagree nothing errors — a phone just quietly runs last week's release.
 `tools/bump_version.py 2.14.1` sets all four; this asserts they agree.
+
+### One switch the mock owns
+
+The share prompt happens **once ever per browser**, and a fresh Playwright
+context is exactly that — so without help it would appear in the middle of
+every suite that logs a workout and sit over whatever the test wanted to click
+next. `mock-supabase.js` marks it as already asked unless a test opts in with
+`window.__ASK_SHARE__ = true`. `run28.js` is the one that opts in.
 
 ## The mock is not the server
 

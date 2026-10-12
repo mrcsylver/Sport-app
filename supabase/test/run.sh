@@ -64,6 +64,10 @@ echo "· the shop, and what stops you wearing what you have not got"
 fresh ironshop
 psql -d ironshop -f "$HERE/shop.sql" 2>&1 | clean
 
+echo "· a league that holds more than 36"
+fresh ironbigl
+psql -d ironbigl -f "$HERE/bigleague.sql" 2>&1 | clean
+
 echo "· guessing a restore code at machine speed"
 fresh ironguess
 psql -d ironguess -f "$HERE/guessing.sql" 2>&1 | clean
@@ -123,6 +127,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/shop.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/faster-board.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/restore-throttle.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/big-league.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -241,5 +246,15 @@ psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
                 where table_name = 'restore_tries')
   then 'and exactly one restore_profile is callable, the throttled one'
   else 'THE UNTHROTTLED RESTORE DOOR IS BACK' end;"
+# Exactly one of each shape may be visible, or PostgREST cannot resolve a
+# call by name at all, and the ceiling has to be the new one.
+psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname='public' and p.proname in ('create_league','set_league_settings')) = 2
+   and (select pg_get_constraintdef(oid) from pg_constraint
+         where conrelid = 'public.leagues'::regclass
+           and conname = 'leagues_max_members_check') like '%100%'
+  then 'and a league can hold 100, with one callable shape of each function'
+  else 'THE LEAGUE SIZE MIGRATION DID NOT LAND' end;"
 
 echo "· all clear"

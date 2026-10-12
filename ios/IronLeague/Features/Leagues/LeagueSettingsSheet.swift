@@ -12,6 +12,7 @@ struct LeagueSettingsSheet: View {
     @State private var weeks: Double = 38
     @State private var brk: Double = 2
     @State private var endless = true
+    @State private var size: Double = 36
 
     /// ISO weekdays: 1 is Monday, 7 is Sunday, matching the server.
     private struct Weekday: Identifiable {
@@ -38,6 +39,7 @@ struct LeagueSettingsSheet: View {
                     restSection
                     catchupSection
                     seasonSection
+                    sizeSection
                     Color.clear.frame(height: 20)
                 }
                 .padding(.horizontal, 16)
@@ -65,6 +67,7 @@ struct LeagueSettingsSheet: View {
             }
             // off the season state, not the league row — see my_leagues() in schema.sql
             brk = Double(session.seasonInfo?.seasonBreak ?? 2)
+            size = Double(league?.maxMembers ?? 36)
         }
     }
 
@@ -307,11 +310,43 @@ struct LeagueSettingsSheet: View {
                             restDow: rest.sorted(),
                             seasonWeeks: endless ? nil : Int(weeks),
                             catchupDow: catchup,
-                            seasonBreak: endless ? nil : Int(brk))
+                            seasonBreak: endless ? nil : Int(brk),
+                            maxMembers: Int(size))
                     }
                 }
             }
         }
+    }
+
+    /// How many people the league holds. It can go up at any time and never
+    /// below the people already in — nobody is removed to make a league
+    /// smaller — so the slider's floor is the current membership rather than
+    /// a refusal after the fact.
+    private var sizeSection: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 8) {
+                label("HOW MANY FIGHTERS")
+                HStack {
+                    Text("\(Int(size)) places")
+                        .font(Theme.mono(13, .bold))
+                        .foregroundStyle(Theme.ink)
+                    Spacer()
+                    Text("\(league?.members ?? 0) in now")
+                        .font(Theme.mono(11, .bold))
+                        .foregroundStyle(Theme.inkFaint)
+                }
+                Slider(value: $size, in: sizeFloor...100, step: 1)
+                    .tint(Theme.flame)
+                Text("Raise it before you hand the code out widely. Somebody who "
+                   + "arrives at a full league is turned away at the door.")
+                    .font(.caption2).foregroundStyle(Theme.inkFaint)
+            }
+        }
+    }
+
+    /// Never below the people already in, and never below 2.
+    private var sizeFloor: Double {
+        Double(max(2, league?.members ?? 2))
     }
 
     // MARK: helpers

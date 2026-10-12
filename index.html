@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.31.2">
+  <link rel="stylesheet" href="./styles.css?v=2.32.0">
 </head>
 <body>
 
@@ -66,6 +66,14 @@
       <label class="lbl" for="firstLeague">NAME YOUR NEW LEAGUE</label>
       <input id="firstLeague" class="input" maxlength="28" placeholder="THE CREW"
              autocapitalize="characters" spellcheck="false">
+      <label class="lbl" for="firstSize" style="margin-top:12px">HOW MANY FIGHTERS</label>
+      <div class="sizerow">
+        <input id="firstSize" class="input mono" type="number" min="2" max="100"
+               step="1" value="36" inputmode="numeric">
+        <span class="muted small">2–100. A whole gym is not a group of friends —
+          put the real number in, because somebody who turns up at a full league
+          is turned away.</span>
+      </div>
       <p class="muted small">You will get a link to invite people.</p>
     </div>
 
@@ -161,6 +169,17 @@
       <span class="live-dot"></span>
     </button>
   </header>
+
+  <!-- One line, once, and gone for good when they tap the cross. An
+       anonymous account dies with its browser storage, and the people most
+       likely to lose one are the ones who have just started logging — they
+       have something worth keeping and no idea it is only here. -->
+  <div id="nudge" class="nudge" hidden>
+    <button id="nudgeGo" class="nudge-t" type="button">
+      Attach Google so a new phone can't wipe this.
+    </button>
+    <button id="nudgeX" class="nudge-x" type="button" aria-label="Dismiss">&times;</button>
+  </div>
 
   <main class="views">
     <!-- LIVE -->
@@ -394,6 +413,17 @@
               inside 150. The leader still trains and still scores; nobody loses
               anything. It cannot be a rest day.</p>
             <div class="dowrow" id="catchDows"></div>
+            <label class="lbl" for="lgSize" style="margin-top:16px">HOW MANY FIGHTERS</label>
+            <p class="muted small" style="margin:0 0 6px">How many people this league
+              holds. Raise it before you hand the code out widely — somebody who
+              arrives at a full league is simply turned away. It can go up any time;
+              it cannot go below the people already in.</p>
+            <div class="sizerow">
+              <input id="lgSize" class="input mono" type="number" min="2" max="100"
+                     step="1" inputmode="numeric">
+              <span class="muted small" id="lgSizeNow"></span>
+            </div>
+
             <label class="lbl" for="seasonWeeks" style="margin-top:12px">SEASON LENGTH</label>
             <p class="muted small" style="margin:0 0 6px">How long the season table
               runs before it resets and a new season starts. Counted in weeks from
@@ -437,10 +467,16 @@
           <button id="createToggle" class="btn ghost sm" type="button"
                   style="width:100%">SHOW CREATE OPTION</button>
           <div id="createWrap" hidden style="margin-top:10px">
-            <p class="muted small">Max 30 fighters. Anyone can join later — they start at 0.</p>
+            <p class="muted small">Anyone with the code can join later — they start at 0.
+              Pick the size now; you can raise it afterwards.</p>
             <div class="copyrow">
               <input id="newLeagueInput" class="input" maxlength="28" placeholder="LEAGUE NAME">
               <button id="createBtn" class="btn ghost sm" type="button">CREATE</button>
+            </div>
+            <div class="sizerow" style="margin-top:8px">
+              <input id="newLeagueSize" class="input mono" type="number" min="2" max="100"
+                     step="1" value="36" inputmode="numeric">
+              <span class="muted small">fighters (2–100)</span>
             </div>
           </div>
         </div>
@@ -751,12 +787,28 @@
   </div>
 </div>
 
+<!-- Shown once, to everybody, after a workout lands. Competition is the
+     thing that keeps people coming back, and a league of one is not one —
+     so the moment somebody has a score worth showing is the moment to ask
+     them to put somebody else next to it. -->
+<div id="sharePop" class="sharepop" hidden>
+  <div class="sharecard">
+    <p class="share-k">CHALLENGE A FRIEND</p>
+    <p class="share-h" id="shareHead">Nice. Now give somebody to beat.</p>
+    <p class="muted small" id="shareSub"></p>
+    <button id="shareGo" class="btn primary xl" type="button"
+            style="margin-top:14px">SEND MY SCORE</button>
+    <button id="shareSkip" class="linkbtn" type="button"
+            style="margin-top:10px">Not now</button>
+  </div>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.31.2"></script>
-<script src="./vendor/game-icons.js?v=2.31.2"></script>
-<script src="./captcha.js?v=2.31.2"></script>
-<script src="./app.js?v=2.31.2"></script>
+<script src="./vendor/supabase.js?v=2.32.0"></script>
+<script src="./vendor/game-icons.js?v=2.32.0"></script>
+<script src="./captcha.js?v=2.32.0"></script>
+<script src="./app.js?v=2.32.0"></script>
 </body>
 </html>

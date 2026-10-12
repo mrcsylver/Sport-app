@@ -26,7 +26,7 @@ fight for the weekly crown. The week resets **every Sunday at 23:59**.
 - **League raids** — one target the whole league carries together each week.
 - **Log Workout** — pick an exercise, type reps / seconds / km, points are worked
   out for you. Log as many exercises as you want without closing the panel.
-- **Personal leagues** — create your own league, share a link, 36 people max.
+- **Personal leagues** — create your own league, share a link, 2 to 100 people.
 - **Log once** — an entry counts in every league you are in.
   Anyone can join at any time; they simply start the current week on 0 points.
 - Free forever on Supabase's + GitHub's free tiers.
@@ -531,7 +531,11 @@ everybody genuinely starts that league on zero.
 
 - Anyone can create a league from the **LEAGUES** tab; they get a 6-character code
   and a share link.
-- **36 people maximum** per league (the database refuses number 37).
+- **The creator sets the size, 2 to 100** (36 by default, which is what the
+  five divisions come to). It can be raised at any time from the league's
+  settings and never lowered below the people already in. Past the number
+  the league holds, the database refuses the next person — so put the real
+  number in before you put the code on a poster.
 - You can be in several leagues at once — tap one in the LEAGUES tab to switch.
   Each league has its own separate leaderboard and history.
 - Joining mid-week is fine: you simply start that week on 0 points.
@@ -947,6 +951,41 @@ thirty times as much.
 without opening anything: it is drawn around your emblem on every board, every
 duel and every quest. That is what makes one worth having, and it is also the
 cheapest one to draw well.
+
+## Two nudges, and what stops them becoming adverts
+
+Both exist for the same reason: somebody who has just logged their first
+workout has something worth keeping and nobody to show it to. Both are also
+the kind of thing that turns into an advert if it is done carelessly, so the
+restraint is the design.
+
+**The banner.** One line across the top: *"Attach Google so a new phone can't
+wipe this."* An anonymous account dies with its browser storage, and the
+ACCOUNT panel that fixes it sits inside Settings behind a disclosure nobody
+opens. It appears only once a workout has actually landed — before that there
+is nothing to lose and the bar is just noise. Tapping it opens the account
+panel; the cross dismisses it for good; attaching Google or an email removes
+it by itself, uncrossed.
+
+**The share prompt.** Once, ever, to everybody, after the log sheet closes —
+not on a timer underneath it, because somebody may be about to log a second
+set and interrupting that is how an app gets shut. It offers to send their
+score and the league link together. A prompt that comes back is an advert, so
+it is marked asked the moment it is shown, whether they send or skip.
+
+**Share this week** lives in your own row on the LIVE tab: open your feed and
+the button is at the bottom of it. Nobody else's feed has one — offering to
+share somebody else's training is a different product. It sends the week
+itself, top five movements and a total, capped at five lines because a message
+nobody reads to the end is a message that did not get sent.
+
+Both use `navigator.share` where it exists and fall back to the clipboard
+where it does not, because desktop Chrome has no share sheet and a button that
+silently does nothing is worse than no button.
+
+On iOS the share is a `ShareLink` in the same place. **The banner has no iOS
+counterpart yet**, because the iOS app has no account screen to send anybody
+to — Google and email linking are web-only so far.
 
 ## The robot check, and why the door needs one
 

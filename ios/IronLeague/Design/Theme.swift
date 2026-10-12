@@ -88,10 +88,9 @@ extension Color {
 enum Division: String, CaseIterable {
     case royalGuard, apex, vanguard, forge, commoner
 
-    /// How many people it holds. Together they come to 36, which is a full
-    /// league — and even on purpose, because the Monday rivalry pairs the
-    /// table off two by two and an odd league leaves somebody without an
-    /// opponent every week.
+    /// How many people it holds in a league of 36, which is the default size
+    /// and the number these five come to — and even on purpose, because the
+    /// Monday rivalry pairs the table off two by two.
     var size: Int {
         switch self {
         case .royalGuard: return 2
@@ -100,6 +99,30 @@ enum Division: String, CaseIterable {
         case .forge:      return 15
         case .commoner:   return 6
         }
+    }
+
+    /// How many it holds in a table of `n`. Up to 36 this is `size` and
+    /// nothing about an existing league moves. Past it — a league can hold
+    /// 100 now — the BOTTOM THREE grow in the proportion they already have
+    /// and the top two never do: a Royal Guard of six is not a Royal Guard,
+    /// and the point of those five places is that one good evening can push
+    /// you out of them. Without this the overflow all landed in COMMONER, so
+    /// a league of 100 read as five divisions and then a crowd of seventy.
+    static func sizes(for n: Int) -> [Division: Int] {
+        var out: [Division: Int] = [:]
+        if n <= 36 {
+            for d in Division.allCases { out[d] = d.size }
+            return out
+        }
+        let rest = n - 5
+        let v = Int((Double(rest) * 10.0 / 31.0).rounded())
+        let f = Int((Double(rest) * 15.0 / 31.0).rounded())
+        out[.royalGuard] = 2
+        out[.apex] = 3
+        out[.vanguard] = v
+        out[.forge] = f
+        out[.commoner] = rest - v - f
+        return out
     }
 
     /// Which numbering this division belongs to. The Royal Guard and the Apex

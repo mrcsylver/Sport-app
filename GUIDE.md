@@ -28,11 +28,21 @@ Ton code de restauration n'est demandable que **dix fois par heure** : au-delà,
 l'appli arrête de répondre pendant une heure, même au bon code. C'est ce qui
 empêche quelqu'un d'essayer des codes au hasard jusqu'à tomber sur le tien.
 
-Une ligue accueille **36 personnes** — un nombre pair exprès, pour que la
-rivalité du lundi apparie tout le monde sans laisser personne de côté. Tu peux
-être dans plusieurs ligues : un entraînement enregistré compte dans **toutes**
-celles où tu étais déjà. Si tu rejoins une ligue plus tard, rien n'est
-rétroactif — personne n'arrive en tête le premier jour.
+**Défie quelqu'un.** Ouvre ta propre ligne dans l'onglet LIVE : tout en bas de
+ton journal il y a un bouton **SHARE THIS WEEK**, qui envoie ce que tu as fait
+et le lien de la ligue dans un seul message. Une ligue à une personne n'en est
+pas une.
+
+Une ligue accueille **de 2 à 100 personnes**, et c'est celui ou celle qui la
+crée qui choisit. Par défaut 36 — un nombre pair exprès, pour que la rivalité
+du lundi apparie tout le monde sans laisser personne de côté, et c'est aussi
+le total des cinq divisions. Au-delà de 36, les trois divisions du bas
+grandissent ; les deux du haut, jamais. La taille peut être augmentée à tout
+moment, jamais descendue en dessous des gens déjà dedans.
+
+Tu peux être dans plusieurs ligues : un entraînement enregistré compte dans
+**toutes** celles où tu étais déjà. Si tu rejoins une ligue plus tard, rien
+n'est rétroactif — personne n'arrive en tête le premier jour.
 
 **Si l'appli affiche « complet ».** L'appli tourne sur un serveur de taille
 fixe, donc le nombre de comptes est plafonné. Un nouvel arrivant peut tomber
@@ -433,10 +443,19 @@ A restore code can only be tried **ten times an hour**: past that the app stops
 answering for an hour, the right code included. That is what stops somebody
 trying codes at random until they land on yours.
 
-A league holds **36 people** — an even number on purpose, so the Monday
-rivalry pairs everybody off without leaving anyone out. You can be in several:
-one logged workout counts in **every** league you were already in. Join a
-league later and nothing is backdated — nobody arrives already winning.
+**Challenge somebody.** Open your own row on the LIVE tab and there is a
+**SHARE THIS WEEK** button at the bottom of your log — it sends what you did
+and the league link in one message. A league of one is not a league.
+
+A league holds **2 to 100 people**, and whoever creates it picks the number.
+36 by default — even on purpose, so the Monday rivalry pairs everybody off
+without leaving anyone out, and it is also what the five divisions come to.
+Past 36 the bottom three divisions grow; the top two never do. The size can be
+raised at any time, never lowered below the people already in.
+
+You can be in several leagues: one logged workout counts in **every** league
+you were already in. Join a league later and nothing is backdated — nobody
+arrives already winning.
 
 **If it says "full".** The app runs on a server of a fixed size, so the number
 of accounts is capped. Somebody new can land on a "full for now" screen: seats

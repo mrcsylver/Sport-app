@@ -8,8 +8,8 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
 `progressions.sql`, `season-table.sql`, `season-stats.sql`, `cup.sql`,
 `membership.sql`, `rest-day.sql`, `launch-gate.sql`, `shop.sql`,
-`faster-board.sql` and `restore-throttle.sql` are migrations for a database
-that is already running. They only add; nothing logged is touched, and all of
+`faster-board.sql`, `restore-throttle.sql` and `big-league.sql` are
+migrations for a database that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -413,6 +413,55 @@ Three things it is careful about:
 is the next writer of it; until then `admin_grant_item()` hands things out by
 name, which stays useful afterwards — a prize, an apology, a founder's gift.
 
+### A league can hold 100
+
+36 was a hard ceiling in a CHECK constraint, and 36 is the number the five
+divisions come to: 2 + 3 + 10 + 15 + 6. That is the right size for a group of
+friends and the wrong one for a poster on a gym wall — the 37th person to scan
+the QR code is turned away at the door, and they do not come back.
+
+The creator picks it now, 2 to 100, at creation and afterwards. **The default
+is still 36**, so a league created without an opinion is the league it has
+always been, and every league that already exists keeps the size it has.
+
+It can go **up** at any time and never below the people already in.
+`enforce_league_capacity` only runs on the way IN, so shrinking would remove
+nobody — it would leave a league reading 40/30 and refusing the 41st with no
+way to explain itself. `set_league_settings` raises `LEAGUE_SHRINK` instead,
+and the box in the app says what the floor is before you type into it.
+
+Both functions changed shape, which is the awkward part and the reason
+`big-league.sql` is not a create-only file. A defaulted new parameter looks
+like it keeps an app that has not updated working. It does not: PostgREST
+resolves a call by argument **name**, so an old call matches both versions and
+Postgres refuses it as not unique. Exactly one of each may be visible, so the
+old pair moves into the `retired` schema in the same transaction — the same
+trick `season-stats.sql` used.
+
+**The divisions are client-side**, so they are not in the SQL, but they had to
+move with it. Up to 36 rows the split is the fixed 2/3/10/15/6 and nothing
+about an existing league changes. Past it, the bottom three grow in the
+proportion they already have and the top two never do:
+
+| table | Royal Guard | Apex | Vanguard | Forge | Commoner |
+|---|---|---|---|---|---|
+| 36 | 2 | 3 | 10 | 15 | 6 |
+| 60 | 2 | 3 | 18 | 27 | 10 |
+| 100 | 2 | 3 | 31 | 46 | 18 |
+
+A Royal Guard of six is not a Royal Guard — the whole point of those five
+places is that one good evening can push you out of them. Without the rule the
+overflow all landed in COMMONER, so a league of 100 read as five divisions and
+then a crowd of seventy.
+
+**What it costs.** A board is about 276 bytes per member per poll, so a
+100-person board is ~28 KB against ~10 KB for 36. Free Supabase gives 5 GB of
+egress a month. At a realistic five minutes of app-open time per person per
+day that is roughly 1 GB a month for a full 100-seat league — comfortable, but
+no longer something to ignore. The poll backoff (25 s when a board is moving,
+up to 5 minutes when it is not) is what keeps it there, so if egress ever gets
+close, that interval is the lever, not the league size.
+
 ### Ten guesses an hour at a restore code
 
 A restore code is 8 hex characters: 32 bits, and whoever has one owns the
@@ -631,6 +680,7 @@ Do not hand-edit these:
 | `shop.sql` | `tools/build_shop_migration.py` |
 | `faster-board.sql` | `tools/build_board_migration.py` |
 | `restore-throttle.sql` | `tools/build_restore_migration.py` |
+| `big-league.sql` | `tools/build_bigleague_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

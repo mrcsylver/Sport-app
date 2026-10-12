@@ -277,6 +277,7 @@ struct AddLeagueSheet: View {
 
     @State private var code = ""
     @State private var name = ""
+    @State private var newSize: Double = 36
     @State private var preview: LeaguePreviewRow?
     @State private var busy = false
 
@@ -326,10 +327,22 @@ struct AddLeagueSheet: View {
                                 .font(Theme.display(20, .heavy))
                                 .foregroundStyle(Theme.ink)
                                 .textInputAutocapitalization(.words)
+                            HStack {
+                                Text("HOW MANY FIGHTERS")
+                                    .font(Theme.display(10, .heavy)).kerning(1.2)
+                                    .foregroundStyle(Theme.inkFaint)
+                                Spacer()
+                                Text("\(Int(newSize))")
+                                    .font(Theme.mono(13, .bold))
+                                    .foregroundStyle(Theme.ink)
+                            }
+                            Slider(value: $newSize, in: 2...100, step: 1)
+                                .tint(Theme.flame)
                             Button("CREATE") {
                                 busy = true
                                 Task {
-                                    if await session.createLeague(name: name) { dismiss() }
+                                    if await session.createLeague(name: name,
+                                                                  size: Int(newSize)) { dismiss() }
                                     busy = false
                                 }
                             }
