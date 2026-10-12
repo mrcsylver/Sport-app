@@ -229,7 +229,7 @@
 
 <script src="./config.js"></script>
 <script src="./vendor/supabase.js"></script>
-<script src="./captcha.js"></script>
+<script src="./captcha.js?v=2.31.2"></script>
 <script>
 (function () {
   var CFG = window.APP_CONFIG || {};
@@ -271,8 +271,17 @@
     if (!s.data.session) {
       /* Same door, same gate: captcha.js is inert unless config.js carries
          a Turnstile site key, and Supabase checks anonymous sign-in like any
-         other signup once Attack Protection is on. */
-      var opts = window.IronCaptcha ? await window.IronCaptcha.opts() : {};
+         other signup once Attack Protection is on.
+         VISIBLE here, unlike the app. This page is one person, rarely, and a
+         control room nobody can get into is a control room that cannot fix
+         anything -- including whatever broke the door. A checkbox that is
+         slower and seen beats an invisible one that can fail quietly. */
+      if (CFG.TURNSTILE_SITE_KEY && !window.IronCaptcha) {
+        throw new Error('The robot check did not load. Reload this page — if it '
+                      + 'keeps happening, captcha.js is not deployed.');
+      }
+      var opts = window.IronCaptcha
+        ? await window.IronCaptcha.opts({}, { visible: true }) : {};
       var a = await sb.auth.signInAnonymously({ options: opts });
       if (a.error) throw a.error;
     }
@@ -673,8 +682,31 @@
       $('#who').textContent = me ? me.display_name : 'you';
       $('#login').hidden = true; $('#panel').hidden = false;
       await load();
-    } catch (e) { $('#loginErr').textContent = e.message || String(e); }
+    } catch (e) { $('#loginErr').textContent = saneError(e); }
   });
+
+  /* Supabase's refusal when a CAPTCHA token is missing or stale reads
+     "no captcha token found", which tells the one person who reads it
+     nothing about what to do. */
+  function saneError(e) {
+    var m = (e && e.message) || String(e);
+    /* Already one of ours, and already a sentence — the test for Supabase's
+       wording below would otherwise swallow it, because ours says
+       "captcha.js" in it. */
+    if (m.indexOf('The robot check') === 0) return m;
+    if (/captcha/i.test(m)) {
+      var why = window.IronCaptcha && window.IronCaptcha.lastError();
+      if (why && why.message === 'CAPTCHA_UNREACHABLE') {
+        return 'The robot check could not load. Turn off your ad blocker for '
+             + 'this page, or try another network.';
+      }
+      return 'The robot check did not go through. Reload the page and try again.';
+    }
+    if (/TOO_MANY_TRIES/.test(m)) {
+      return 'Too many wrong codes from this device. Wait an hour and try again.';
+    }
+    return m;
+  }
 
   $('#out').addEventListener('click', async function () {
     try { localStorage.removeItem('ironleague.admin.code'); } catch (e) {}

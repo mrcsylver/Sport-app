@@ -41,6 +41,13 @@ def main():
         else:
             found['index.html %s' % a] = m.group(1)
 
+    adm = re.search(r'\./captcha\.js\?v=([0-9.]+)', read('admin.html'))
+    if not adm:
+        bad.append('admin.html pulls ./captcha.js with no ?v= — the service '
+                   'worker will keep whatever it first cached, 404 included')
+    else:
+        found['admin.html captcha.js'] = adm.group(1)
+
     proj = read('ios/project.yml')
     ios = re.search(r'MARKETING_VERSION: "([^"]*)"', proj).group(1)
 

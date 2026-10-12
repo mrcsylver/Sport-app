@@ -49,6 +49,15 @@ def main():
                       % re.escape(a), r'\g<1>./%s?v=%s\g<1>' % (a, v), html)
     write('index.html', html)
 
+    # admin.html pulls captcha.js too, and the service worker caches every
+    # same-origin GET it sees for ever. Without a ?v= the control room keeps
+    # whatever copy it first managed to fetch -- including a 404 from a
+    # half-finished deploy, which is exactly how the gate "did not load".
+    adm = read('admin.html')
+    adm = re.sub(r'(["\'])\./captcha\.js(\?v=[^"\']*)?\1',
+                 r'\g<1>./captcha.js?v=%s\g<1>' % v, adm)
+    write('admin.html', adm)
+
     sw = read('sw.js')
     sw = re.sub(r"var CACHE = '[^']*';", "var CACHE = 'ironleague-v%s';" % v, sw, 1)
     sw = re.sub(r"var VERSION = '[^']*';", "var VERSION = '%s';" % v, sw, 1)
@@ -62,7 +71,7 @@ def main():
                   'CURRENT_PROJECT_VERSION: "%d"' % n, proj, 1)
     write('ios/project.yml', proj)
 
-    print('%s · app.js, index.html (%d assets), sw.js, ios build %d'
+    print('%s · app.js, index.html (%d assets), admin.html, sw.js, ios build %d'
           % (v, len(ASSETS), n))
 
 

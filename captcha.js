@@ -78,8 +78,9 @@
   /* A token, or null when this is switched off. Single-use, so the widget is
      reset before every execute -- reusing one is an error from Supabase that
      looks exactly like a wrong key. */
-  function token() {
+  function token(how) {
     if (!on()) return Promise.resolve(null);
+    var seen = !!(how && how.visible);
     return script().then(function () {
       mount();
       return new Promise(function (resolve, reject) {
@@ -93,8 +94,13 @@
         }
         var opts = {
           sitekey: key(),
-          execution: 'execute',
-          appearance: 'interaction-only',
+          /* `visible` asks for the plain Managed widget, drawn straight away
+             and waited on. It is slower and it is seen, and it is what the
+             CONTROL ROOM uses: that page is one person, rarely, and if its
+             door ever sticks there is nothing left to fix anything with. No
+             invisible path means no invisible failure. */
+          execution: seen ? 'render' : 'execute',
+          appearance: seen ? 'always' : 'interaction-only',
           callback: function (tok) { finish(tok, null); },
           'error-callback': function () {
             finish(null, new Error('CAPTCHA_FAILED'));
@@ -105,12 +111,13 @@
           'after-interactive-callback': function () { show(false); }
         };
         try {
+          if (seen) show(true);
           if (id === null) {
             id = window.turnstile.render('#ilcap-widget', opts);
           } else {
             window.turnstile.reset(id);
           }
-          window.turnstile.execute(id, opts);
+          if (!seen) window.turnstile.execute(id, opts);
         } catch (e) { finish(null, new Error('CAPTCHA_FAILED')); return; }
         /* A challenge somebody walks away from must not wedge a sign-in. */
         timer = setTimeout(function () {
@@ -140,8 +147,8 @@
      and is a bad way to find out somebody runs a strict ad blocker. */
   var lastError = null;
 
-  function opts(extra) {
-    return token().then(function (tok) {
+  function opts(extra, how) {
+    return token(how).then(function (tok) {
       var o = extra || {};
       if (tok) { o.captchaToken = tok; lastError = null; }
       return o;

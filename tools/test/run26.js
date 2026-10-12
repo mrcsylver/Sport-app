@@ -32,6 +32,13 @@ const SEED=`(function(){var DB=window.__DB__;
  window.__save__();
 })();`;
 
+const ADMIN_SEED=`(function(){var DB=window.__DB__;
+ DB.leagues.push({id:'lg1',name:'ALPHA',code:'AAA111',owner_id:'p1',max_members:30,rest_dow:[]});
+ DB.profiles.push({id:'p1',user_id:'u1',display_name:'MARCO',restore_code:'ADMIN123',is_admin:true});
+ DB.members.push({league_id:'lg1',profile_id:'p1',joined_at:'2026-01-01'});
+ window.__save__();
+})();`;
+
 /* Cloudflare's api.js, as far as this app is concerned: render, execute,
    reset, and a callback with a token. It also records how it was called so
    the test can check the widget is interaction-only rather than a checkbox
@@ -39,7 +46,16 @@ const SEED=`(function(){var DB=window.__DB__;
 const FAKE_TURNSTILE = `
 window.__TS__ = { renders: [], executes: 0, resets: 0 };
 window.turnstile = {
-  render: function (el, o) { window.__TS__.renders.push(o); window.__TS__.opts = o; return 'w1'; },
+  render: function (el, o) {
+    window.__TS__.renders.push(o); window.__TS__.opts = o;
+    /* The real widget starts the challenge on render unless told to wait
+       for execute(), and answers on its own. The visible mode the control
+       room uses depends on exactly that. */
+    if (o && o.execution !== 'execute') {
+      setTimeout(function () { o.callback('tok-render'); }, 10);
+    }
+    return 'w1';
+  },
   reset: function () { window.__TS__.resets++; },
   execute: function (id, o) {
     window.__TS__.executes++;
@@ -209,6 +225,58 @@ function cfg(key) {
      !(await pg.$eval('#onboard', e=>e.hidden)), 'still let in');
    T('and the sign-in went out with no token rather than not at all',
      await pg.evaluate(()=>window.__CAP_SEEN__.length===0), 'no token sent');
+   await ctx.close();
+ }
+
+ /* ======== 6. the control room uses the VISIBLE widget =================
+    If the door to the control room ever sticks, there is nothing left to
+    fix anything with — including whatever broke the door. So that page
+    takes the plain Managed checkbox: slower, seen, and with no invisible
+    path that can fail quietly. */
+ {
+   const ctx=await b.newContext({viewport:{width:420,height:900},serviceWorkers:'block'});
+   const pg=await ctx.newPage();
+   pg.on('pageerror',e=>errs.push(e.message));
+   await pg.route('**/challenges.cloudflare.com/**',r=>r.fulfill({contentType:'text/javascript',body:FAKE_TURNSTILE}));
+   await pg.route('**/vendor/supabase.js*',r=>r.fulfill({contentType:'text/javascript',body:MOCK+ADMIN_SEED}));
+   await pg.route('**/config.js*',r=>r.fulfill({contentType:'text/javascript',body:cfg('1x00000000000000000000AA')}));
+   await pg.addInitScript(()=>{window.__UID__='u1';window.__CAPTCHA_REQUIRED__=true;});
+   await pg.goto('http://localhost:4426/admin.html');
+   await pg.waitForSelector('#login',{timeout:8000});
+   await pg.fill('#code','ADMIN123');
+   await pg.click('#go');
+   await pg.waitForTimeout(1200);
+   T('the control room gets the visible checkbox, not the invisible one',
+     await pg.evaluate(()=>window.__TS__.opts.appearance==='always' &&
+        window.__TS__.opts.execution==='render' && window.__TS__.executes===0),
+     await pg.evaluate(()=>window.__TS__.opts.appearance+'/'+window.__TS__.opts.execution));
+   T('and it gets in', await pg.evaluate(()=>!document.querySelector('#panel').hidden),
+     (await pg.textContent('#loginErr')).trim() || 'panel open');
+   await ctx.close();
+ }
+
+ /* ======== 7. the gate script missing is named, not passed on ==========
+    This is what actually happened: admin.html pulled captcha.js with no
+    ?v=, the service worker caches every same-origin GET it sees, and a
+    404 from a half-finished deploy meant no token and Supabase's "no
+    captcha token found" — a sentence that tells the one person who reads
+    it nothing. */
+ {
+   const ctx=await b.newContext({viewport:{width:420,height:900},serviceWorkers:'block'});
+   const pg=await ctx.newPage();
+   pg.on('pageerror',e=>errs.push(e.message));
+   await pg.route('**/captcha.js*', r=>r.fulfill({status:404, body:'not found'}));
+   await pg.route('**/vendor/supabase.js*',r=>r.fulfill({contentType:'text/javascript',body:MOCK+ADMIN_SEED}));
+   await pg.route('**/config.js*',r=>r.fulfill({contentType:'text/javascript',body:cfg('1x00000000000000000000AA')}));
+   await pg.addInitScript(()=>{window.__UID__='u1';window.__CAPTCHA_REQUIRED__=true;});
+   await pg.goto('http://localhost:4426/admin.html');
+   await pg.waitForSelector('#login',{timeout:8000});
+   await pg.fill('#code','ADMIN123');
+   await pg.click('#go');
+   await pg.waitForTimeout(800);
+   const msg = (await pg.textContent('#loginErr')).trim();
+   T('a missing gate script says so, instead of relaying "no captcha token found"',
+     /did not load/i.test(msg) && !/no captcha token/i.test(msg), msg);
    await ctx.close();
  }
 
