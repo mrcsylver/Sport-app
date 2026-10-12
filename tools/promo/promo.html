@@ -126,14 +126,25 @@
 
   .url { font-size:25px; font-weight:700; color:var(--gold); }
   .rule { position:absolute; top:0; left:0; right:0; height:6px;
-          background:var(--red); }
+          background:var(--red); z-index:6; }
+  /* A slow colour wash behind everything. The clip was black and red the
+     whole way through and read as one long shot; this gives six scenes six
+     temperatures without leaving the palette. */
+  .wash { position:absolute; inset:0; pointer-events:none; }
+  /* One white frame on the last cut — the only hard cut in the whole clip. */
+  .flash { position:absolute; inset:0; background:#fff; opacity:0;
+           pointer-events:none; z-index:7; }
+  .scene { transform-origin:50% 42%; }
+  #stage { transform-origin:50% 50%; }
   .bar { height:5px; border-radius:3px; background:var(--panel2); overflow:hidden; }
   .bar span { display:block; height:100%; background:var(--red); }
 </style>
 </head>
 <body>
 <div id="stage">
-  <div class="rule"></div>
+  <div id="wash" class="wash"></div>
+  <div id="rule" class="rule"></div>
+  <div id="flash" class="flash"></div>
 
   <!-- 1. who this is -->
   <div class="scene" id="s1">
@@ -218,32 +229,48 @@
 /* ------------------------------------------------------------------
    draw(t) — the whole clip, as a pure function of time.
 
-   Everything below is arithmetic on t. No transitions, no rAF, no
-   setTimeout: the capture script sets a time and asks for a picture, so
-   frame 400 looks the same whether the machine took 2ms or 2s to draw
-   frame 399. That is the difference between a clip that renders the same
-   twice and one that does not.
+   No transition, no rAF, no setTimeout: the capture script sets a time and
+   asks for a picture, so frame 400 looks the same whether the machine took
+   2ms or 2s to draw frame 399.
+
+   CUTS LAND ON BARS. The music is 128 BPM, so a bar is 1.875s and every
+   scene boundary below is a multiple of it. A cut half a beat out reads as a
+   mistake even to somebody who could not say why.
+
+   EVERY SCENE LEAVES DIFFERENTLY. The first cut crossfaded all six, and a
+   crossfade used six times is wallpaper. Now: push up, push left, drop away,
+   zoom through, and a white frame on the last one.
    ------------------------------------------------------------------ */
 var DUR = 25;
+var BEAT = 60 / 128, BAR = BEAT * 4;
 
 function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
-/* Ease-out cubic: things arrive quickly and settle, which is what reads as
-   deliberate rather than floaty at this length. */
 function ease(x) { x = clamp(x, 0, 1); return 1 - Math.pow(1 - x, 3); }
-/* 0 before `from`, 1 after `from+len`. */
-function ramp(t, from, len) { return ease((t - from) / len); }
-/* A scene's opacity: fades in, holds, fades out. */
-function band(t, a, b) {
-  var f = 0.45;
-  return clamp(Math.min((t - a) / f, (b - t) / f), 0, 1);
+/* Overshoots slightly and settles, so a thing reads as thrown into place
+   rather than slid there. */
+function back(x) {
+  x = clamp(x, 0, 1);
+  var c = 1.70158, u = x - 1;
+  return 1 + (c + 1) * u * u * u + c * u * u;
 }
-function px(el, prop, v) { el.style[prop] = v + 'px'; }
+function ramp(t, from, len) { return ease((t - from) / len); }
 
-/* The chip beside a name is the LIFETIME grade — SPARK through ETERNAL,
-   which follows the person between leagues. It is not the division: the
-   division is where you sit on THIS board this week, and that is the header
-   above the rows. Showing a division letter down here would teach a new
-   player the wrong thing about both. */
+/* Scenes, in bars: 2 + 3 + 3 + 2 + 2 + 1.34 */
+var SC = [
+  { id: 's1', at: 0,     bars: 2,    out: 'up'   },
+  { id: 's2', at: 3.75,  bars: 3,    out: 'left' },
+  { id: 's3', at: 9.375, bars: 3,    out: 'down' },
+  { id: 's4', at: 15,    bars: 2,    out: 'left' },
+  { id: 's5', at: 18.75, bars: 2,    out: 'zoom' },
+  { id: 's6', at: 22.5,  bars: 1.34, out: 'none' }
+];
+var CUT = 0.34;
+
+/* The accent each scene washes the frame with. Six scenes, six temperatures,
+   without leaving the palette. */
+var TINT = ['255,46,46', '255,46,46', '255,201,60',
+            '38,208,124', '59,166,255', '255,46,46'];
+
 var BOARD = [
   ['BEN',    412, 'GRINDER II'], ['SOFIA',  388, 'GRINDER I'],
   ['OMAR',   355, 'REGULAR'],    ['YOU',    402, 'GRINDER I'],
@@ -251,7 +278,6 @@ var BOARD = [
   ['AMIN',   244, 'ROOKIE']
 ];
 
-/* The board is built once; only its order and numbers move. */
 (function buildBoard() {
   var h = '';
   for (var i = 0; i < BOARD.length; i++) {
@@ -265,74 +291,107 @@ var BOARD = [
   document.getElementById('board').innerHTML = h;
 })();
 
+function stage(sc, t) {
+  var end = sc.at + sc.bars * BAR;
+  if (t < sc.at || t > end) return null;
+  return { inP: clamp((t - sc.at) / CUT, 0, 1),
+           outP: clamp((t - (end - CUT)) / CUT, 0, 1) };
+}
+
 function draw(t) {
-  /* ---- scene opacities -------------------------------------------- */
-  var o = {
-    s1: band(t,  0.0,  4.0),
-    s2: band(t,  4.0,  9.6),
-    s3: band(t,  9.6, 15.0),
-    s4: band(t, 15.0, 19.0),
-    s5: band(t, 19.0, 22.0),
-    s6: band(t, 22.0, 25.4)
-  };
-  for (var k in o) document.getElementById(k).style.opacity = o[k];
+  var pulse = 0, i, live = 0;
 
-  /* ---- 1. the headline arrives, then the sports under it ---------- */
-  var a = ramp(t, 0.25, 0.8);
-  var h1 = document.getElementById('h1a');
-  h1.style.transform = 'translateY(' + (26 * (1 - a)) + 'px)';
-  h1.style.opacity = a;
-  var k = ramp(t, 1.1, 0.7);
-  var k1 = document.getElementById('k1');
-  k1.style.opacity = k;
-  k1.style.transform = 'translateY(' + (14 * (1 - k)) + 'px)';
+  for (i = 0; i < SC.length; i++) {
+    var sc = SC[i], el = document.getElementById(sc.id), st = stage(sc, t);
+    if (!st) { el.style.opacity = 0; continue; }
+    live = i;
 
-  /* ---- 2. pick the exercise, the number counts, the points fly ---- */
-  var pick = t > 5.3;
-  document.getElementById('e1').className = 'ex' + (pick ? ' on' : '');
-  /* The sheet slides up once the exercise is chosen. */
-  var up = ramp(t, 5.6, 0.55);
+    var a = back(st.inP), o = ease(st.outP);
+    var x = 0, y = 44 * (1 - a), k = 1, op = st.inP;
+
+    if (sc.out === 'up')   { y -= 150 * o; k -= 0.10 * o; }
+    if (sc.out === 'left') { x -= 230 * o; }
+    if (sc.out === 'down') { y += 120 * o; k -= 0.16 * o; }
+    if (sc.out === 'zoom') { k += 0.55 * o; }
+    op *= (1 - o);
+
+    el.style.opacity = op;
+    el.style.transform = 'translate(' + x.toFixed(2) + 'px,' + y.toFixed(2) +
+                         'px) scale(' + k.toFixed(4) + ')';
+  }
+  document.getElementById('wash').style.background =
+    'radial-gradient(120% 80% at 50% 18%, rgba(' + TINT[live] + ',.17), transparent 62%)';
+
+  /* ---- 1. headline, then the sports under it ---------------------- */
+  var h1 = document.getElementById('h1a'), aa = ramp(t, 0.2, 0.7);
+  h1.style.transform = 'translateY(' + (22 * (1 - aa)) + 'px)';
+  h1.style.opacity = aa;
+  var k1 = document.getElementById('k1'), kk = ramp(t, 0.95, 0.6);
+  k1.style.opacity = kk;
+  k1.style.letterSpacing = (0.22 * (1 - kk)).toFixed(3) + 'em';
+
+  /* ---- 2. pick, count, and the points fly off --------------------- */
+  document.getElementById('e1').className = 'ex' + (t > 5.1 ? ' on' : '');
+  var up = ramp(t, 5.35, 0.5);
   document.getElementById('sh').style.transform =
     'translateY(' + (260 * (1 - up)) + 'px)';
-  /* 0 to 12 reps, which at 2 points a rep is the +24 that flies off. */
-  var reps = Math.round(12 * ramp(t, 6.3, 1.1));
-  document.getElementById('amt').textContent = reps;
-  /* The points leave the sheet and fade, the one bit of reward in the clip. */
-  var f = clamp((t - 7.8) / 1.3, 0, 1);
+  document.getElementById('amt').textContent =
+    Math.round(12 * ramp(t, 5.95, 0.95));
+  var f = clamp((t - 7.25) / 1.25, 0, 1);
   var fly = document.getElementById('fly');
   fly.style.opacity = f > 0 ? (1 - f) : 0;
-  px(fly, 'left', 128);
-  px(fly, 'top', 300 - 78 * ease(f));
+  fly.style.left = '128px';
+  fly.style.top = (300 - 84 * ease(f)) + 'px';
 
-  /* ---- 3. YOU climbs from 4th to 2nd ------------------------------ */
-  /* Sorted by points, except YOU, whose score runs up mid-shot and drags the
-     row past the two people above it. The order is recomputed from the
-     numbers rather than animated by hand, so the row never lands somewhere
-     the points do not justify. */
-  var mine = 355 + Math.round(63 * ramp(t, 11.0, 1.6));
-  var rows = BOARD.map(function (r, i) {
-    return { i: i, v: r[0] === 'YOU' ? mine : r[1] };
-  }).sort(function (x, y) { return y.v - x.v; });
-  rows.forEach(function (r, place) {
-    var el = document.getElementById('r' + r.i);
-    el.style.transform = 'translateY(' + ((place - r.i) * 57) + 'px)';
-    el.style.zIndex = r.i === 3 ? 2 : 1;
-    document.getElementById('rp' + r.i).textContent = place + 1;
-    document.getElementById('rv' + r.i).textContent = r.v;
-  });
+  /* ---- 3. YOU climbs; the frame kicks on the drop ----------------- */
+  /* The music drops at bar 7 = 11.25s, mid-climb. One scale kick on that
+     beat, gone within a beat and a half: felt, not noticed. */
+  var d = t - 6 * BAR;
+  if (d >= 0 && d < BEAT * 1.5) pulse = (1 - d / (BEAT * 1.5)) * 0.022;
 
-  /* ---- 5. the lifetime number counts up on the card --------------- */
-  var c = ramp(t, 19.6, 1.2);
+  var mine = 355 + Math.round(63 * ramp(t, 10.4, 1.5));
+  BOARD.map(function (r, idx) {
+    return { i: idx, v: r[0] === 'YOU' ? mine : r[1] };
+  }).sort(function (x, y) { return y.v - x.v; })
+    .forEach(function (r, place) {
+      var el = document.getElementById('r' + r.i);
+      el.style.transform = 'translateY(' + ((place - r.i) * 57) + 'px)';
+      el.style.zIndex = r.i === 3 ? 2 : 1;
+      document.getElementById('rp' + r.i).textContent = place + 1;
+      document.getElementById('rv' + r.i).textContent = r.v;
+    });
+
+  /* ---- 4. the two league tiles land one after the other ----------- */
+  var tiles = document.querySelectorAll('#s4 .tile');
+  for (i = 0; i < tiles.length; i++) {
+    var ta = back(clamp((t - (15.5 + i * 0.22)) / 0.5, 0, 1));
+    tiles[i].style.transform = 'translateY(' + (30 * (1 - ta)).toFixed(2) + 'px)';
+    tiles[i].style.opacity = clamp((t - (15.5 + i * 0.22)) / 0.4, 0, 1);
+  }
+
+  /* ---- 5. the card counts its lifetime up ------------------------- */
   document.getElementById('cl').textContent =
-    Math.round(4116 * c).toLocaleString('en-GB');
-  var pc = document.getElementById('pc');
-  var s = 0.9 + 0.1 * ramp(t, 19.3, 0.6);
-  pc.style.transform = 'translateX(-50%) scale(' + s + ')';
+    Math.round(4116 * ramp(t, 19.15, 1.15)).toLocaleString('en-GB');
+  document.getElementById('pc').style.transform = 'translateX(-50%) scale(' +
+    (0.88 + 0.12 * back(clamp((t - 18.95) / 0.55, 0, 1))).toFixed(4) + ')';
 
-  /* The phones drift up a few pixels across their scene. Enough that the
-     frame is never dead, little enough that nobody notices it happening. */
-  px(document.getElementById('p2'), 'top', 210 - 10 * clamp((t - 4) / 5.6, 0, 1));
-  px(document.getElementById('p3'), 'top', 210 - 10 * clamp((t - 9.6) / 5.4, 0, 1));
+  /* ---- 6. one white frame on the last cut ------------------------- */
+  var fl = document.getElementById('flash');
+  fl.style.opacity = (t >= 22.42 && t <= 22.9)
+    ? (clamp(1 - (t - 22.5) / 0.26, 0, 1) * 0.55).toFixed(3) : 0;
+
+  document.getElementById('stage').style.transform =
+    'scale(' + (1 + pulse).toFixed(4) + ')';
+
+  /* the rule at the top rides the beat the whole way through */
+  var bt = (t % BEAT) / BEAT;
+  document.getElementById('rule').style.opacity =
+    (0.55 + 0.45 * Math.pow(1 - bt, 2)).toFixed(3);
+
+  document.getElementById('p2').style.top =
+    (210 - 10 * clamp((t - 3.75) / 5.6, 0, 1)).toFixed(1) + 'px';
+  document.getElementById('p3').style.top =
+    (210 - 10 * clamp((t - 9.375) / 5.6, 0, 1)).toFixed(1) + 'px';
 }
 
 window.draw = draw;

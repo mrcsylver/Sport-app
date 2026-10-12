@@ -133,6 +133,24 @@
       exactly where they are.</p>
     <div class="scroll"><table id="bios"></table></div>
 
+    <h2>Finished weeks</h2>
+    <p class="dim">Every week that has closed, in full, ranked — the sheet to print
+      and pin up. The HALL tab shows players the most recent winner with the rest
+      folded away, which is right for them and useless for a wall. Pick a league;
+      the current week is not here because it has not finished.</p>
+    <span class="row" style="margin-bottom:10px">
+      <select id="weekLeague" style="max-width:320px"></select>
+      <button id="weekCopy">Copy top 5</button>
+      <span class="dim" id="weekMsg"></span>
+    </span>
+    <div class="scroll"><table id="weeks"></table></div>
+
+    <h2>Handles</h2>
+    <p class="dim">Everybody who has put an Instagram or a Snapchat on their card.
+      Optional and blank by default, so this list is short and stays short — it is
+      who you can actually reach, not who exists.</p>
+    <div class="scroll"><table id="socials"></table></div>
+
     <h2>Players</h2>
     <p class="dim"><b>Lifetime</b> is everything a player has ever logged, counted once
       even when the same set went to several leagues, with no bonus in it. <b>This week</b>
@@ -253,7 +271,7 @@
 
 <script src="./config.js"></script>
 <script src="./vendor/supabase.js"></script>
-<script src="./captcha.js?v=2.39.0"></script>
+<script src="./captcha.js?v=2.40.0"></script>
 <script>
 (function () {
   var CFG = window.APP_CONFIG || {};
@@ -412,6 +430,53 @@
                                  sb.rpc('admin_retention', { p_weeks: 8 })]);
     paintGrowth(two[0].error ? [] : (two[0].data || []),
                 two[1].error ? [] : (two[1].data || []));
+
+    var so = await sb.rpc('admin_socials');
+    paintSocials(so.error ? [] : (so.data || []));
+
+    $('#weekLeague').innerHTML = L.map(function (x) {
+      return '<option value="' + x.id + '">' + esc(x.name) + ' · ' + esc(x.code) +
+             '</option>';
+    }).join('');
+    if (L.length) await loadWeeks(L[0].id);
+  }
+
+  function paintSocials(rows) {
+    $('#socials').innerHTML =
+      '<tr><th>Player</th><th>Instagram</th><th>Snapchat</th><th>Last activity</th></tr>' +
+      rows.map(function (r) {
+        return '<tr><td class="name">' + esc(r.display_name) + '</td>' +
+          '<td>' + (r.instagram
+            ? '<a href="https://instagram.com/' + encodeURIComponent(r.instagram) +
+              '" target="_blank" rel="noopener">@' + esc(r.instagram) + '</a>' : '') + '</td>' +
+          '<td>' + (r.snapchat
+            ? '<a href="https://snapchat.com/add/' + encodeURIComponent(r.snapchat) +
+              '" target="_blank" rel="noopener">' + esc(r.snapchat) + '</a>' : '') + '</td>' +
+          '<td class="dim">' + when(r.last_log) + '</td></tr>';
+      }).join('') || '<tr><td class="dim">Nobody has added one yet.</td></tr>';
+  }
+
+  /* Grouped by week, newest first, because the question is always "who won
+     last week" and nobody wants to scroll for it. */
+  var weekRows = [];
+  async function loadWeeks(league) {
+    var r = await sb.rpc('admin_league_weeks', { p_league: league, p_weeks: 12 });
+    weekRows = r.error ? [] : (r.data || []);
+    var by = {}, order = [];
+    weekRows.forEach(function (x) {
+      if (!by[x.week_start]) { by[x.week_start] = []; order.push(x.week_start); }
+      by[x.week_start].push(x);
+    });
+    $('#weeks').innerHTML = order.map(function (w) {
+      return '<tr><th colspan="4">' + w + '</th></tr>' +
+        by[w].map(function (x) {
+          return '<tr><td style="width:46px">' +
+            (x.place <= 3 ? '<b>' + x.place + '</b>' : x.place) + '</td>' +
+            '<td class="name">' + esc(x.display_name) + '</td>' +
+            '<td>' + num(x.points) + '</td>' +
+            '<td class="dim">' + x.entries + ' entries</td></tr>';
+        }).join('');
+    }).join('') || '<tr><td class="dim">No week has finished in this league yet.</td></tr>';
   }
 
   /* ---- designs --------------------------------------------------------
@@ -817,6 +882,20 @@
     location.reload();
   });
   $('#reload').addEventListener('click', load);
+  $('#weekLeague').addEventListener('change', function () { loadWeeks(this.value); });
+  /* The top five of the most recent finished week, as plain text. It is what
+     goes on the wall and into a message, and retyping it off a screen is how
+     a name gets spelled wrong. */
+  $('#weekCopy').addEventListener('click', async function () {
+    if (!weekRows.length) return;
+    var w = weekRows[0].week_start;
+    var txt = 'IRON LEAGUE — week of ' + w + '\n' +
+      weekRows.filter(function (x) { return x.week_start === w && x.place <= 5; })
+        .map(function (x) { return x.place + '. ' + x.display_name + '  ' +
+                            Math.round(x.points) + ' pts'; }).join('\n');
+    try { await navigator.clipboard.writeText(txt); $('#weekMsg').textContent = 'Copied'; }
+    catch (e) { $('#weekMsg').textContent = txt; }
+  });
   $('#search').addEventListener('input', paintPlayers);
 
   document.addEventListener('click', async function (e) {

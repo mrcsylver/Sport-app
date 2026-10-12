@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.39.0">
+  <link rel="stylesheet" href="./styles.css?v=2.40.0">
 </head>
 <body>
 
@@ -800,6 +800,10 @@
       <span class="card-ptsl">LIFETIME POINTS</span>
     </div>
     <p id="cardBio" class="card-bio" hidden></p>
+    <!-- Where to find them off the leaderboard. Only drawn when somebody has
+         given one, so a card with no handles looks the same as it always
+         did. -->
+    <p id="cardSocial" class="card-social" hidden></p>
     <!-- Only on your own card. The line is about you, so the place to write
          it is the place you see it -- not a box three screens away whose
          result you then have to go and look at. -->
@@ -809,6 +813,21 @@
       <div class="card-mine-r">
         <span class="muted small mono" id="cardBioLeft">140</span>
         <button id="cardBioSave" class="btn ghost sm" type="button">SAVE</button>
+      </div>
+      <!-- Optional, blank by default, and seen only by people already on a
+           board with you. The app has no way to message anybody and is not
+           going to grow one; this is how somebody gets found. -->
+      <div class="card-handles">
+        <label><span>Instagram</span>
+          <input id="cardIg" class="input" maxlength="30" autocapitalize="off"
+                 autocorrect="off" spellcheck="false" placeholder="@yourhandle"></label>
+        <label><span>Snapchat</span>
+          <input id="cardSnap" class="input" maxlength="30" autocapitalize="off"
+                 autocorrect="off" spellcheck="false" placeholder="@yourhandle"></label>
+      </div>
+      <div class="card-mine-r">
+        <span class="muted small" id="cardSocialMsg"></span>
+        <button id="cardSocialSave" class="btn ghost sm" type="button">SAVE HANDLES</button>
       </div>
     </div>
     <div id="cardBadges" class="card-badges"></div>
@@ -853,9 +872,9 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.39.0"></script>
-<script src="./vendor/game-icons.js?v=2.39.0"></script>
-<script src="./captcha.js?v=2.39.0"></script>
-<script src="./app.js?v=2.39.0"></script>
+<script src="./vendor/supabase.js?v=2.40.0"></script>
+<script src="./vendor/game-icons.js?v=2.40.0"></script>
+<script src="./captcha.js?v=2.40.0"></script>
+<script src="./app.js?v=2.40.0"></script>
 </body>
 </html>

@@ -750,6 +750,58 @@
       }
       return ok(out);
     },
+    set_social: function (a) {
+      var p = me(); if (!p) return bad('NO_PROFILE');
+      function clean(v, re) {
+        v = String(v || '').replace(/^@+/, '').trim();
+        if (!v) return null;
+        if (!re.test(v)) return undefined;        // undefined = refuse
+        return v;
+      }
+      var ig = clean(a.p_instagram, /^[A-Za-z0-9._]{1,30}$/);
+      var sc = clean(a.p_snapchat, /^[A-Za-z0-9._-]{1,30}$/);
+      if (ig === undefined) return bad('That is not an Instagram handle');
+      if (sc === undefined) return bad('That is not a Snapchat handle');
+      p.instagram = ig; p.snapchat = sc; save();
+      return ok(p);
+    },
+    admin_socials: function () {
+      var p = me(); if (!p || !p.is_admin) return ok([]);
+      return ok(DB.profiles.filter(function (q) { return q.instagram || q.snapchat; })
+        .map(function (q) {
+          return { profile_id: q.id, display_name: q.display_name,
+                   instagram: q.instagram || null, snapchat: q.snapchat || null,
+                   last_log: null };
+        }));
+    },
+    admin_league_weeks: function (a) {
+      var p = me(); if (!p || !p.is_admin) return ok([]);
+      var now = weekAgo(0), by = {};
+      DB.workouts.filter(function (x) {
+        return x.league_id === a.p_league && x.week_start < now;
+      }).forEach(function (x) {
+        var k = x.week_start + '|' + x.profile_id;
+        if (!by[k]) by[k] = { week_start: x.week_start, profile_id: x.profile_id,
+                              points: 0, entries: 0 };
+        by[k].points += Number(x.points) || 0;
+        by[k].entries++;
+      });
+      var rows = Object.keys(by).map(function (k) { return by[k]; });
+      rows.forEach(function (r) {
+        var who = DB.profiles.filter(function (q) { return q.id === r.profile_id; })[0];
+        r.display_name = who ? who.display_name : '?';
+      });
+      rows.sort(function (x, y) {
+        return x.week_start === y.week_start ? y.points - x.points
+             : (x.week_start < y.week_start ? 1 : -1);
+      });
+      var seen = {};
+      rows.forEach(function (r) {
+        seen[r.week_start] = (seen[r.week_start] || 0) + 1;
+        r.place = seen[r.week_start];
+      });
+      return ok(rows);
+    },
     admin_set_cap: function (a) {
       var p = me(); if (!p || !p.is_admin) return bad('Not allowed');
       window.__CAP__ = a.p_cap == null ? null : Number(a.p_cap);

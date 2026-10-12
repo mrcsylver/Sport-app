@@ -104,7 +104,7 @@ struct DivisionHeader: View {
                 .foregroundStyle(Theme.metal(division))
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text("\(division.title) DIVISION")
+                    Text("\(division.title) RANK")
                         .font(Theme.display(16, .black)).italic().kerning(1.6)
                         .foregroundStyle(Theme.metal(division))
                     if containsMe {

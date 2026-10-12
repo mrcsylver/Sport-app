@@ -1339,3 +1339,14 @@ p.ms-next b{color:var(--txt);font-weight:800}
   bottom:calc(22px + env(safe-area-inset-bottom,0px));
   padding:0 22px;text-align:center}
 .promofoot .btn{width:100%;max-width:420px}
+
+/* Handles on a player card. Shown only when somebody has given one, so a
+   card without them is the card that was always there. */
+.card-social{margin:8px 0 0;font:700 13px/1.5 var(--sans);text-align:center}
+.card-social a{color:var(--gold);text-decoration:none}
+.card-social a + a{margin-left:12px}
+.card-handles{display:grid;gap:8px;margin-top:10px}
+.card-handles label{display:flex;flex-direction:column;gap:3px;
+  font:700 10px/1 var(--display);letter-spacing:.14em;color:var(--muted);
+  text-transform:uppercase;text-align:left}
+.card-handles .input{font-size:14px;padding:8px 10px}

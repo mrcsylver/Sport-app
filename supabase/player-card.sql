@@ -66,7 +66,14 @@ begin
 end $fn$;
 
 -- ----------------------------------------------------------- player_card ---
-create or replace function public.player_card(p_profile uuid)
+-- DROP, not CREATE OR REPLACE. `create or replace` cannot change a return
+-- type, so the day a column is added to this card every replay of this file
+-- fails with "cannot change return type of existing function" -- which is
+-- exactly what happened when the social handles went on. A migration that
+-- stops being runnable is a migration that has quietly become a landmine for
+-- whoever rebuilds next.
+drop function if exists public.player_card(uuid) cascade;
+create function public.player_card(p_profile uuid)
 returns table (profile_id uuid, display_name text, avatar text, banner text,
                name_color text, frame text, bio text,
                pinned_badges text[], lifetime numeric, joined_at timestamptz)

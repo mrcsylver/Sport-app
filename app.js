@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.39.0';
+  var APP_VERSION = '2.40.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1399,6 +1399,11 @@
   }
 
   async function startOnboarding() {
+    /* Before the name box, not after: this is the moment somebody who
+       scanned a poster still has no idea what they are joining. Deliberately
+       not awaited -- the overlay sits on top and the screen behind it carries
+       on setting itself up, so skipping lands on a form that is ready. */
+    if (!flag(LS.promoSeen)) openPromo();
     /* Ask before showing a name box. Being told there is no room AFTER
        picking a fighter name is the worst version of this. */
     try {
@@ -1510,9 +1515,6 @@
       state.pendingCode = null;
       localStorage.setItem(LS.league, state.leagueId);
       await enterApp();
-      /* They are in. NOW the explainer, and only for somebody who has never
-         seen it — a restored account on a new phone is not a new player. */
-      if (!flag(LS.promoSeen)) openPromo();
     } catch (e) {
       $('#onboardErr').textContent = niceError(e);
     } finally {
@@ -1524,11 +1526,16 @@
   /* ------------------------------------------------------------------
      The 25-second explainer.
 
-     WHEN. Once, to a brand-new account, AFTER they are inside — never in
-     front of the door. Somebody who has just scanned a poster came to join a
-     league, and a film between them and that is a film nobody watches. It is
-     then reachable forever from SETTINGS, so it is not a thing you get one
-     shot at.
+     WHEN. On the door, once, before anybody has typed anything — which is
+     where somebody who scanned a poster has no idea what this is, and the
+     only moment the answer is worth 25 seconds of their time. Showing it
+     after they are already in explains a thing they have just worked out for
+     themselves.
+
+     It is skippable from the first frame anyway, because a returning player
+     on a new phone lands on the same screen and does not need telling. It is
+     also reachable forever from SETTINGS, so skipping is a decision rather
+     than a one-shot loss.
 
      The file is 0.6 MB and `preload="none"`, so an account that never opens
      it never downloads it. src is set at open time rather than in the markup
@@ -1935,7 +1942,7 @@
         return '<div class="divhead t-' + g.tier.key.toLowerCase() +
                  (here ? ' is-mine' : '') + '">' +
                  '<span class="divhead-c">' + iconSvg(g.tier.icon) + '</span>' +
-                 '<span class="divhead-t"><b>' + g.tier.name + ' DIVISION</b>' +
+                 '<span class="divhead-t"><b>' + g.tier.name + ' RANK</b>' +
                    '<i>' + g.tier.sub + '</i></span>' +
                  '<span class="divhead-n">' + g.rows.length + '</span>' +
                '</div>' +
@@ -2256,7 +2263,26 @@
     if (mine) {
       $('#cardBioEdit').value = c.bio || '';
       cardBioLeft();
+      $('#cardIg').value = c.instagram || '';
+      $('#cardSnap').value = c.snapchat || '';
+      $('#cardSocialMsg').textContent = '';
     }
+
+    /* Where to find them off the leaderboard. Only drawn when there is
+       something to draw, so a card with no handles is the card that was
+       always there. Shown on your own card too -- seeing what other people
+       see is the only way to know you typed it right. */
+    var soc = $('#cardSocial'), links = [];
+    if (c.instagram) {
+      links.push('<a href="https://instagram.com/' + encodeURIComponent(c.instagram) +
+                 '" target="_blank" rel="noopener">@' + esc(c.instagram) + '</a>');
+    }
+    if (c.snapchat) {
+      links.push('<a href="https://snapchat.com/add/' + encodeURIComponent(c.snapchat) +
+                 '" target="_blank" rel="noopener">' + esc(c.snapchat) + ' on Snap</a>');
+    }
+    soc.innerHTML = links.join('');
+    soc.hidden = !links.length;
 
     $('#cardBadges').innerHTML = (c.pinned_badges || []).map(function (k) {
       return '<span class="worn">' + iconSvg(badgeArt(k)) + '</span>';
@@ -2284,6 +2310,26 @@
   function wireCard() {
     $('#cardX').addEventListener('click', closeCard);
     $('#cardBioEdit').addEventListener('input', cardBioLeft);
+    $('#cardSocialSave').addEventListener('click', async function () {
+      var btn = this, msg = $('#cardSocialMsg');
+      btn.disabled = true; msg.textContent = 'Saving…';
+      try {
+        var r = await sb.rpc('set_social', {
+          p_instagram: $('#cardIg').value.trim(),
+          p_snapchat: $('#cardSnap').value.trim() });
+        if (r.error) throw r.error;
+        /* Re-read rather than trust what was typed: the server strips a
+           leading @, and showing the stored value is how somebody finds out
+           it did. */
+        state.profile = r.data || state.profile;
+        $('#cardIg').value = (r.data && r.data.instagram) || '';
+        $('#cardSnap').value = (r.data && r.data.snapchat) || '';
+        msg.textContent = 'Saved';
+        await openCard(state.profile.id);
+      } catch (e) {
+        msg.textContent = niceError(e);
+      } finally { btn.disabled = false; }
+    });
     $('#cardBioSave').addEventListener('click', async function () {
       var btn = this, el = $('#cardBioEdit');
       btn.disabled = true;

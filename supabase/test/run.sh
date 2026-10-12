@@ -32,7 +32,13 @@ fresh() {
   psql -q -d "$1" -f "$HERE/bootstrap.sql"
   psql -q -d "$1" -f "$ROOT/supabase/schema.sql" >/dev/null 2>&1
 }
-clean() { grep -viE '^(SET|INSERT|UPDATE|DELETE|DO|ALTER|CREATE|Output format)' | grep -v '^$' | grep -v '^(dddd'; }
+# `|| true` because the last grep in the chain exits 1 when it filters
+# everything out, and with `set -e` and `pipefail` that killed the whole run
+# on a test whose output happened to be all noise. The suite then stopped
+# wherever that landed and reported nothing about anything after it, which
+# looked exactly like the migration replay hanging.
+clean() { grep -viE '^(SET|INSERT|UPDATE|DELETE|DO|ALTER|CREATE|Output format)' \
+          | grep -v '^$' | grep -v '^(dddd' || true; }
 
 echo "· a fresh database from schema.sql"
 fresh iron
@@ -148,6 +154,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/player-card.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/anon-has-no-business.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/growth.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/social.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
