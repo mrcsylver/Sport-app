@@ -48,7 +48,7 @@ them somewhere else.
 | `run26.js` | the CAPTCHA gate: off by default, and where the token goes |
 | `run27.js` | a league of up to 100: the size control, and divisions that grow |
 | `run28.js` | the two nudges: attach your account, and challenge a friend |
-| `run29.js` | tapping a face: the card, and what it must not carry |
+| `run29.js` | tapping a face: the card, the line you write on it, and the settings names |
 
 ## Before a release
 

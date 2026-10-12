@@ -12,10 +12,9 @@ struct ProfileSheet: View {
     @State private var name = ""
     @State private var weight = ""
     @State private var showCode = false
-    @State private var bio = ""
 
     private enum Section: String, Identifiable {
-        case look, banner, colour, line, measures, account
+        case look, banner, colour, measures, account
         var id: String { rawValue }
 
         var title: String {
@@ -23,7 +22,6 @@ struct ProfileSheet: View {
             case .look:    return "YOUR MARK"
             case .banner:  return "YOUR BANNER"
             case .colour:  return "YOUR NAME COLOUR"
-            case .line:    return "YOUR LINE"
             case .measures: return "BODYWEIGHT AND UNITS"
             case .account: return "NAME AND RESTORE CODE"
             }
@@ -33,7 +31,6 @@ struct ProfileSheet: View {
             case .look:    return "seal.fill"
             case .banner:  return "rectangle.fill.on.rectangle.fill"
             case .colour:  return "paintpalette.fill"
-            case .line:    return "text.quote"
             case .measures: return "scalemass.fill"
             case .account: return "person.text.rectangle"
             }
@@ -45,7 +42,7 @@ struct ProfileSheet: View {
             ScrollView {
                 LazyVStack(spacing: 10) {
                     preview
-                    ForEach([Section.look, .banner, .colour, .line, .measures, .account]) { section in
+                    ForEach([Section.look, .banner, .colour, .measures, .account]) { section in
                         folder(section)
                     }
                     Color.clear.frame(height: 20)
@@ -67,7 +64,6 @@ struct ProfileSheet: View {
         }
         .onAppear {
             name = session.profile?.displayName ?? ""
-            bio = session.profile?.bio ?? ""
             if let bw = session.profile?.bodyweight {
                 let shown = session.profile?.usesPounds == true ? bw * 2.20462 : bw
                 weight = String(format: "%.0f", shown)
@@ -245,33 +241,6 @@ struct ProfileSheet: View {
                     }
                     .font(Theme.display(13, .black))
                     .foregroundStyle(Theme.flame)
-                }
-            }
-
-        case .line:
-            VStack(alignment: .leading, spacing: 10) {
-                Text("One line about you, on your card when somebody taps your "
-                   + "face on the board. 140 characters. Everybody in your "
-                   + "leagues can read it — so nothing here you would not say "
-                   + "out loud in the gym.")
-                    .font(.caption2).foregroundStyle(Theme.inkFaint)
-                TextField("Third year. Chasing a one-arm.", text: $bio, axis: .vertical)
-                    .font(.callout)
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1...3)
-                    .padding(.vertical, 11).padding(.horizontal, 12)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Theme.raised))
-                    .onChange(of: bio) { _, new in
-                        if new.count > 140 { bio = String(new.prefix(140)) }
-                    }
-                HStack {
-                    Text("\(140 - bio.count) left")
-                        .font(Theme.mono(11, .bold))
-                        .foregroundStyle(Theme.inkFaint)
-                    Spacer()
-                    Button("SAVE") { Task { await session.saveBio(bio) } }
-                        .font(Theme.display(13, .black))
-                        .foregroundStyle(Theme.flame)
                 }
             }
 

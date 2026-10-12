@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.34.0';
+  var APP_VERSION = '2.35.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -2178,9 +2178,18 @@
     $('#cardGrade').textContent = bn.name;
     $('#cardPts').textContent = num(c.lifetime);
 
+    /* On your own card the line is editable in place. It is about you, so
+       the place to write it is the place you see it -- not a box three
+       screens away whose result you then have to go and look at. */
+    var mine = state.profile && c.profile_id === state.profile.id;
     var bio = $('#cardBio');
     bio.textContent = c.bio || '';
-    bio.hidden = !c.bio;
+    bio.hidden = !c.bio || mine;
+    $('#cardMine').hidden = !mine;
+    if (mine) {
+      $('#cardBioEdit').value = c.bio || '';
+      cardBioLeft();
+    }
 
     $('#cardBadges').innerHTML = (c.pinned_badges || []).map(function (k) {
       return '<span class="worn">' + iconSvg(badgeArt(k)) + '</span>';
@@ -2200,8 +2209,26 @@
     document.body.classList.remove('modal-open');
   }
 
+  function cardBioLeft() {
+    var el = $('#cardBioEdit');
+    $('#cardBioLeft').textContent = String(140 - (el.value || '').length);
+  }
+
   function wireCard() {
     $('#cardX').addEventListener('click', closeCard);
+    $('#cardBioEdit').addEventListener('input', cardBioLeft);
+    $('#cardBioSave').addEventListener('click', async function () {
+      var btn = this, el = $('#cardBioEdit');
+      btn.disabled = true;
+      try {
+        var r = await sb.rpc('set_bio', { p_bio: el.value });
+        if (r.error) throw r.error;
+        state.profile = r.data;
+        toast(r.data.bio ? 'Saved' : 'Cleared');
+      } catch (e) {
+        toast(niceError(e), true);
+      } finally { btn.disabled = false; }
+    });
     $('#cardPop').addEventListener('click', function (e) {
       if (e.target === $('#cardPop')) closeCard();
     });
@@ -2209,23 +2236,6 @@
       if (e.key === 'Escape' && !$('#cardPop').hidden) closeCard();
     });
 
-    /* The bio, which is the only free text in this app that other people
-       read. Bounded on the server too -- this is the courtesy, not the
-       rule. */
-    $('#bioBtn').addEventListener('click', async function () {
-      var el = $('#bioInput'), btn = this;
-      btn.disabled = true;
-      try {
-        var r = await sb.rpc('set_bio', { p_bio: el.value });
-        if (r.error) throw r.error;
-        state.profile = r.data;
-        $('#bioState').textContent = r.data.bio
-          ? 'Saved. Tap your own face on the board to see it.'
-          : 'Cleared.';
-      } catch (e) {
-        $('#bioState').textContent = niceError(e);
-      } finally { btn.disabled = false; }
-    });
   }
 
   /* ===================================================================
@@ -2510,7 +2520,6 @@
     $('#shareLink').value = l ? shareUrl(l.code) : '—';
     if (state.profile) {
       $('#renameInput').value = state.profile.display_name;
-      $('#bioInput').value = state.profile.bio || '';
       $('#bwProfile').value = state.profile.bodyweight
         ? Math.round(fromKg(state.profile.bodyweight) * 10) / 10 : '';
       paintUnits();

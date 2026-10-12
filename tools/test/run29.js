@@ -107,26 +107,57 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
    /not in any of your leagues/i.test(await pg.textContent('#toast')),
    (await pg.textContent('#toast')).trim());
 
- /* ---- 5. writing your own line --------------------------------------- */
- await pg.click('[data-view="me"]'); await pg.waitForTimeout(300);
- await pg.evaluate(()=>document.querySelectorAll('details.sect').forEach(d=>{d.open=true;}));
- await pg.fill('#bioInput','Second year. Here for the pull-up bar.');
- await pg.click('#bioBtn'); await pg.waitForTimeout(600);
+ /* ---- 5. writing your own line, where you read it --------------------
+    The line is about you, so the place to write it is the place you see
+    it, not a box three screens away whose result you then have to go and
+    look at. */
+ await pg.evaluate(()=>window.__openCard__('p1'));
+ await pg.waitForTimeout(500);
+ T('your own card offers the box; somebody else\u2019s does not',
+   !(await pg.$eval('#cardMine', e=>e.hidden)), 'editable');
+ await pg.fill('#cardBioEdit','Second year. Here for the pull-up bar.');
+ T('and counts down from 140 as you type',
+   (await pg.textContent('#cardBioLeft')).trim()==='102',
+   (await pg.textContent('#cardBioLeft')).trim());
+ await pg.click('#cardBioSave'); await pg.waitForTimeout(600);
  T('your line saves',
    await pg.evaluate(()=>window.__DB__.profiles[0].bio)==='Second year. Here for the pull-up bar.',
    await pg.evaluate(()=>String(window.__DB__.profiles[0].bio)));
- T('and it is on your own card, which is how you see what others see',
-   await (async()=>{ await pg.evaluate(()=>window.__openCard__('p1'));
-     await pg.waitForTimeout(400);
-     return /pull-up bar/.test(await pg.textContent('#cardBio')); })(), 'shown');
  await pg.click('#cardX'); await pg.waitForTimeout(200);
 
  /* an empty one clears rather than storing a blank line */
- await pg.fill('#bioInput','   ');
- await pg.click('#bioBtn'); await pg.waitForTimeout(600);
+ await pg.evaluate(()=>window.__openCard__('p1'));
+ await pg.waitForTimeout(500);
+ await pg.fill('#cardBioEdit','   ');
+ await pg.click('#cardBioSave'); await pg.waitForTimeout(600);
  T('clearing it stores nothing, not a blank line',
    await pg.evaluate(()=>window.__DB__.profiles[0].bio)===null,
    await pg.evaluate(()=>String(window.__DB__.profiles[0].bio)));
+ await pg.click('#cardX'); await pg.waitForTimeout(200);
+
+ /* and a card that is not yours has no box on it at all */
+ await pg.evaluate(()=>window.__openCard__('p2'));
+ await pg.waitForTimeout(500);
+ T('nobody can type into somebody else\u2019s card',
+   await pg.$eval('#cardMine', e=>e.hidden), 'read only');
+ await pg.click('#cardX'); await pg.waitForTimeout(200);
+
+ /* ---- 6. the settings tab says what is in it ------------------------- */
+ await pg.click('[data-view="me"]'); await pg.waitForTimeout(300);
+ const heads = await pg.$$eval('#view-me details.sect > summary > span:first-child',
+   e=>e.map(x=>x.textContent.trim()));
+ T('every section is named for what is inside it',
+   JSON.stringify(heads)===JSON.stringify(['MY LEAGUES','HOW I LOOK','ARMOURY',
+     'MY ACCOUNT','BODY & UNITS','APP THEME','HOW SCORING WORKS']),
+   heads.join(' · '));
+ T('the tab is called SETTINGS, which is what it is',
+   /SETTINGS/.test(await pg.textContent('.tab[data-view="me"]')),
+   (await pg.textContent('.tab[data-view="me"]')).trim());
+ T('your name and your restore code sit with your account',
+   await pg.evaluate(()=>{
+     var a = document.querySelector('#sectAccount');
+     return !!a.querySelector('#renameInput') && !!a.querySelector('#restoreCode');
+   }), 'together');
 
  T('no JavaScript error anywhere', errs.length===0, errs.join(' | ') || 'clean');
 

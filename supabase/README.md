@@ -447,6 +447,11 @@ share a league with, or you see nothing. `supabase/test/card.sql` checks the
 absence as well as the presence, because on this one what it cannot say
 matters more than what it can.
 
+The line is written **on your own card**, and nowhere else. It was briefly a
+box in the settings tab as well, which meant writing it in one place and
+having to go and look at it in another — so the box moved to where the line
+actually appears, and the settings copy went.
+
 `admin_bios()` and `admin_clear_bio()` are the moderation pair. A bio is the
 only free text here that strangers read, and "the admin can delete the whole
 account" is not a proportionate answer to a rude sentence — so the control

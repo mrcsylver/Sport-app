@@ -19,7 +19,7 @@ application, hors ligne comprise.
 d'écran de ton code de restauration** (8 caractères, dans Réglages). C'est ce
 qui permet de récupérer ton profil sur un autre téléphone.
 
-**Rattache ton compte (recommandé) :** dans Réglages → ACCOUNT, tu peux relier
+**Rattache ton compte (recommandé) :** dans SETTINGS → MY ACCOUNT, tu peux relier
 ton profil à ton compte Google, ou à un email et un mot de passe. C'est le même
 profil : rien n'est recréé, rien n'est perdu. Fais-le et ton compte survit à un
 téléphone cassé, perdu ou changé, sans dépendre d'une capture d'écran.
@@ -36,8 +36,9 @@ pas une.
 **C'est qui ?** Touche le **visage** de quelqu'un dans le classement et tu
 obtiens sa carte : grade, points à vie, ce qu'il a choisi de porter, et une
 ligne qu'il a écrite sur lui-même. Toucher son **nom** ouvre toujours sa
-semaine. Écris la tienne dans LEAGUES → YOUR LINE — 140 caractères, et tout
-le monde dans tes ligues peut la lire.
+semaine. Écris la tienne en touchant **ton propre** visage : la case est juste sous la
+ligne, tu l'écris là où tu la lis. 140 caractères, et tout le monde dans tes
+ligues peut la lire.
 
 Une ligue accueille **de 2 à 100 personnes**, et c'est celui ou celle qui la
 crée qui choisit. Par défaut 36 — un nombre pair exprès, pour que la rivalité
@@ -440,7 +441,7 @@ Screen". It then behaves like a real app, offline included.
 **Account:** pick a name, then **screenshot your restore code immediately**
 (8 characters, in Settings). It is what moves your profile to another phone.
 
-**Attach your account (recommended):** in Settings → ACCOUNT you can link your
+**Attach your account (recommended):** in SETTINGS → MY ACCOUNT you can link your
 profile to your Google account, or to an email and a password. It is the same
 profile — nothing is recreated and nothing is lost. Do it and your account
 survives a broken, lost or replaced phone without depending on a screenshot.
@@ -456,8 +457,9 @@ and the league link in one message. A league of one is not a league.
 **Who is that?** Tap somebody's **face** on the leaderboard and you get their
 card: grade, lifetime points, what they chose to wear, and one line they
 wrote about themselves. Tapping their **name** still opens their week. Write
-your own line in LEAGUES → YOUR LINE — 140 characters, and everybody in your
-leagues can read it.
+your own by tapping **your own** face — the box is right under the line, so
+you write it where you read it. 140 characters, and everybody in your leagues
+can read it.
 
 A league holds **2 to 100 people**, and whoever creates it picks the number.
 36 by default — even on purpose, so the Monday rivalry pairs everybody off

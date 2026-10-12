@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Iron League — flyer</title>
+<!--
+  A4 at 300 dpi, built in the browser and screenshotted, rather than drawn in
+  Python. Three reasons it is worth the detour: it uses the app's OWN font
+  file, its own colours, and its own vendored game-icons, so a poster on a
+  wall and the screen somebody lands on afterwards are plainly the same
+  thing. Nothing here is a lookalike.
+
+  tools/flyer/build_flyer.py fills the placeholders and drives the shot.
+-->
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* styles.css is loaded for ONE thing: the @font-face rules that point at
+     the app's real Barlow Condensed. Its colours are not inherited — it
+     switches to a light palette on a light system, and a flyer's theme is
+     decided by which file you print, not by the machine that rendered it. */
+  :root {
+    --bg:#08090c; --panel:#161923; --line:#2a2f37;
+    --txt:#eef1f6; --muted:#aab2c0; --red:#ff2e2e; --gold:#ffc93c;
+    --ghost:rgba(255,255,255,.13);
+  }
+  .light {
+    --bg:#ffffff; --panel:#f4f5f7; --line:#d2d6de;
+    --txt:#0d0f14; --muted:#4e5665; --red:#d61a1a; --gold:#8a6000;
+    --ghost:rgba(0,0,0,.10);
+  }
+
+  html, body { margin:0; padding:0; }
+  /* 8.27in x 11.69in at 96 CSS px/in. The shot is taken at 3x, which lands
+     on 2481 x 3507 — A4 at 300 dpi. */
+  body {
+    width:827px; height:1169px;
+    background:var(--bg); color:var(--txt);
+    font-family:'Barlow Condensed', system-ui, sans-serif;
+    position:relative; overflow:hidden;
+  }
+
+  .rule { position:absolute; top:0; left:0; right:0; height:8px; background:var(--red); }
+
+  /* The sports, as silhouettes behind everything. Big enough to read as
+     shapes from across a corridor, faint enough that the headline and the QR
+     keep every bit of contrast on the sheet. Cropped by the page on purpose:
+     a whole icon in a corner reads as a sticker, half of one reads as
+     texture. */
+  .bg { position:absolute; inset:0; pointer-events:none; overflow:hidden;
+        color:var(--ghost); }
+  .bg svg { position:absolute; fill:currentColor; }
+  .bg .i1 { width:330px; height:330px; left:-78px;  top:96px;    transform:rotate(-12deg); }
+  .bg .i2 { width:300px; height:300px; right:-70px; top:150px;   transform:rotate(14deg); }
+  .bg .i3 { width:320px; height:320px; left:-72px;  bottom:36px; transform:rotate(10deg); }
+  .bg .i4 { width:290px; height:290px; right:-66px; bottom:84px; transform:rotate(-14deg); }
+
+  .wrap { position:relative; z-index:1; height:100%;
+          display:flex; flex-direction:column; align-items:center;
+          justify-content:center; padding:34px 0 26px; box-sizing:border-box; }
+
+  .brand { font-size:22px; font-weight:800; letter-spacing:.36em; color:var(--red); }
+
+  h1 { margin:26px 0 0; font-size:76px; line-height:.96; font-weight:800;
+       text-align:center; text-transform:uppercase; }
+  h1 .hit { color:var(--red); }
+
+  /* These were muted grey and too quiet to read off a wall. The sports are
+     the reason somebody who plays football stops at all, so they are at full
+     strength now and the line under them is the next step down rather than
+     the bottom one. */
+  .sports { margin-top:22px; font-size:33px; font-weight:700; text-align:center;
+            color:var(--txt); }
+  .sports b { color:var(--red); font-weight:800; }
+  .sub { margin-top:8px; font-size:26px; font-weight:600; color:var(--muted); }
+
+  .qrbox { margin-top:24px; background:#fff; border-radius:12px; padding:18px; }
+  .qrbox svg { display:block; width:360px; height:360px; }
+
+  .scan { margin-top:22px; font-size:46px; font-weight:800; letter-spacing:.06em; }
+  .free { margin-top:4px; font-size:25px; font-weight:600; color:var(--txt); }
+
+  .fallback { margin-top:20px; width:540px; border:2px solid var(--line);
+              background:var(--panel); border-radius:10px; padding:11px 16px;
+              text-align:center; box-sizing:border-box; }
+  .fallback .u { font-size:22px; font-weight:600; color:var(--muted); }
+  .fallback .c { margin-top:2px; font-size:29px; font-weight:800; color:var(--gold);
+                 letter-spacing:.04em; }
+  .fallback .c span { color:var(--txt); font-weight:600; letter-spacing:0; font-size:22px; }
+
+  .feet { margin-top:20px; text-align:center; }
+  .feet .a { font-size:23px; font-weight:700; letter-spacing:.04em; color:var(--txt); }
+  .feet .b { margin-top:4px; font-size:20px; font-weight:600; letter-spacing:.08em;
+             color:var(--muted); }
+  .feet .c { margin-top:10px; font-size:24px; font-weight:800; color:var(--red);
+             letter-spacing:.04em; }
+</style>
+</head>
+<body class="__THEME__">
+  <div class="rule"></div>
+  <div class="bg">__BGICONS__</div>
+
+  <div class="wrap">
+    <div class="brand">IRON LEAGUE</div>
+    <h1>Where do you rank<br><span class="hit">on campus?</span></h1>
+
+    <div class="sports">Gym · Calisthenics · Running · <b>Football</b></div>
+    <div class="sub">Log it, score it, see where you land.</div>
+
+    <div class="qrbox">__QR__</div>
+
+    <div class="scan">SCAN TO JOIN</div>
+    <div class="free">Nothing to download. Free. Twenty seconds.</div>
+
+    <div class="fallback">
+      <div class="u">or open mrcsylver.github.io/Sport-app</div>
+      <div class="c"><span>and enter code</span> __CODE__</div>
+    </div>
+
+    <div class="feet">
+      <div class="a">ADD TO HOME SCREEN AND IT IS AN APP, ICON AND ALL</div>
+      <div class="b">NEW LEADERBOARD EVERY MONDAY</div>
+      __SOCIAL__
+    </div>
+  </div>
+</body>
+</html>

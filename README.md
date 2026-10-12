@@ -149,7 +149,7 @@ folder again.
   scroll down → **Add to Home Screen** → **Add**.
 - **Android (Chrome):** tap the **⋮** menu → **Add to Home screen** / **Install app**.
   Many phones also pop up an *Install* banner by themselves, and there is an
-  **ADD TO HOME SCREEN** button in the LEAGUES tab.
+  **ADD TO HOME SCREEN** button in SETTINGS → APP THEME.
 
 Once installed it opens full screen with no browser bar, and the app shell still
 loads when you have no signal (you just can't post until you're back online).
@@ -460,7 +460,7 @@ when a duel ends the tab clears itself and the result drops into *Past duels*.
 
 ### Leaving a league
 
-**LEAVE** sits under the list of leagues in the LEAGUES tab, and it names the
+**LEAVE** sits under the list of leagues in the SETTINGS tab, and it names the
 league so there is no doubt which one you are about to walk out of. Leaving
 takes nothing with it: your logs stay in every other league, and your rank
 follows the person, not the league. **An account with no league at all is
@@ -521,7 +521,7 @@ cup rather than an invented one.
 # 🧩 LEAGUES
 
 You can be in **as many leagues as you like** (you can create up to 10 of your
-own). Tap one in the LEAGUES tab to switch; each has its own leaderboard,
+own). Tap one in the SETTINGS tab to switch; each has its own leaderboard,
 history, combo bonus and duels.
 
 **You only ever log a workout once.** It is counted in *every* league you
@@ -536,7 +536,7 @@ everybody genuinely starts that league on zero.
   settings and never lowered below the people already in. Past the number
   the league holds, the database refuses the next person — so put the real
   number in before you put the code on a poster.
-- You can be in several leagues at once — tap one in the LEAGUES tab to switch.
+- You can be in several leagues at once — tap one in the SETTINGS tab to switch.
   Each league has its own separate leaderboard and history.
 - Joining mid-week is fine: you simply start that week on 0 points.
 
@@ -581,10 +581,10 @@ change `ironleague-v1` to `ironleague-v2`, then commit — that forces every pho
 pick up the new files.
 
 **A friend changed phone / cleared their browser and lost their profile**
-Every profile has a **restore code** (LEAGUES tab → MY PROFILE). On the new phone,
+Every profile has a **restore code** (SETTINGS → MY ACCOUNT). On the new phone,
 tap *"Changed phone? Restore your profile"* on the first screen and type that code.
 Tell everyone to screenshot their code once — and better, to attach their account
-to Google or to an email in Settings → ACCOUNT, which survives a lost phone with
+to Google or to an email in SETTINGS → MY ACCOUNT, which survives a lost phone with
 nothing to screenshot.
 
 **Somebody says the restore screen stopped answering them**
@@ -952,6 +952,31 @@ without opening anything: it is drawn around your emblem on every board, every
 duel and every quest. That is what makes one worth having, and it is also the
 cheapest one to draw well.
 
+## The settings tab
+
+It was called LEAGUES and held seven sections, three of which were about how
+you look and were named MY FIGHTER, MY MARK and APPEARANCE — and APPEARANCE
+was the app's light/dark theme, not yours. Your name was in one section, your
+sign-in in another and your restore code in a third, which are three parts of
+one thing.
+
+It is **SETTINGS** now, and every section is named for what is actually in it,
+in the order people reach for them:
+
+| section | what is in it |
+|---|---|
+| **MY LEAGUES** | the list, the invite link, this league's rules and crest, leave, create |
+| **HOW I LOOK** | your mark — emblem or animal — its colour, and your name colour |
+| **ARMOURY** | the shop: rings, banners, crest colours |
+| **MY ACCOUNT** | your name, Google or email sign-in, and your restore code |
+| **BODY & UNITS** | bodyweight, kilos or pounds, which figure the muscle map draws |
+| **APP THEME** | dark, light or auto, and add to home screen |
+| **HOW SCORING WORKS** | the explainer |
+
+Name, sign-in and restore code are together on purpose: they are three
+answers to "how do I get back into this account", and the restore code sits
+last because it is the fallback for the two above it.
+
 ## Tapping somebody's face
 
 Tap a **name** on the leaderboard and you get that person's week. Tap their
@@ -964,9 +989,10 @@ STATS and LEAGUES already do that between them. The thing worth seeing on a
 campus is somebody *else's*, and the only way to ask for that is to point at
 them — which costs no navigation and loses nobody their place on the table.
 
-Your own line lives in **LEAGUES → YOUR LINE**: 140 characters, everybody in
-your leagues can read it, and an empty one is stored as nothing rather than a
-blank. The control room lists every line anybody has written and can clear
+Your own line is written **on your own card** — tap your own face and the box
+is right under the line, so you write it where you read it. 140 characters,
+everybody in your leagues can read it, and an empty one is stored as nothing
+rather than a blank. The control room lists every line anybody has written and can clear
 one — a bio is the only free text here that strangers read, and deleting the
 whole account is not a proportionate answer to a rude sentence.
 
@@ -983,7 +1009,7 @@ restraint is the design.
 
 **The banner.** One line across the top: *"Attach Google so a new phone can't
 wipe this."* An anonymous account dies with its browser storage, and the
-ACCOUNT panel that fixes it sits in the LEAGUES tab behind a disclosure nobody
+MY ACCOUNT panel that fixes it sits in the SETTINGS tab behind a disclosure nobody
 opens. It appears only once a workout has actually landed — before that there
 is nothing to lose and the bar is just noise — and **not in the session that
 earned it**: the first workout gets the share prompt to itself, and the banner

@@ -535,6 +535,10 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .card-badges{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap}
 .card-badges .worn{font-size:22px;color:var(--gold)}
 .playercard .muted{margin:14px 0 0}
+.card-mine{margin-top:14px;text-align:left}
+.card-mine textarea{width:100%;resize:none;font-size:14px;line-height:1.4;
+  padding:9px 10px;box-sizing:border-box}
+.card-mine-r{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
 
 /* The one-line nudge about attaching an account. A bar, not a card: it has
    to be impossible to miss and equally impossible to resent, so it is one

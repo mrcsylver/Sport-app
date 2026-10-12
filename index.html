@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.34.0">
+  <link rel="stylesheet" href="./styles.css?v=2.35.0">
 </head>
 <body>
 
@@ -365,7 +365,7 @@
       </div>
 
       <details class="sect" open>
-        <summary><span>LEAGUES</span></summary>
+        <summary><span>MY LEAGUES</span></summary>
         <div class="sect-b">
           <h4>Invite your crew</h4>
           <p class="muted small">Send this link. They open it, pick a name, and they are in.</p>
@@ -451,18 +451,6 @@
             <p class="rulestate" id="rulesState">Every change here saves itself.</p>
           </div>
 
-          <h4>Your line</h4>
-          <p class="muted small">One line about you, on your card when somebody
-            taps your face on the board. 140 characters. Everybody in your
-            leagues can read it — so nothing here you would not say out loud
-            in the gym.</p>
-          <div class="copyrow">
-            <input id="bioInput" class="input" maxlength="140"
-                   placeholder="Third year. Chasing a one-arm.">
-            <button id="bioBtn" class="btn ghost sm" type="button">SAVE</button>
-          </div>
-          <p class="muted small" id="bioState"></p>
-
           <div id="leagueTextBox" hidden>
             <h4>League name colour</h4>
             <div id="lgNameColors" class="ncrow"></div>
@@ -493,95 +481,8 @@
           </div>
         </div>
       </details>
-
-      <details class="sect">
-        <summary><span>MY FIGHTER</span></summary>
-        <div class="sect-b">
-          <h4>Name</h4>
-          <div class="copyrow">
-            <input id="renameInput" class="input" maxlength="18">
-            <button id="renameBtn" class="btn ghost sm" type="button">RENAME</button>
-          </div>
-
-          <h4>Bodyweight</h4>
-          <p class="muted small">Used to score gym lifts. Nobody else sees it.</p>
-          <div class="copyrow">
-            <input id="bwProfile" class="input num mono" type="number" inputmode="decimal"
-                   step="0.5" min="30" max="250" placeholder="80">
-            <button id="bwSave" class="btn ghost sm" type="button">SAVE</button>
-          </div>
-
-          <h4>Name colour</h4>
-          <p class="muted small">So a banner never swallows your name.</p>
-          <div id="nameColors" class="ncrow"></div>
-
-          <h4>Weight units</h4>
-          <div class="segmented" id="unitRow">
-            <button type="button" data-units="kg">KILOS</button>
-            <button type="button" data-units="lb">POUNDS</button>
-          </div>
-
-          <h4>Muscle figure</h4>
-          <p class="muted small">Which body the figure in MY RANK is drawn as. It
-            changes the drawing and nothing else — same regions, same targets, same
-            score.</p>
-          <div class="segmented" id="formRow">
-            <button type="button" data-form="masc">MALE</button>
-            <button type="button" data-form="fem">FEMALE</button>
-          </div>
-
-          <h4>Restore code</h4>
-          <p class="muted small" id="restoreWhy">Write it down. It moves your
-            profile to a new phone.</p>
-          <div class="codebox mono" id="restoreCode">--------</div>
-        </div>
-      </details>
-
-      <!-- Signing in. An anonymous account dies with this browser's storage,
-           so this section exists to get people off one — without ever making
-           it a wall at the front door. -->
-      <details class="sect" id="sectAccount">
-        <summary><span>ACCOUNT</span><span class="tag-soon" id="acctTag">—</span></summary>
-        <div class="sect-b">
-          <p class="muted small" id="acctState"></p>
-
-          <div id="acctLink">
-            <h4>Make it permanent</h4>
-            <p class="muted small" id="acctWhy">Right now this account only
-              exists in this browser. Clear your data or lose the phone and it
-              is gone. Attaching a sign-in keeps everything — your rank, your
-              crowns, every workout — and nothing moves.</p>
-
-            <button id="googleBtn" class="btn primary" type="button" hidden>
-              CONTINUE WITH GOOGLE</button>
-
-            <div id="emailWrap">
-              <label class="lbl" for="acctEmail">EMAIL</label>
-              <input id="acctEmail" class="input" type="email" inputmode="email"
-                     autocomplete="email" placeholder="you@example.com"
-                     autocapitalize="none" spellcheck="false">
-              <label class="lbl" for="acctPass">PASSWORD</label>
-              <input id="acctPass" class="input" type="password"
-                     autocomplete="new-password" placeholder="8 characters or more">
-              <button id="emailBtn" class="btn ghost" type="button">SAVE EMAIL &amp; PASSWORD</button>
-              <p class="muted small" id="emailCaveat">We do not send a confirmation,
-                so a typo here is permanent and there is no password reset.
-                Check it, and keep your restore code either way.</p>
-            </div>
-          </div>
-
-          <div id="acctDone" hidden>
-            <h4>Signed in</h4>
-            <p class="muted small" id="acctWho"></p>
-            <button id="signOutBtn" class="btn ghost" type="button">SIGN OUT</button>
-          </div>
-
-          <p id="acctErr" class="err"></p>
-        </div>
-      </details>
-
       <details class="sect" id="sectEmblem">
-        <summary><span>MY MARK</span></summary>
+        <summary><span>HOW I LOOK</span></summary>
         <div class="sect-b">
           <div class="av-preview"><span id="avPreview"></span>
             <p class="muted small">One mark, an emblem or an animal — not both.</p></div>
@@ -605,21 +506,12 @@
 
           <button id="avatarClear" class="btn ghost sm" type="button"
                   style="width:100%;margin-top:14px">NO MARK</button>
+
+          <h4>Name colour</h4>
+          <p class="muted small">So a banner never swallows your name.</p>
+          <div id="nameColors" class="ncrow"></div>
         </div>
       </details>
-
-      <details class="sect">
-        <summary><span>APPEARANCE</span></summary>
-        <div class="sect-b">
-          <div class="segmented" id="themeRow">
-            <button type="button" data-theme="dark">DARK</button>
-            <button type="button" data-theme="light">LIGHT</button>
-            <button type="button" data-theme="auto">AUTO</button>
-          </div>
-          <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
-        </div>
-      </details>
-
       <details class="sect" id="sectShop">
         <summary><span>ARMOURY</span><span class="tag-soon" id="shopTag">ALL FREE</span></summary>
         <div class="sect-b">
@@ -670,7 +562,99 @@
           </div>
         </div>
       </details>
+      <!-- Signing in. An anonymous account dies with this browser's storage,
+           so this section exists to get people off one — without ever making
+           it a wall at the front door. -->
+      <details class="sect" id="sectAccount">
+        <summary><span>MY ACCOUNT</span><span class="tag-soon" id="acctTag">—</span></summary>
+        <div class="sect-b">
+          <h4>Name</h4>
+          <div class="copyrow">
+            <input id="renameInput" class="input" maxlength="18">
+            <button id="renameBtn" class="btn ghost sm" type="button">RENAME</button>
+          </div>
 
+          <p class="muted small" id="acctState"></p>
+
+          <div id="acctLink">
+            <h4>Make it permanent</h4>
+            <p class="muted small" id="acctWhy">Right now this account only
+              exists in this browser. Clear your data or lose the phone and it
+              is gone. Attaching a sign-in keeps everything — your rank, your
+              crowns, every workout — and nothing moves.</p>
+
+            <button id="googleBtn" class="btn primary" type="button" hidden>
+              CONTINUE WITH GOOGLE</button>
+
+            <div id="emailWrap">
+              <label class="lbl" for="acctEmail">EMAIL</label>
+              <input id="acctEmail" class="input" type="email" inputmode="email"
+                     autocomplete="email" placeholder="you@example.com"
+                     autocapitalize="none" spellcheck="false">
+              <label class="lbl" for="acctPass">PASSWORD</label>
+              <input id="acctPass" class="input" type="password"
+                     autocomplete="new-password" placeholder="8 characters or more">
+              <button id="emailBtn" class="btn ghost" type="button">SAVE EMAIL &amp; PASSWORD</button>
+              <p class="muted small" id="emailCaveat">We do not send a confirmation,
+                so a typo here is permanent and there is no password reset.
+                Check it, and keep your restore code either way.</p>
+            </div>
+          </div>
+
+          <div id="acctDone" hidden>
+            <h4>Signed in</h4>
+            <p class="muted small" id="acctWho"></p>
+            <button id="signOutBtn" class="btn ghost" type="button">SIGN OUT</button>
+          </div>
+
+          <p id="acctErr" class="err"></p>
+
+          <h4>Restore code</h4>
+          <p class="muted small" id="restoreWhy">The way back in if you have not
+            attached Google or an email. Write it down — it moves your profile to
+            a new phone, and it is the only thing that does.</p>
+          <div class="codebox mono" id="restoreCode">--------</div>
+        </div>
+      </details>
+      <details class="sect">
+        <summary><span>BODY &amp; UNITS</span></summary>
+        <div class="sect-b">
+          <h4>Bodyweight</h4>
+          <p class="muted small">Used to score gym lifts. Nobody else sees it.</p>
+          <div class="copyrow">
+            <input id="bwProfile" class="input num mono" type="number" inputmode="decimal"
+                   step="0.5" min="30" max="250" placeholder="80">
+            <button id="bwSave" class="btn ghost sm" type="button">SAVE</button>
+          </div>
+
+          <h4>Weight units</h4>
+          <div class="segmented" id="unitRow">
+            <button type="button" data-units="kg">KILOS</button>
+            <button type="button" data-units="lb">POUNDS</button>
+          </div>
+
+          <h4>Muscle figure</h4>
+          <p class="muted small">Which body the figure in MY RANK is drawn as. It
+            changes the drawing and nothing else — same regions, same targets, same
+            score.</p>
+          <div class="segmented" id="formRow">
+            <button type="button" data-form="masc">MALE</button>
+            <button type="button" data-form="fem">FEMALE</button>
+          </div>
+
+        </div>
+      </details>
+      <details class="sect">
+        <summary><span>APP THEME</span></summary>
+        <div class="sect-b">
+          <div class="segmented" id="themeRow">
+            <button type="button" data-theme="dark">DARK</button>
+            <button type="button" data-theme="light">LIGHT</button>
+            <button type="button" data-theme="auto">AUTO</button>
+          </div>
+          <button id="installBtn" class="btn ghost" type="button" hidden>ADD TO HOME SCREEN</button>
+        </div>
+      </details>
       <details class="sect">
         <summary><span>HOW SCORING WORKS</span></summary>
         <div class="sect-b">
@@ -703,7 +687,7 @@
     <button class="tab" data-view="stats" type="button">
       <span class="tab-i">◆</span>STATS</button>
     <button class="tab" data-view="me" type="button">
-      <span class="tab-i">☰</span>LEAGUES</button>
+      <span class="tab-i">⚙</span>SETTINGS</button>
   </nav>
 </div>
 
@@ -813,6 +797,17 @@
       <span class="card-ptsl">LIFETIME POINTS</span>
     </div>
     <p id="cardBio" class="card-bio" hidden></p>
+    <!-- Only on your own card. The line is about you, so the place to write
+         it is the place you see it -- not a box three screens away whose
+         result you then have to go and look at. -->
+    <div id="cardMine" class="card-mine" hidden>
+      <textarea id="cardBioEdit" class="input" maxlength="140" rows="2"
+                placeholder="Say something. Third year, chasing a one-arm…"></textarea>
+      <div class="card-mine-r">
+        <span class="muted small mono" id="cardBioLeft">140</span>
+        <button id="cardBioSave" class="btn ghost sm" type="button">SAVE</button>
+      </div>
+    </div>
     <div id="cardBadges" class="card-badges"></div>
     <p id="cardSince" class="muted small"></p>
   </div>
@@ -837,9 +832,9 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.34.0"></script>
-<script src="./vendor/game-icons.js?v=2.34.0"></script>
-<script src="./captcha.js?v=2.34.0"></script>
-<script src="./app.js?v=2.34.0"></script>
+<script src="./vendor/supabase.js?v=2.35.0"></script>
+<script src="./vendor/game-icons.js?v=2.35.0"></script>
+<script src="./captcha.js?v=2.35.0"></script>
+<script src="./app.js?v=2.35.0"></script>
 </body>
 </html>

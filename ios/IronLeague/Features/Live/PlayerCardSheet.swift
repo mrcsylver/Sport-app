@@ -17,6 +17,10 @@ struct PlayerCardSheet: View {
 
     @State private var card: PlayerCard?
     @State private var missing = false
+    @State private var draft = ""
+    @State private var saving = false
+
+    private var isMine: Bool { card?.profileId == session.profile?.id }
 
     private var grade: Grade? { card.map { Grade.reached($0.lifetime) } ?? nil }
 
@@ -45,6 +49,7 @@ struct PlayerCardSheet: View {
             do {
                 card = try await API.shared.playerCard(profileId)
                 missing = card == nil
+                draft = card?.bio ?? ""
             } catch {
                 missing = true
             }
@@ -82,7 +87,42 @@ struct PlayerCardSheet: View {
             .overlay(alignment: .bottom) { Divider().background(Theme.hairline) }
             .padding(.top, 8)
 
-            if let bio = c.bio, !bio.isEmpty {
+            if isMine {
+                /// The line is about you, so the place to write it is the
+                /// place you see it — not a sheet three taps away whose
+                /// result you then have to come back here to look at.
+                VStack(spacing: 8) {
+                    TextField("Say something. Third year, chasing a one-arm…",
+                              text: $draft, axis: .vertical)
+                        .font(.callout)
+                        .foregroundStyle(Theme.ink)
+                        .lineLimit(1...3)
+                        .padding(.vertical, 9).padding(.horizontal, 11)
+                        .background(RoundedRectangle(cornerRadius: 9).fill(Theme.raised))
+                        .onChange(of: draft) { _, new in
+                            if new.count > 140 { draft = String(new.prefix(140)) }
+                        }
+                    HStack {
+                        Text("\(140 - draft.count) left")
+                            .font(Theme.mono(11, .bold))
+                            .foregroundStyle(Theme.inkFaint)
+                        Spacer()
+                        Button(saving ? "…" : "SAVE") {
+                            saving = true
+                            Task {
+                                await session.saveBio(draft)
+                                card = try? await API.shared.playerCard(profileId)
+                                saving = false
+                            }
+                        }
+                        .font(Theme.display(13, .black))
+                        .foregroundStyle(Theme.flame)
+                        .disabled(saving)
+                    }
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 6)
+            } else if let bio = c.bio, !bio.isEmpty {
                 Text(bio)
                     .font(.callout)
                     .foregroundStyle(Theme.ink)

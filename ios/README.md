@@ -84,7 +84,9 @@ small enough that one source of truth beats five coordinated ones.
 `PlayerCardSheet` is what a tap on somebody's face opens — a tap on their
 name still opens their week. The face is a `.highPriorityGesture` rather
 than a nested `Button`, because a button inside a button is a fight over
-which one a tap belongs to.
+which one a tap belongs to. On **your own** card the line is editable in
+place, and that is the only place it is editable: it is about you, so the
+place to write it is the place you read it.
 
 One deliberate exception to the first rule, in `Core/Captcha.swift`: the robot
 check in front of anonymous sign-in. Turnstile is a browser widget, and
