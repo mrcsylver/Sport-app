@@ -1,0 +1,57 @@
+Copyright (c) 2026 mrcsylver. All rights reserved.
+
+IRON LEAGUE
+===========
+
+This repository is public so that it can be read, and so that GitHub Pages
+can serve the app from it. Public is not the same as free to take.
+
+No permission is granted to copy, modify, distribute, publish, sublicense,
+sell, or run this software, in whole or in part, for any purpose. You may
+read it, and you may link to it. That is all, unless the copyright holder
+agrees otherwise in writing.
+
+Being able to read something is not permission to use it. A web app is sent
+to the browser of everybody who opens it — that is how the web works, and it
+has never been a grant of rights over what was sent.
+
+To ask for permission, open an issue on the repository.
+
+
+THE PARTS THAT ARE NOT MINE
+---------------------------
+
+The notice above covers the work in this repository that is mine. Several
+things here were made by other people, are included under their own terms,
+and those terms are what govern them — not this file. Nothing here takes
+away a right somebody else granted you.
+
+  vendor/game-icons.js   Artwork from game-icons.net, CC BY 3.0.
+                         https://creativecommons.org/licenses/by/3.0/
+                         Attribution is required, and is in the README.
+
+  vendor/body/           The SVG anatomy from react-native-body-highlighter,
+                         MIT, (c) 2022 ELABBASSI Hicham. The full licence is
+                         in vendor/body/LICENSE.
+
+  vendor/supabase.js     supabase-js, MIT, (c) Supabase.
+
+  fonts/                 Barlow Condensed, SIL Open Font License 1.1.
+                         https://openfontlicense.org
+
+If you want a piece of this repository that is one of those, take it from its
+source under its own licence rather than from here.
+
+
+NO WARRANTY
+-----------
+
+This software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and noninfringement. In no event shall the
+copyright holder be liable for any claim, damages or other liability, whether
+in an action of contract, tort or otherwise, arising from, out of or in
+connection with the software or the use or other dealings in the software.
+
+It keeps a leaderboard. It is not a medical device and it gives no training
+or medical advice. Train at your own risk.

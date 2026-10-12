@@ -763,6 +763,16 @@ Emblem and crest artwork from [game-icons.net](https://game-icons.net),
 used under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 Typeface: Barlow Condensed (SIL Open Font License).
 
+## Licence
+
+Copyright © 2026 mrcsylver. All rights reserved — see [LICENSE](LICENSE).
+
+This repository is public because GitHub Pages serves the app out of it, and
+because code worth reading should be readable. Public is not free to take:
+nothing here is licensed for reuse. The vendored parts in `vendor/` and
+`fonts/` are other people's work under their own licences, and LICENSE lists
+each one — those terms govern them, not this notice.
+
 ## Divisions
 
 Once a league has ten people the board splits into places, not numbered tiers.
