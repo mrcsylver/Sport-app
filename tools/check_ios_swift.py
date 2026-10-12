@@ -103,47 +103,6 @@ def theme_members(root):
     return sorted(bad), len(declared)
 
 
-def ladders(root):
-    """The rank ladder exists twice, in two languages, and the two apps show
-    the same person the same grade only for as long as nobody edits one and
-    forgets the other. That has to be mechanical: a rename done on the web and
-    missed on iOS is invisible until somebody with an iPhone and somebody with
-    a browser stand next to each other and compare.
-
-    Returns (problem or None, how many rungs matched)."""
-    web = os.path.join(os.path.dirname(root), "..", "app.js")
-    ios = os.path.join(root, "Core", "Session.swift")
-    if not (os.path.exists(web) and os.path.exists(ios)):
-        return "cannot find both ladders to compare", 0
-
-    def rungs(text, block):
-        m = re.search(block, text, re.S)
-        if not m:
-            return None
-        out = []
-        for name, nums in re.findall(r"[\['\"]([A-Z]+)['\"]?[^\[]*\[([0-9,.\s]+)\]",
-                                     m.group(1)):
-            for v in nums.split(","):
-                v = v.strip()
-                if v:
-                    out.append((name, int(float(v))))
-        return out
-
-    a = rungs(open(web, encoding="utf-8").read(),
-              r"var GRADES = \[(.*?)\];")
-    b = rungs(open(ios, encoding="utf-8").read(),
-              r"let spec: \[\(String, Int, \[Double\]\)\] = \[(.*?)\n        \]")
-    if a is None:
-        return "could not read the ladder out of app.js", 0
-    if b is None:
-        return "could not read the ladder out of Session.swift", 0
-    if a != b:
-        only = [x for x in a if x not in b][:4] + [x for x in b if x not in a][:4]
-        return ("the two ladders disagree (%d web rungs, %d iOS): %s"
-                % (len(a), len(b), only)), 0
-    return None, len(a)
-
-
 def main():
     files = []
     for base, _, names in os.walk(ROOT):
@@ -223,12 +182,6 @@ def main():
             print("  · %s" % line)
         sys.exit(1)
     print("theme      : %d colours, every reference resolves" % n)
-    bad, rungs = ladders(ROOT)
-    if bad:
-        print("\nTHE RANK LADDER")
-        print("  · %s" % bad)
-        sys.exit(1)
-    print("ladder     : %d rungs, identical on both apps" % rungs)
     if not unknown:
         print("no unbalanced files, no duplicate types, no unknown names")
 

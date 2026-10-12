@@ -108,7 +108,7 @@ struct StatsView: View {
                             .font(.caption).foregroundStyle(Theme.inkMuted)
                     }
                 } else {
-                    Text("LEGEND VII. There is nothing above this.")
+                    Text("ETERNAL. There is nothing above this.")
                         .font(.caption.weight(.semibold)).foregroundStyle(Theme.jade)
                 }
             }

@@ -662,32 +662,20 @@ struct Grade: Identifiable {
     var id: String { name }
 
     static let ladder: [Grade] = {
-        // Letters, not invented words. It used to run SPARK, ROOKIE, REGULAR,
-        // GRINDER, MACHINE, BEAST, WARLORD, TITAN, IMMORTAL, ASCENDANT,
-        // ETERNAL — eleven names each of which had to be learned before it
-        // meant anything, and nobody could say whether a WARLORD outranked a
-        // TITAN. E through S needs no teaching, and LEGEND sits where there
-        // is no letter left.
-        //
-        // EVERY THRESHOLD IS THE ONE IT WAS: 25 steps before, 25 now, at the
-        // same numbers. This renamed the rungs, it did not move them.
-        //
         // 300,000 at the top, not 50,000 — the league's best player reached
         // the old ceiling in eleven months, and a lifetime ladder you finish
-        // inside a year has nothing at the top of it. LEGEND is seven rungs
-        // against everybody else's three, because it is the only part of the
-        // ladder somebody can live in for years. Must match MILESTONES in
-        // app.js.
+        // inside a year has nothing at the top of it. Same grades, same
+        // numerals, same 25-40% step; six times the scale. Must match
+        // MILESTONES in app.js.
         let spec: [(String, Int, [Double])] = [
-            ("E", 0, [100, 250, 500]),
-            ("D", 1, [900, 1400, 2000]),
-            ("C", 2, [2800, 3800, 5200]),
-            ("B", 3, [7000, 9500, 12500]),
-            ("A", 4, [16500, 21500, 28000]),
-            ("S", 5, [36000, 46000, 58000]),
-            ("LEGEND", 6, [74000, 93000, 117000, 147000, 184000, 230000, 300000])
+            ("SPARK", 0, [100]), ("ROOKIE", 0, [250]), ("REGULAR", 1, [500]),
+            ("GRINDER", 1, [900, 1400, 2000]), ("MACHINE", 2, [2800, 3800, 5200]),
+            ("BEAST", 2, [7000, 9500, 12500]), ("WARLORD", 3, [16500, 21500, 28000]),
+            ("TITAN", 3, [36000, 46000, 58000]),
+            ("IMMORTAL", 4, [74000, 93000, 117000]),
+            ("ASCENDANT", 4, [147000, 184000, 230000]), ("ETERNAL", 5, [300000])
         ]
-        let roman = ["I", "II", "III", "IV", "V", "VI", "VII"]
+        let roman = ["I", "II", "III"]
         return spec.flatMap { name, tier, marks in
             marks.enumerated().map { i, at in
                 Grade(at: at, name: marks.count > 1 ? "\(name) \(roman[i])" : name, tier: tier)
@@ -701,17 +689,14 @@ struct Grade: Identifiable {
     static func next(_ lifetime: Double) -> Grade? {
         ladder.first { lifetime < $0.at }
     }
-    /// Seven letters, seven colours, in the order every game has taught people
-    /// to read. Must match .rank-i … .rank-vii in styles.css.
     static func color(tier: Int) -> Color {
         switch tier {
-        case 0: return Theme.inkFaint   // E
-        case 1: return Theme.jade       // D
-        case 2: return Theme.azure      // C
-        case 3: return Theme.violet     // B
-        case 4: return Theme.gold       // A
-        case 5: return Theme.flame      // S
-        default: return Theme.platinum  // LEGEND
+        case 0: return Theme.inkFaint
+        case 1: return Theme.azure
+        case 2: return Theme.violet
+        case 3: return Theme.gold
+        case 4: return Theme.flame
+        default: return Theme.jade
         }
     }
 }

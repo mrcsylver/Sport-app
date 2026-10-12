@@ -623,18 +623,14 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 /* A thin metal edge, not a block of colour: the row stays a row. */
 .row.bnr{position:relative;box-shadow:inset 3px 0 0 0 var(--bnr,transparent)}
 .bnr-i{--bnr:#5b6472}
-.bnr-ii{--bnr:#26d07c}
-.bnr-iii{--bnr:#3ba6ff}
-.bnr-iv{--bnr:#a86bff}
-.bnr-v{--bnr:var(--gold)}
-.bnr-vi{--bnr:linear-gradient(180deg,var(--red),var(--gold))}
-/* Nothing above this, so it is the only one that is not one colour. */
-.bnr-vii{--bnr:linear-gradient(180deg,#ffffff,#9fb3d9)}
+.bnr-ii{--bnr:#3ba6ff}
+.bnr-iii{--bnr:#a86bff}
+.bnr-iv{--bnr:var(--gold)}
+.bnr-v{--bnr:linear-gradient(180deg,var(--red),var(--gold))}
 .rankchip{font:800 10px/1 var(--display);letter-spacing:.06em;
   padding:2px 5px;border-radius:3px;background:var(--panel-2);color:var(--muted)}
-.rank-i{color:#5b6472}.rank-ii{color:#26d07c}.rank-iii{color:#3ba6ff}
-.rank-iv{color:#a86bff}.rank-v{color:var(--gold)}.rank-vi{color:var(--red)}
-.rank-vii{color:#e9edf5}
+.rank-ii{color:#3ba6ff}.rank-iii{color:#a86bff}
+.rank-iv{color:var(--gold)}.rank-v{color:var(--red)}
 
 /* =====================================================================
    Exercise picker: a search box beats a 100-item dropdown on a phone
@@ -756,13 +752,9 @@ button.exl-h{width:100%;border:0;cursor:pointer;gap:9px}
 .ms-id{display:flex;flex-direction:column;gap:3px;min-width:0}
 .ms-id b{font:800 24px/1 var(--display);letter-spacing:.04em;color:var(--rk,var(--txt))}
 .ms-id i{font:600 12px/1 var(--sans);font-style:normal;color:var(--muted)}
-/* Seven letters, seven colours, in the order every game has taught people to
-   read: grey, green, blue, purple, gold, red, and above red a cold platinum
-   that is not a colour at all. The ramp used to stop at six because the names
-   did; LEGEND needed somewhere above S to live. */
-.rank-i{--rk:#5b6472}.rank-ii{--rk:#26d07c}.rank-iii{--rk:#3ba6ff}
-.rank-iv{--rk:#a86bff}.rank-v{--rk:var(--gold)}.rank-vi{--rk:var(--red)}
-.rank-vii{--rk:#e9edf5}
+.rank-i{--rk:#5b6472}.rank-ii{--rk:#3ba6ff}.rank-iii{--rk:#a86bff}
+.rank-iv{--rk:var(--gold)}.rank-v{--rk:var(--red)}
+.rank-vi{--rk:#26d07c}
 .ms-bar{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden;margin:12px 0 7px}
 .ms-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--gold))}
 p.ms-next{margin:0 0 14px;font:600 12px/1 var(--sans);color:var(--muted)}

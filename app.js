@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.37.0';
+  var APP_VERSION = '2.36.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -318,43 +318,39 @@
   /* Below this many people a division is just the table with headings in it. */
   var TIER_MINIMUM = 10;
 
-  /* The rank ladder, all the way to 300,000 lifetime points. Letter grades
-     with numerals inside them, so there is always a next step close enough to
-     want. `tier` is the banner colour a grade flies on the board.
+  /* The rank ladder, all the way to 300,000 lifetime points. Named grades with
+     numerals inside them, so there is always a next step close enough to want.
+     `tier` is the banner colour a grade flies on the board.
 
-     LETTERS RATHER THAN NAMES. It used to run SPARK, ROOKIE, REGULAR,
-     GRINDER, MACHINE, BEAST, WARLORD, TITAN, IMMORTAL, ASCENDANT, ETERNAL.
-     Eleven invented words that each had to be learned before any of them
-     meant anything, and no two people agreed whether a WARLORD outranked a
-     TITAN. E through S is a ladder nobody has to be taught: everyone who has
-     touched a game or a report card already knows that D beats E and that S
-     is above A. LEGEND sits above S, where there is no letter left.
+     It used to top out at 50,000, which the league's best player reached in
+     ELEVEN MONTHS — a lifetime ladder you finish in under a year is a ladder
+     with nothing at the top of it. Measured on real data, that player scores
+     1,082 points a week, so the ceiling is six times higher now:
 
-     EVERY THRESHOLD IS THE ONE IT WAS. Twenty-five steps before, twenty-five
-     now, at exactly the same numbers — this renames the rungs, it does not
-     move them, so nobody woke up demoted. The mapping is three steps per
-     letter, which is why the old eleven names collapse into seven cleanly.
+         ETERNAL at 300,000   5.5 years at 1,082 a week  (the league's best)
+                              8.6 years at   700 a week  (strong, not top)
+                             never, really, at 400
 
-     300,000 at the top, not 50,000: the league's best reached the old ceiling
-     in ELEVEN MONTHS, and a lifetime ladder you finish inside a year has
-     nothing at the top of it. At 1,082 points a week — measured, not guessed
-     — LEGEND VII is 5.5 years away. Each step is still 25-40% above the one
-     below it, so the next rung is always close enough to want.
-
-     LEGEND IS DELIBERATELY LONG, seven rungs against everybody else's three.
-     It is the only part of the ladder somebody can live in for years, so it
-     is the only part that needs somewhere to keep going. */
+     The grades, their numerals and the shape of the climb are untouched — each
+     step is still 25-40% above the one below it, so the next rung is always
+     close enough to want. Only the scale moved. SPARK is still the first
+     session and GRINDER is still the first fortnight; it is the far end that
+     has somewhere to go now. */
   var MILESTONES = (function () {
     var GRADES = [
-      ['E',      'i',   [100, 250, 500]],
-      ['D',      'ii',  [900, 1400, 2000]],
-      ['C',      'iii', [2800, 3800, 5200]],
-      ['B',      'iv',  [7000, 9500, 12500]],
-      ['A',      'v',   [16500, 21500, 28000]],
-      ['S',      'vi',  [36000, 46000, 58000]],
-      ['LEGEND', 'vii', [74000, 93000, 117000, 147000, 184000, 230000, 300000]]
+      ['SPARK',     'i',   [100]],
+      ['ROOKIE',    'i',   [250]],
+      ['REGULAR',   'ii',  [500]],
+      ['GRINDER',   'ii',  [900, 1400, 2000]],
+      ['MACHINE',   'iii', [2800, 3800, 5200]],
+      ['BEAST',     'iii', [7000, 9500, 12500]],
+      ['WARLORD',   'iv',  [16500, 21500, 28000]],
+      ['TITAN',     'iv',  [36000, 46000, 58000]],
+      ['IMMORTAL',  'v',   [74000, 93000, 117000]],
+      ['ASCENDANT', 'v',   [147000, 184000, 230000]],
+      ['ETERNAL',   'vi',  [300000]]
     ];
-    var ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'], out = [];
+    var ROMAN = ['I', 'II', 'III'], out = [];
     GRADES.forEach(function (g) {
       g[2].forEach(function (at, i) {
         out.push({
