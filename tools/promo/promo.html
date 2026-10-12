@@ -73,8 +73,9 @@
   .nm { flex:1; font-size:21px; font-weight:700; min-width:0;
         overflow:hidden; white-space:nowrap; }
   .pt { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; }
-  .gr { font-size:12px; font-weight:800; letter-spacing:.07em;
-        padding:2px 5px; border-radius:3px; background:var(--panel2); }
+  .gr { font-size:11px; font-weight:800; letter-spacing:.05em; white-space:nowrap;
+        padding:2px 5px; border-radius:3px; background:var(--panel2);
+        color:var(--muted); }
 
   .hdr { font-size:14px; font-weight:800; letter-spacing:.17em;
          color:var(--muted); margin:0 0 10px 2px; }
@@ -177,14 +178,14 @@
 
   <!-- 4. leagues -->
   <div class="scene" id="s4">
-    <div class="mid cap" style="top:150px">Start your own league<small>Your team, your floor, your friends</small></div>
-    <div class="mid" style="top:380px">
+    <div class="mid cap" style="top:200px">Start your own league<small>Your team, your floor, your friends</small></div>
+    <div class="mid" style="top:400px">
       <div class="tile hot"><b>THE GYM CREW</b><i>18 fighters · you are 3rd</i>
         <div class="bar" style="margin-top:11px"><span style="width:72%"></span></div></div>
       <div class="tile"><b>FLOOR 4</b><i>9 fighters · you are 1st</i>
         <div class="bar" style="margin-top:11px"><span style="width:96%"></span></div></div>
     </div>
-    <div class="mid cap" style="top:620px">Be in as many as you want<small>One workout counts in all of them</small></div>
+    <div class="mid cap" style="top:600px">Be in as many as you want<small>One workout counts in all of them</small></div>
   </div>
 
   <!-- 5. who is that -->
@@ -193,7 +194,7 @@
     <div class="card" id="pc" style="top:330px">
       <div class="cav">__I_MUSCLE__</div>
       <div class="cn">MAXIME</div>
-      <div class="cg">C II</div>
+      <div class="cg">GRINDER III</div>
       <div class="cl" id="cl">4,116</div>
       <div class="cls">LIFETIME POINTS</div>
       <div class="cb">"back day is every day"</div>
@@ -238,10 +239,16 @@ function band(t, a, b) {
 }
 function px(el, prop, v) { el.style[prop] = v + 'px'; }
 
+/* The chip beside a name is the LIFETIME grade — SPARK through ETERNAL,
+   which follows the person between leagues. It is not the division: the
+   division is where you sit on THIS board this week, and that is the header
+   above the rows. Showing a division letter down here would teach a new
+   player the wrong thing about both. */
 var BOARD = [
-  ['BEN',    412, 'C I'],  ['SOFIA',  388, 'C I'],  ['OMAR',   355, 'B III'],
-  ['YOU',    402, 'C II'], ['LEILA',  301, 'B III'],['TOM',    268, 'B II'],
-  ['AMIN',   244, 'B II']
+  ['BEN',    412, 'GRINDER II'], ['SOFIA',  388, 'GRINDER I'],
+  ['OMAR',   355, 'REGULAR'],    ['YOU',    402, 'GRINDER I'],
+  ['LEILA',  301, 'REGULAR'],    ['TOM',    268, 'ROOKIE'],
+  ['AMIN',   244, 'ROOKIE']
 ];
 
 /* The board is built once; only its order and numbers move. */

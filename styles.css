@@ -1313,3 +1313,29 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .rulestate{margin:10px 0 0;font:400 10px/1.4 var(--mono);color:var(--green)}
 .rulestate.bad{color:var(--red)}
 .bshade{pointer-events:none}
+
+/* =====================================================================
+   The 25-second explainer
+
+   Shown once to a new account, and reachable forever from SETTINGS. It is
+   SILENT and it is skippable from the first frame: somebody who just scanned
+   a poster in a corridor did not come for a film, and a video they cannot
+   get out of is a video they close the tab on.
+
+   object-fit:contain rather than cover, because the clip is 9:16 and a
+   landscape phone or a desktop would otherwise crop the captions off — and
+   the captions are the whole point of a silent clip.
+   ===================================================================== */
+.promopop{position:fixed;inset:0;z-index:80;background:#000;
+  display:flex;align-items:center;justify-content:center}
+.promovid{width:100%;height:100%;object-fit:contain;background:#000}
+.promoskip{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.3);
+  color:#fff;border-radius:999px;padding:9px 16px;
+  font:800 12px/1 var(--display);letter-spacing:.14em;cursor:pointer;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.promoskip:active{background:rgba(0,0,0,.8)}
+.promofoot{position:absolute;left:0;right:0;
+  bottom:calc(22px + env(safe-area-inset-bottom,0px));
+  padding:0 22px;text-align:center}
+.promofoot .btn{width:100%;max-width:420px}

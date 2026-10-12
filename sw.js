@@ -8,8 +8,8 @@
    with exactly the same stale bytes. Two things fix it — every shell request
    is made with cache:'reload' so the http cache cannot answer, and the assets
    carry ?v= so a new release is a different URL that nothing has cached. */
-var VERSION = '2.38.0';
-var CACHE = 'ironleague-v2.38.0';
+var VERSION = '2.39.0';
+var CACHE = 'ironleague-v2.39.0';
 var SHELL = [
   './', './index.html',
   './styles.css?v=' + VERSION, './app.js?v=' + VERSION,
@@ -65,6 +65,15 @@ self.addEventListener('fetch', function (e) {
     );
     return;
   }
+
+  /* The explainer is left entirely alone. A <video> fetches by RANGE, the
+     server answers 206, and the Cache API does not store a 206 — but it DOES
+     answer a later ranged request with the whole cached 200 if one ever got
+     in, which is exactly the shape Safari refuses to play. Rather than reason
+     about which browser asks for what, the worker does not get involved: it
+     is 0.6 MB, fetched at most once per person, and correctness beats saving
+     one request. */
+  if (/\.(mp4|webm|mov)$/i.test(url.pathname)) return;
 
   if (req.mode === 'navigate') {
     e.respondWith(

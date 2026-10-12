@@ -116,6 +116,8 @@ def main():
         os.remove(tmp)
 
     mp4 = os.path.join(OUT, "iron-league-25s.mp4")
+    webm = os.path.join(OUT, "iron-league-25s.webm")
+    poster = os.path.join(OUT, "iron-league-25s.jpg")
     # yuv420p and the even-dimension filter are what make this play on phones
     # at all; without them Safari and half of Android show a black rectangle.
     # faststart puts the index at the front so it begins before it has fully
@@ -128,11 +130,33 @@ def main():
         "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
         "-an", mp4], check=True)
 
+    # WebM/VP9 beside it. H.264 is what Safari and every iPhone want, and it
+    # is the one that must exist; VP9 is for the browsers built without
+    # proprietary codecs — among them the Chromium this project tests in,
+    # which cannot decode H.264 at all and so could never have proved the
+    # clip plays. Two small files beat one that half the world can only show
+    # as a black rectangle.
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-framerate", str(args.fps), "-i", os.path.join(FRAMES, "f%05d.png"),
+        "-c:v", "libvpx-vp9", "-crf", "36", "-b:v", "0",
+        "-pix_fmt", "yuv420p", "-row-mt", "1", "-deadline", "good",
+        "-an", webm], check=True)
+
+    # The first frame as a poster, so the pause before playback is the clip's
+    # own opening rather than a black rectangle or, worse, the app icon
+    # stretched across a phone.
+    subprocess.run([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", os.path.join(FRAMES, "f00000.png"),
+        "-q:v", "4", poster], check=True)
+
     if not args.keep_frames:
         shutil.rmtree(FRAMES, ignore_errors=True)
 
-    size = os.path.getsize(mp4)
-    print("wrote %s  (%.1f MB)" % (os.path.relpath(mp4, ROOT), size / 1e6))
+    for f in (mp4, webm, poster):
+        print("wrote %s  (%.2f MB)"
+              % (os.path.relpath(f, ROOT), os.path.getsize(f) / 1e6))
 
 
 if __name__ == "__main__":

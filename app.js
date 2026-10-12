@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.38.0';
+  var APP_VERSION = '2.39.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1030,7 +1030,11 @@
        something worth keeping and something worth showing. */
     logged: 'ironleague.logged',
     nudgeOff: 'ironleague.nudge.off',
-    sharePrompted: 'ironleague.share.asked'
+    sharePrompted: 'ironleague.share.asked',
+    /* Set the first time the explainer is shown OR skipped. Skipping counts:
+       somebody who pressed SKIP has told us they do not want it, and showing
+       it again tomorrow would be arguing with them. */
+    promoSeen: 'ironleague.promo.seen'
   };
   function flag(k) { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } }
   function setFlag(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
@@ -1506,6 +1510,9 @@
       state.pendingCode = null;
       localStorage.setItem(LS.league, state.leagueId);
       await enterApp();
+      /* They are in. NOW the explainer, and only for somebody who has never
+         seen it — a restored account on a new phone is not a new player. */
+      if (!flag(LS.promoSeen)) openPromo();
     } catch (e) {
       $('#onboardErr').textContent = niceError(e);
     } finally {
@@ -1513,6 +1520,59 @@
       btn.textContent = (onboardMode === 'create') ? 'CREATE MY LEAGUE' : 'ENTER THE ARENA';
     }
   });
+
+  /* ------------------------------------------------------------------
+     The 25-second explainer.
+
+     WHEN. Once, to a brand-new account, AFTER they are inside — never in
+     front of the door. Somebody who has just scanned a poster came to join a
+     league, and a film between them and that is a film nobody watches. It is
+     then reachable forever from SETTINGS, so it is not a thing you get one
+     shot at.
+
+     The file is 0.6 MB and `preload="none"`, so an account that never opens
+     it never downloads it. src is set at open time rather than in the markup
+     for the same reason.
+
+     Muted and playsinline, which is what every mobile browser requires
+     before it will autoplay anything at all. If it still refuses — some
+     browsers block autoplay outright — the controls appear so there is
+     something to press, rather than a black rectangle. */
+  function openPromo() {
+    var v = $('#promoVid');
+    if (!v.querySelector('source')) {
+      /* Order matters: the browser takes the FIRST it can decode, and on a
+         phone that should be H.264 — hardware-decoded, so it costs less
+         battery than VP9 doing the same work in software. */
+      ['./promo.mp4|video/mp4', './promo.webm|video/webm'].forEach(function (pair) {
+        var bits = pair.split('|'), el = document.createElement('source');
+        el.src = bits[0] + '?v=' + APP_VERSION;
+        el.type = bits[1];
+        v.appendChild(el);
+      });
+      v.load();
+    }
+    $('#promoDone').hidden = true;
+    $('#promoPop').hidden = false;
+    setFlag(LS.promoSeen);
+    try { v.currentTime = 0; } catch (e) {}
+    var go = v.play();
+    if (go && go.catch) go.catch(function () { v.controls = true; });
+  }
+  function closePromo() {
+    var v = $('#promoVid');
+    try { v.pause(); } catch (e) {}
+    $('#promoPop').hidden = true;
+  }
+  function wirePromo() {
+    $('#promoSkip').addEventListener('click', closePromo);
+    $('#promoDone').addEventListener('click', closePromo);
+    $('#promoReplay').addEventListener('click', openPromo);
+    /* At the end, SKIP would be the wrong word for the only button left. */
+    $('#promoVid').addEventListener('ended', function () {
+      $('#promoDone').hidden = false;
+    });
+  }
 
   /* Restoring works from the onboarding screen AND from the full screen:
      somebody coming back to an account they already have is not a new
@@ -3994,6 +4054,7 @@
   wireNudge();
   wireShare();
   wireCard();
+  wirePromo();
 
   async function saveFrame(key) {
     try {

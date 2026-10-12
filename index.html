@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.38.0">
+  <link rel="stylesheet" href="./styles.css?v=2.39.0">
 </head>
 <body>
 
@@ -669,6 +669,9 @@
         <a href="./privacy.html" target="_blank" rel="noopener">Privacy</a> ·
         <a href="./terms.html" target="_blank" rel="noopener">Terms</a>
       </p>
+      <p class="center" style="margin:0 0 10px">
+        <button id="promoReplay" class="linkbtn" type="button">How it works · 25 seconds</button>
+      </p>
       <p class="muted small center" id="version"></p>
     </section>
   </main>
@@ -829,12 +832,30 @@
   </div>
 </div>
 
+<!-- Twenty-five seconds, silent, skippable from the first frame. It is shown
+     once to a brand-new account AFTER they are in, never before: somebody who
+     has just scanned a poster came to join, and a film in front of the door is
+     a film nobody watches. It is reachable forever from SETTINGS. -->
+<div id="promoPop" class="promopop" hidden>
+  <!-- Two encodings, because one does not reach everybody. H.264 is what
+       Safari and every iPhone want and is the one that must exist; VP9 is for
+       browsers built without proprietary codecs, which show an .mp4 as a
+       black rectangle. The browser takes the first it can decode. Both srcs
+       are set at open time, so an account that never watches never pays. -->
+  <video id="promoVid" class="promovid" playsinline muted preload="none"
+         poster="./promo.jpg"></video>
+  <button id="promoSkip" class="promoskip" type="button">SKIP</button>
+  <div class="promofoot">
+    <button id="promoDone" class="btn primary xl" type="button" hidden>START</button>
+  </div>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.38.0"></script>
-<script src="./vendor/game-icons.js?v=2.38.0"></script>
-<script src="./captcha.js?v=2.38.0"></script>
-<script src="./app.js?v=2.38.0"></script>
+<script src="./vendor/supabase.js?v=2.39.0"></script>
+<script src="./vendor/game-icons.js?v=2.39.0"></script>
+<script src="./captcha.js?v=2.39.0"></script>
+<script src="./app.js?v=2.39.0"></script>
 </body>
 </html>
