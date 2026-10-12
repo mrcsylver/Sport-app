@@ -983,9 +983,19 @@ off switch is an empty site key.
 4. iOS, if you build it: `Config.turnstileSiteKey` in
    `ios/IronLeague/Core/Config.swift`.
 
-Do 2 and 3 together. Step 2 alone means **nobody can sign in at all** —
-Supabase starts demanding a token the app is not sending. Step 3 alone is
-theatre: a widget nothing checks.
+**Step 3 before step 2.** Put the key in, push, check the app still opens,
+then flip the Supabase toggle. In between, the app sends a token nothing
+checks, which costs nobody anything. Backwards there is a window where
+**nobody can sign in at all** — Supabase demanding a token the app is not
+sending yet.
+
+A challenge that cannot be completed — blocked script, no network, somebody
+who closes the box — is **not** refused by `captcha.js`. It lets the call go
+out without a token and lets Supabase decide, because Supabase is the only
+side that knows whether one was required. With protection off the sign-in
+simply works; with it on the refusal comes back and the app names the real
+reason rather than repeating Supabase's wording. Written the other way round,
+this file could lock everybody out of a database that was not even asking.
 
 **What it guards, and what it does not.** Supabase checks a CAPTCHA on exactly
 three endpoints: sign-up, password sign-in, and anonymous sign-in (which is a

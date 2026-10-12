@@ -27,7 +27,7 @@ enum Config {
     ///
     /// The SITE key, which is public like the anon key above. The secret one
     /// belongs in the Supabase dashboard and nowhere in this repository.
-    static let turnstileSiteKey = ""
+    static let turnstileSiteKey = "0x4AAAAAAFUQq7PR_61iGs7y"
 
     /// Where the challenge page lives. It has to be a hostname on the
     /// Cloudflare widget's allow-list, which a local HTML string can never

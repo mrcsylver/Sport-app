@@ -63,11 +63,17 @@ window.APP_CONFIG = {
   // machine down; it does not stop a handful.
   //
   // Leave "" and nothing changes: no script is loaded and no challenge is
-  // ever shown. Fill it in ONLY once CAPTCHA protection is also switched on
-  // in Supabase (Authentication → Attack Protection), and switch that on
-  // only once this is filled in — one without the other breaks the door.
+  // ever shown.
+  //
+  // THE ORDER TO TURN IT ON IS THIS ONE. Key here first, push, check the app
+  // still opens, THEN switch on CAPTCHA protection in Supabase
+  // (Authentication → Attack Protection). In between, the app sends a token
+  // nothing checks, which costs nobody anything — and a challenge that
+  // cannot be completed is passed through for Supabase to judge rather than
+  // refused here, so a blocked widget in that window locks nobody out.
+  // Backwards (Supabase first) there is a window where NOBODY can sign in.
   //
   // The SITE key is public, like the one above. The SECRET key belongs in
   // the Supabase dashboard and nowhere in this repository.
-  TURNSTILE_SITE_KEY: ""
+  TURNSTILE_SITE_KEY: "0x4AAAAAAFUQq7PR_61iGs7y"
 };

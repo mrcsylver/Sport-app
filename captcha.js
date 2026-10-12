@@ -125,13 +125,35 @@
      (which is a signup). An OAuth redirect is not one of them, and neither
      is updateUser -- so linking Google, or attaching an email to an account
      that already exists, needs no token. */
+  /* A challenge that could not be completed does NOT fail the call here. It
+     goes out without a token and lets SUPABASE decide, which is the only
+     side that knows whether a token was required:
+
+       protection off -> the sign-in works, and a blocked widget has cost
+                         nobody anything
+       protection on  -> Supabase refuses, and the app says why, using the
+                         reason kept below rather than Supabase's wording
+
+     Written the other way round, this file could lock everybody out of an
+     app whose database was not even asking for a token -- which is exactly
+     the window between pushing a site key and turning the Supabase side on,
+     and is a bad way to find out somebody runs a strict ad blocker. */
+  var lastError = null;
+
   function opts(extra) {
     return token().then(function (tok) {
       var o = extra || {};
-      if (tok) o.captchaToken = tok;
+      if (tok) { o.captchaToken = tok; lastError = null; }
       return o;
+    }, function (e) {
+      lastError = e;
+      return extra || {};
     });
   }
 
-  window.IronCaptcha = { on: on, token: token, opts: opts };
+  window.IronCaptcha = {
+    on: on, token: token, opts: opts,
+    /* What went wrong last time, so a refusal can name it. */
+    lastError: function () { return lastError; }
+  };
 })();

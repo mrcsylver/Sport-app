@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.31.0';
+  var APP_VERSION = '2.31.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -827,8 +827,13 @@
     var m = e.message || e.error_description || String(e);
     for (var k in FRIENDLY) if (m.indexOf(k) !== -1) return FRIENDLY[k];
     if (/display_name_check|char_length/.test(m)) return 'Names must be 2 to 18 characters.';
-    /* Supabase's own wording when a token is missing, stale or rejected. */
+    /* Supabase's own wording when a token is missing, stale or rejected. It
+       says nothing about WHY, and captcha.js knows -- it deliberately lets a
+       failed challenge through so Supabase can decide, rather than locking
+       the door itself. So the reason it kept beats the server's wording. */
     if (/captcha/i.test(m)) {
+      var why = window.IronCaptcha && window.IronCaptcha.lastError();
+      if (why && FRIENDLY[why.message]) return FRIENDLY[why.message];
       return 'The robot check did not go through. Reload the page and try again.';
     }
     if (/Anonymous sign-ins are disabled/i.test(m)) {

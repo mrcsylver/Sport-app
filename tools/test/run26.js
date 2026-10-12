@@ -190,6 +190,28 @@ function cfg(key) {
    await ctx.close();
  }
 
+ /* ======== 5. the script never arrives, and Supabase does not care ====
+    The window between pushing a site key and turning Supabase's own
+    protection on, and the permanent state of anybody running a strict ad
+    blocker once it IS on but the sign-in is one Supabase does not check.
+    A gate this app cannot open must not be a gate this app slams. */
+ {
+   const ctx=await b.newContext({viewport:{width:420,height:1000},timezoneId:'Europe/Paris',locale:'en-GB',serviceWorkers:'block'});
+   const pg=await ctx.newPage();
+   pg.on('pageerror',e=>errs.push(e.message));
+   await pg.route('**/challenges.cloudflare.com/**', r=>r.abort());
+   await pg.route('**/vendor/supabase.js*',r=>r.fulfill({contentType:'text/javascript',body:MOCK+SEED}));
+   await pg.route('**/config.js*',r=>r.fulfill({contentType:'text/javascript',body:cfg('1x00000000000000000000AA')}));
+   await pg.addInitScript(()=>{window.__UID__='uhalf';});   /* nothing demanding a token */
+   await pg.goto('http://localhost:4426/');
+   await pg.waitForSelector('#onboard:not([hidden])',{timeout:9000});
+   T('a blocked widget cannot lock people out of a door nobody is guarding',
+     !(await pg.$eval('#onboard', e=>e.hidden)), 'still let in');
+   T('and the sign-in went out with no token rather than not at all',
+     await pg.evaluate(()=>window.__CAP_SEEN__.length===0), 'no token sent');
+   await ctx.close();
+ }
+
  T('no JavaScript error anywhere', errs.length===0, errs.join(' | ') || 'clean');
 
  await b.close(); srv.close();
