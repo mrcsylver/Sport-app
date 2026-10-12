@@ -32,6 +32,11 @@ enum Theme {
     static let silver    = Color(hex: 0xC9D3E2)
     static let bronze    = Color(hex: 0xD08442)
     static let jade      = Color(hex: 0x26D07C)
+    /// LEGEND, the rung above S. Deliberately not a colour: when the ramp has
+    /// already spent grey, green, blue, purple, gold and red, the only thing
+    /// left that reads as "higher" is cold metal. Matches .rank-vii in
+    /// styles.css.
+    static let platinum  = Color(hex: 0xE9EDF5)
     static let azure     = Color(hex: 0x3BA6FF)
     static let violet    = Color(hex: 0xA86BFF)
 

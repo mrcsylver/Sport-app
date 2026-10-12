@@ -717,10 +717,11 @@ The rank ladder is client-side only, so it is not in here, but it moved at the
 same time: it used to top out at 50,000 lifetime points, which the league's best
 player — measured at 1,082 points a week on real data — reached in eleven
 months. A lifetime ladder you finish inside a year has nothing at the top of it.
-ETERNAL is 300,000 now, which is 5.5 years at that rate and 8.6 at a strong but
-not top 700 a week. The eleven grades, their numerals and the 25-40% step
-between rungs are untouched; only the scale moved, so SPARK is still the first
-session.
+The top is 300,000 now, which is 5.5 years at that rate and 8.6 at a strong but
+not top 700 a week. The grades, their numerals and the 25-40% step between
+rungs were untouched; only the scale moved. (The eleven invented names have
+since become seven letters — E, D, C, B, A, S, LEGEND — at exactly the same
+thresholds. Still client-side only, so still not in here.)
 
 `fix-this-week.sql` is a one-off. Running `bounty-pool.sql` mid-week changed
 which quest the week was for, and because bounty points are worked out on read

@@ -355,10 +355,11 @@ démarre quand il accepte et dure 24 heures. Ton palmarès est permanent.
 
 ## 9. Ton profil
 
-**Grades.** 25 échelons de SPARK à ETERNAL, avec des paliers numérotés à
-l'intérieur (GRINDER I, II, III…). Le grade suit la personne, pas la ligue.
-ETERNAL est à **300 000 points à vie** : au rythme du meilleur joueur de la
-ligue, c'est environ cinq ans et demi. Une échelle « à vie » qu'on termine en
+**Grades.** 25 échelons répartis sur sept lettres — **E, D, C, B, A, S,
+LEGEND** — avec des paliers numérotés à l'intérieur (C I, C II, C III…). Le
+grade suit la personne, pas la ligue. E I, c'est tes cent premiers points ;
+LEGEND VII est à **300 000 points à vie**, soit environ cinq ans et demi au
+rythme du meilleur joueur de la ligue. Une échelle « à vie » qu'on termine en
 onze mois n'a rien en haut.
 
 **Mes chiffres.** L'onglet STATS se lit sur trois périodes, les trois boutons
@@ -756,11 +757,12 @@ starts when they accept and runs 24 hours. Your record is permanent.
 
 ## 9. Your profile
 
-**Grades.** 25 rungs from SPARK to ETERNAL, with numbered steps inside them
-(GRINDER I, II, III…). Your grade follows you, not the league. ETERNAL sits at
-**300,000 lifetime points** — about five and a half years at the pace of the
-league's best player. A lifetime ladder you finish in eleven months has
-nothing at the top of it.
+**Grades.** 25 rungs across seven letters — **E, D, C, B, A, S, LEGEND** —
+with numbered steps inside each (C I, C II, C III…). Your grade follows you,
+not the league. E I is your first hundred points; LEGEND VII sits at **300,000
+lifetime points**, about five and a half years at the pace of the league's
+best player. A lifetime ladder you finish in eleven months has nothing at the
+top of it.
 
 **My numbers.** The STATS tab reads over three ranges: **WEEK**, **SEASON**
 and **ALL TIME**. The season is everything since the Monday it opened; during

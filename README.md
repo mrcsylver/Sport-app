@@ -364,9 +364,22 @@ first duel has been settled.
 
 ### Milestones
 
-The stats tab tracks lifetime points against nine ranks, from SPARK at 25 up to
-IMMORTAL at 5000. They are personal, so they are worth chasing no matter where
-you sit in the table.
+The stats tab tracks lifetime points against **25 rungs across seven letter
+grades** — E, D, C, B, A, S, and LEGEND above them all — with numbered steps
+inside each (C I, C II, C III…). They are personal, so they are worth chasing
+no matter where you sit in the table.
+
+Letters rather than invented words. The ladder used to run SPARK, ROOKIE,
+REGULAR, GRINDER, MACHINE, BEAST, WARLORD, TITAN, IMMORTAL, ASCENDANT,
+ETERNAL: eleven names, each of which had to be learned before it meant
+anything, and no two people agreed whether a WARLORD outranked a TITAN. Nobody
+has to be taught that D beats E or that S is above A.
+
+Every threshold is the one it always was — 25 rungs before, 25 after, at the
+same numbers. The rungs were renamed, not moved, so nobody woke up demoted.
+E I is 100 points, LEGEND VII is 300,000, and each step is 25-40% above the
+one below it. LEGEND is seven rungs deep against everybody else's three,
+because it is the only part of the ladder somebody can live in for years.
 
 ### Weekly bounty
 

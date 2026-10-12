@@ -172,6 +172,28 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
  T('rank shown up front', (await pg.textContent('.ms-id b')).length>2, await pg.textContent('.ms-id b'));
  T('the ladder has all 25 rungs', (await pg.$$('.ms-pip')).length>=25,
    (await pg.$$('.ms-pip')).length+' grades');
+ /* Seven letters, not eleven invented words. The old ladder made people learn
+    whether a WARLORD outranked a TITAN before any of it meant anything. */
+ const grades = await pg.evaluate(()=>{
+   const seen=[]; window.__MILESTONES__.forEach(m=>{
+     if(seen[seen.length-1]!==m.grade) seen.push(m.grade); });
+   return seen;
+ });
+ T('seven letter grades, E up to LEGEND, in order',
+   grades.join(' ')==='E D C B A S LEGEND', grades.join(' '));
+ /* The rename must not have moved anybody: same 25 thresholds as before it. */
+ T('and the thresholds are the ones they always were',
+   (await pg.evaluate(()=>window.__MILESTONES__.map(m=>m.at).join(','))) ===
+   '100,250,500,900,1400,2000,2800,3800,5200,7000,9500,12500,16500,21500,28000,'+
+   '36000,46000,58000,74000,93000,117000,147000,184000,230000,300000',
+   'unchanged');
+ /* LEGEND is the only grade somebody can sit in for years, so it is the only
+    one that needs more than three rungs to climb. */
+ T('LEGEND is seven rungs deep, everything below it is three',
+   (await pg.evaluate(()=>{
+     const n={}; window.__MILESTONES__.forEach(m=>{n[m.grade]=(n[m.grade]||0)+1;});
+     return JSON.stringify(n);
+   })) === '{"E":3,"D":3,"C":3,"B":3,"A":3,"S":3,"LEGEND":7}', 'three each, seven at the top');
  /* 300,000, not the old 50,000: the league's best player reached that ceiling
     in eleven months, and a lifetime ladder you finish inside a year has
     nothing at the top of it. */
