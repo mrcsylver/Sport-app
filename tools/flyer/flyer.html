@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <title>Iron League — flyer</title>
 <!--
-  A4 at 300 dpi, built in the browser and screenshotted, rather than drawn in
-  Python. Three reasons it is worth the detour: it uses the app's OWN font
-  file, its own colours, and its own vendored game-icons, so a poster on a
-  wall and the screen somebody lands on afterwards are plainly the same
-  thing. Nothing here is a lookalike.
+  A printable sheet at 300 dpi, built in the browser and screenshotted,
+  rather than drawn in Python. Three reasons it is worth the detour: it uses
+  the app's OWN font file, its own colours, and its own vendored game-icons,
+  so a poster on a wall and the screen somebody lands on afterwards are
+  plainly the same thing. Nothing here is a lookalike.
 
   tools/flyer/build_flyer.py fills the placeholders and drives the shot.
 -->
@@ -22,7 +22,14 @@
     --bg:#08090c; --panel:#161923; --line:#2a2f37;
     --txt:#eef1f6; --muted:#aab2c0; --red:#ff2e2e; --gold:#ffc93c;
     --ghost:rgba(255,255,255,.13);
+    /* The sheet, at 96 CSS px to the inch. A4 is the default because it is
+       what the design box below is laid out in. */
+    --pw:827px; --ph:1169px; --fit:1;
   }
+  /* US Letter: 8.5in x 11in. Wider than A4 and two thirds of an inch
+     shorter, which is exactly why an A4 poster sent to a Letter printer
+     comes back with its head and feet cut off. */
+  .letter { --pw:850px; --ph:1100px; --fit:.9409; }
   .light {
     --bg:#ffffff; --panel:#f4f5f7; --line:#d2d6de;
     --txt:#0d0f14; --muted:#4e5665; --red:#d61a1a; --gold:#8a6000;
@@ -30,10 +37,10 @@
   }
 
   html, body { margin:0; padding:0; }
-  /* 8.27in x 11.69in at 96 CSS px/in. The shot is taken at 3x, which lands
-     on 2481 x 3507 — A4 at 300 dpi. */
+  /* The paper. The shot is taken at 3x, so A4 lands on 2481 x 3507 and
+     Letter on 2550 x 3300 — both 300 dpi. */
   body {
-    width:827px; height:1169px;
+    width:var(--pw); height:var(--ph);
     background:var(--bg); color:var(--txt);
     font-family:'Barlow Condensed', system-ui, sans-serif;
     position:relative; overflow:hidden;
@@ -54,7 +61,17 @@
   .bg .i3 { width:320px; height:320px; left:-72px;  bottom:36px; transform:rotate(10deg); }
   .bg .i4 { width:290px; height:290px; right:-66px; bottom:84px; transform:rotate(-14deg); }
 
-  .wrap { position:relative; z-index:1; height:100%;
+  /* The poster is laid out ONCE, in a fixed 827x1169 box, and then scaled
+     to fit whatever paper it is going on. Uniformly — so nothing is
+     stretched and the only difference between the two sheets is how big the
+     same poster comes out. On Letter that is 94%, which on the wall is no
+     smaller, because Letter is the wider sheet of the two.
+
+     The red rule and the sports behind it sit on the body instead, not in
+     here, so they bleed to the real edges of whichever paper it is. */
+  .wrap { position:absolute; left:50%; top:50%; z-index:1;
+          width:827px; height:1169px;
+          transform:translate(-50%, -50%) scale(var(--fit));
           display:flex; flex-direction:column; align-items:center;
           justify-content:center; padding:34px 0 26px; box-sizing:border-box; }
 
