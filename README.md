@@ -961,17 +961,22 @@ restraint is the design.
 
 **The banner.** One line across the top: *"Attach Google so a new phone can't
 wipe this."* An anonymous account dies with its browser storage, and the
-ACCOUNT panel that fixes it sits inside Settings behind a disclosure nobody
+ACCOUNT panel that fixes it sits in the LEAGUES tab behind a disclosure nobody
 opens. It appears only once a workout has actually landed — before that there
-is nothing to lose and the bar is just noise. Tapping it opens the account
-panel; the cross dismisses it for good; attaching Google or an email removes
-it by itself, uncrossed.
+is nothing to lose and the bar is just noise — and **not in the session that
+earned it**: the first workout gets the share prompt to itself, and the banner
+turns up next time the app is opened. Two nudges in the same second is one too
+many, and the one that can wait is the one that will still be true tomorrow.
+Tapping it opens the account panel; the cross dismisses it for good; attaching
+Google or an email removes it by itself, uncrossed.
 
 **The share prompt.** Once, ever, to everybody, after the log sheet closes —
 not on a timer underneath it, because somebody may be about to log a second
 set and interrupting that is how an app gets shut. It offers to send their
 score and the league link together. A prompt that comes back is an advert, so
-it is marked asked the moment it is shown, whether they send or skip.
+it is marked asked the moment it is shown, whether they send or skip — so the
+button says **No thanks** rather than "Not now", and the line above it names
+SHARE THIS WEEK as the door that stays open.
 
 **Share this week** lives in your own row on the LIVE tab: open your feed and
 the button is at the bottom of it. Nobody else's feed has one — offering to

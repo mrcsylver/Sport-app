@@ -81,6 +81,10 @@ async function logOne(pg) {
  await logOne(pg);
  T('the share prompt comes up once a workout has landed',
    !(await pg.$eval('#sharePop', e=>e.hidden)), 'shown');
+ /* Two nudges in the same second is one too many, and the one that can
+    wait is the one that will still be true tomorrow. */
+ T('and the banner stays out of its way',
+   await pg.$eval('#nudge', e=>e.hidden), 'hidden');
  T('and it says what the score actually is',
    /\d/.test(await pg.textContent('#shareSub')),
    (await pg.textContent('#shareSub')).trim().slice(0,60));
@@ -101,8 +105,13 @@ async function logOne(pg) {
  T('a second workout does not ask again — once is a prompt, twice is an advert',
    await pg.$eval('#sharePop', e=>e.hidden), 'still closed');
 
- /* ======== 4. the banner is there, and leads somewhere ================= */
- T('the banner is up now that there is something to lose',
+ /* ======== 4. the banner is there NEXT TIME, and leads somewhere ====== */
+ T('still no banner in the session that earned it',
+   await pg.$eval('#nudge', e=>e.hidden), 'hidden');
+ await pg.reload();
+ await pg.waitForSelector('#app:not([hidden])',{timeout:9000});
+ await pg.waitForTimeout(700);
+ T('the banner is up next time the app is opened',
    !(await pg.$eval('#nudge', e=>e.hidden)), 'shown');
  T('and it says what to do about it, not that something is wrong',
    /attach google/i.test(await pg.textContent('#nudgeGo')),
@@ -151,6 +160,12 @@ async function logOne(pg) {
      await logOne(o.pg);
      await o.pg.click('#shareSkip').catch(()=>{});
      await o.pg.waitForTimeout(300);
+     T('the skip button does not promise to come back',
+       /no thanks/i.test(await o.pg.textContent('#shareSkip')),
+       (await o.pg.textContent('#shareSkip')).trim());
+     await o.pg.reload();
+     await o.pg.waitForSelector('#app:not([hidden])',{timeout:9000});
+     await o.pg.waitForTimeout(700);
      T('a second person sees the banner too',
        !(await o.pg.$eval('#nudge', e=>e.hidden)), 'shown');
      /* Through the real panel, not round the side of it: what is being

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.32.0';
+  var APP_VERSION = '2.32.1';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1027,6 +1027,12 @@
   };
   function flag(k) { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } }
   function setFlag(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
+  /* Whether anything had been logged BEFORE this visit started, read once at
+     boot and never updated. The banner waits for it, so the first workout
+     gets the share prompt to itself and the banner turns up next time the
+     app is opened. Two nudges in the same second is one too many -- and the
+     one that can wait is the one that will still be true tomorrow. */
+  var loggedBefore = flag(LS.logged);
 
   /* ===================================================================
      5. Boot
@@ -2009,7 +2015,7 @@
      =================================================================== */
   function paintNudge() {
     var el = $('#nudge'); if (!el) return;
-    el.hidden = !(state.profile && isAnon() && flag(LS.logged) && !flag(LS.nudgeOff));
+    el.hidden = !(state.profile && isAnon() && loggedBefore && !flag(LS.nudgeOff));
   }
 
   function wireNudge() {
@@ -2095,10 +2101,15 @@
     if (!state.profile || !league()) return;
     setFlag(LS.sharePrompted);
     var r = myRow();
-    $('#shareSub').textContent = r
+    /* It never comes back, so the button says so and the line underneath
+       says where the door still is. "Not now" on something that is never
+       asked again is a small lie. */
+    $('#shareSub').textContent = (r
       ? num(r.points) + ' points this week. Send it to somebody and find out '
         + 'whether they can take it.'
-      : 'Send your league link to somebody and find out whether they can take it.';
+      : 'Send your league link to somebody and find out whether they can take it.')
+      + ' You will not be asked again — SHARE THIS WEEK lives at the bottom of '
+      + 'your own row on the LIVE tab.';
     $('#sharePop').hidden = false;
     document.body.classList.add('modal-open');
   }
