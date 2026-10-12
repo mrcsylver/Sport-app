@@ -19,9 +19,16 @@ actor API {
 
     /// Anonymous sign-in, exactly like the web app: no email, no password, a
     /// device-bound identity that a restore code can move to another phone.
+    ///
+    /// It goes through Supabase's `signup` endpoint, which is one of the
+    /// three a CAPTCHA guards once Attack Protection is on. `Captcha.token()`
+    /// returns nil while no site key is configured, which is the shipped
+    /// state, so this is the same call it has always been until both sides
+    /// are switched on together.
     func ensureSignedIn() async throws {
         if client.auth.currentSession == nil {
-            _ = try await client.auth.signInAnonymously()
+            let token = try await Captcha.token()
+            _ = try await client.auth.signInAnonymously(captchaToken: token)
         }
     }
 

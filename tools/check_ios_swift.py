@@ -51,6 +51,13 @@ KNOWN = {
     "ContentMode", "KeyPath", "PreviewProvider", "UIPasteboard",
     "UIImpactFeedbackGenerator", "UINotificationFeedbackGenerator",
     "UIApplication", "SwiftUI", "UIKit", "EdgeInsets", "Text.Case",
+    "Any", "CheckedContinuation", "LocalizedError", "NSObject",
+    "NSLayoutConstraint", "UIColor", "UIViewController", "UIWindow",
+    "UIWindowScene", "URLComponents", "URLQueryItem", "URLRequest",
+    # WebKit, for the Turnstile challenge the native app has to borrow a
+    # browser for
+    "WebKit", "WKWebView", "WKWebViewConfiguration", "WKScriptMessage",
+    "WKScriptMessageHandler", "WKUserContentController",
     # Supabase
     "Supabase", "SupabaseClient", "AnyJSON", "PostgrestClient", "FetchOptions",
     # language and generic placeholders

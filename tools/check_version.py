@@ -15,7 +15,8 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ASSETS = ['styles.css', 'vendor/supabase.js', 'vendor/game-icons.js', 'app.js']
+ASSETS = ['styles.css', 'vendor/supabase.js', 'vendor/game-icons.js',
+          'captcha.js', 'app.js']
 
 
 def read(p):

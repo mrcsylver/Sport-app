@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Iron League — robot check</title>
+<!--
+  The robot check, as a page of its own.
+
+  The web app does not need this: captcha.js renders the widget in place. The
+  NATIVE app does, because Turnstile is a browser widget and because
+  Cloudflare only accepts a challenge served from a hostname on the widget's
+  allow-list. A WKWebView loading this URL is on mrcsylver.github.io, which
+  is already on that list for the web app; a local HTML string would be on
+  about:blank, which can never be.
+
+  So: iOS opens this page, the person taps the box if Cloudflare asks, and
+  the token comes back through the message handler named `captcha`. The site
+  key arrives as ?k= so the app stays the one place it is configured.
+
+  Opening this page in a normal browser is a working way to test a key by
+  hand: it prints the token instead of posting it anywhere.
+-->
+<style>
+  :root { color-scheme: dark }
+  html,body{height:100%;margin:0}
+  body{background:#0b0d10;color:#e7e9ee;display:grid;place-items:center;
+       font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       padding:24px;text-align:center}
+  h1{font-size:12px;letter-spacing:.08em;color:#8b929e;font-weight:700;margin:0 0 16px}
+  p{color:#8b929e;font-size:12px;margin:16px 0 0}
+  code{word-break:break-all;color:#e7e9ee;font-size:11px}
+</style>
+</head>
+<body>
+  <div>
+    <h1>ONE QUICK CHECK</h1>
+    <div id="w"></div>
+    <p id="msg">Proving you are not a script. Most people only see this once.</p>
+  </div>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=ready&render=explicit" async defer></script>
+<script>
+(function () {
+  var key = new URLSearchParams(location.search).get('k') || '';
+
+  function send(payload) {
+    try {
+      var h = window.webkit && window.webkit.messageHandlers &&
+              window.webkit.messageHandlers.captcha;
+      if (h) { h.postMessage(payload); return; }
+    } catch (e) {}
+    /* No host app: this is somebody testing a key in a browser. */
+    var m = document.getElementById('msg');
+    m.innerHTML = payload.token
+      ? 'Token, which means the key works:<br><code>' + payload.token + '</code>'
+      : 'Failed: ' + (payload.error || 'unknown');
+  }
+
+  window.ready = function () {
+    if (!key) { send({ error: 'NO_SITE_KEY' }); return; }
+    window.turnstile.render('#w', {
+      sitekey: key,
+      /* Visible on purpose here. Inside a web view that has just been put on
+         screen for this one job, a checkbox nobody can see is worse than one
+         they can: there is nothing else on the page to explain the wait. */
+      theme: 'dark',
+      callback: function (t) { send({ token: t }); },
+      'error-callback': function () { send({ error: 'CAPTCHA_FAILED' }); return true; },
+      'expired-callback': function () { send({ error: 'CAPTCHA_EXPIRED' }); },
+      'timeout-callback': function () { send({ error: 'CAPTCHA_FAILED' }); }
+    });
+  };
+
+  /* The script is loaded from Cloudflare, so it can simply not arrive. */
+  setTimeout(function () {
+    if (!window.turnstile) send({ error: 'CAPTCHA_UNREACHABLE' });
+  }, 15000);
+})();
+</script>
+</body>
+</html>

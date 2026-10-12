@@ -50,5 +50,24 @@ window.APP_CONFIG = {
   // Where somebody turned away by the cap is sent to ask for a seat. An
   // email, an Instagram profile, a WhatsApp link — anything a browser can
   // open. Leave "" and the button is hidden rather than dead.
-  CONTACT_URL: "mailto:mrcsylver@gmail.com"
+  CONTACT_URL: "mailto:mrcsylver@gmail.com",
+
+  // Cloudflare Turnstile — the free CAPTCHA in front of signing in.
+  //
+  // WHY IT MATTERS. Opening the app with no account at all calls Supabase's
+  // anonymous sign-in, which writes a row in auth.users. Anybody can call
+  // that endpoint directly with the key above, which is public by design, so
+  // without a gate a script can mint accounts until the free database is
+  // full — and each fresh identity also gets its own ten guesses at other
+  // people's restore codes. Cloudflare's own IP limit (30 an hour) slows one
+  // machine down; it does not stop a handful.
+  //
+  // Leave "" and nothing changes: no script is loaded and no challenge is
+  // ever shown. Fill it in ONLY once CAPTCHA protection is also switched on
+  // in Supabase (Authentication → Attack Protection), and switch that on
+  // only once this is filled in — one without the other breaks the door.
+  //
+  // The SITE key is public, like the one above. The SECRET key belongs in
+  // the Supabase dashboard and nowhere in this repository.
+  TURNSTILE_SITE_KEY: ""
 };

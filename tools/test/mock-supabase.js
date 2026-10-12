@@ -32,6 +32,12 @@
   DB.authEmails = DB.authEmails || {};
   /* uid -> the times a wrong restore code was typed, for the throttle. */
   DB.restoreTries = DB.restoreTries || {};
+  /* Supabase checks a CAPTCHA on exactly three endpoints -- signup, password
+     sign-in and anonymous sign-in, which is a signup -- and on nothing else.
+     The mock refuses the same three and no others, so a test can prove the
+     token reaches the calls that need it and is not demanded where it is
+     not. Every token seen lands in window.__CAP_SEEN__. */
+  window.__CAP_SEEN__ = window.__CAP_SEEN__ || [];
   DB.authPasswords = DB.authPasswords || {};
   DB.authIdentities = DB.authIdentities || {};
   /* Enough of the exercise table for the control room's picker. The app
@@ -379,6 +385,13 @@
   function isMember(lid) { var m = me(); return !!m && DB.members.some(function (x) { return x.league_id === lid && x.profile_id === m.id; }); }
   function ok(d) { return Promise.resolve({ data: d, error: null }); }
   function bad(msg) { return Promise.resolve({ data: null, error: new Error(msg) }); }
+  function capCheck(o) {
+    var tok = (o && o.options && o.options.captchaToken) || null;
+    if (tok) window.__CAP_SEEN__.push(tok);
+    if (!window.__CAPTCHA_REQUIRED__) return null;
+    if (!tok) return bad('captcha protection: request disallowed (invalid-input-response)');
+    return null;
+  }
   function isAdmin() { var p = me(); return !!p && !!p.is_admin; }
   /* auth.users, as much of it as the client reads. Keyed by uid so that
      signing in as somebody else actually finds them. */
@@ -1475,7 +1488,11 @@
       return {
         auth: {
           getSession: function () { return Promise.resolve({ data: { session: signedIn ? { user: authUser() } : null } }); },
-          signInAnonymously: function () { signedIn = true; return Promise.resolve({ data: { user: authUser() }, error: null }); },
+          signInAnonymously: function (o) {
+            var e = capCheck(o); if (e) return e;
+            signedIn = true;
+            return Promise.resolve({ data: { user: authUser() }, error: null });
+          },
           getUser: function () { return Promise.resolve({ data: { user: signedIn ? authUser() : null } }); },
           /* Linking keeps the SAME uid -- that is the property the whole
              upgrade path rests on, so the mock honours it or the test proves
@@ -1506,6 +1523,7 @@
             save(); return Promise.resolve({ data: { user: authUser() }, error: null });
           },
           signUp: function (c) {
+            var eC = capCheck(c); if (eC) return eC;
             if (Object.keys(DB.authEmails).some(function (k) {
               return DB.authEmails[k] === c.email; })) {
               return bad('A user with this email address has already been registered');
@@ -1515,6 +1533,7 @@
             return Promise.resolve({ data: { user: authUser() }, error: null });
           },
           signInWithPassword: function (c) {
+            var eC = capCheck(c); if (eC) return eC;
             var who = Object.keys(DB.authEmails).filter(function (k) {
               return DB.authEmails[k] === c.email; })[0];
             if (!who || DB.authPasswords[who] !== c.password) {

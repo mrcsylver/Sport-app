@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.30.0';
+  var APP_VERSION = '2.31.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -806,6 +806,8 @@
     NO_SUCH_LEAGUE: 'No league found with that code. Check the 6 characters.',
     BAD_CODE: 'That restore code does not match any profile.',
     TOO_MANY_TRIES: 'Too many wrong codes from this device. Wait an hour and try again.',
+    CAPTCHA_UNREACHABLE: 'The robot check could not load. Turn off your ad blocker for this page, or try another network.',
+    CAPTCHA_FAILED: 'The robot check did not go through. Try again.',
     DEVICE_HAS_DATA: 'This phone already has a profile with workouts on it.',
     NO_PROFILE: 'Pick your name first.',
     TOO_MANY_LEAGUES: 'You already own 10 leagues.',
@@ -825,6 +827,10 @@
     var m = e.message || e.error_description || String(e);
     for (var k in FRIENDLY) if (m.indexOf(k) !== -1) return FRIENDLY[k];
     if (/display_name_check|char_length/.test(m)) return 'Names must be 2 to 18 characters.';
+    /* Supabase's own wording when a token is missing, stale or rejected. */
+    if (/captcha/i.test(m)) {
+      return 'The robot check did not go through. Reload the page and try again.';
+    }
     if (/Anonymous sign-ins are disabled/i.test(m)) {
       return 'Anonymous sign-ins are still OFF in Supabase (Authentication → Sign In / Providers).';
     }
@@ -1056,7 +1062,7 @@
         }
       }
       if (!got.data.session) {
-        var anon = await sb.auth.signInAnonymously();
+        var anon = await sb.auth.signInAnonymously({ options: await capOpts() });
         if (anon.error) throw anon.error;
       }
       await loadUser();
@@ -1081,6 +1087,25 @@
       state.profile = woke.data;
     }
     await enterApp();
+  }
+
+  /* ===================================================================
+     5a. The gate on the door
+     ---------------------------------------------------------------------
+     captcha.js is the whole of it, and it is a separate file because the
+     control room signs in through the same endpoint without this app's HTML
+     or stylesheet. It is inert until config.js carries a Turnstile site key,
+     and that key has to go on at the same time as Supabase's own Attack
+     Protection -- either one alone is a broken door.
+
+     Only three calls need a token: signing up, signing in with a password,
+     and signing in anonymously (which is a signup). An OAuth redirect is
+     not one of them, and neither is updateUser, so linking Google or
+     attaching an email to an account that already exists needs nothing.
+     =================================================================== */
+  function capOpts(extra) {
+    if (!window.IronCaptcha) return Promise.resolve(extra || {});
+    return window.IronCaptcha.opts(extra);
   }
 
   /* ===================================================================
@@ -1165,12 +1190,14 @@
     await loadUser();
   }
   async function emailSignUp(email, password) {
-    var r = await sb.auth.signUp({ email: email, password: password });
+    var r = await sb.auth.signUp({ email: email, password: password,
+                                   options: await capOpts() });
     if (r.error) throw r.error;
     await loadUser();
   }
   async function emailSignIn(email, password) {
-    var r = await sb.auth.signInWithPassword({ email: email, password: password });
+    var r = await sb.auth.signInWithPassword({ email: email, password: password,
+                                               options: await capOpts() });
     if (r.error) throw r.error;
     await loadUser();
   }
@@ -2061,6 +2088,10 @@
   window.__fixFor__ = fixFor;
   window.__EXNAME__ = function (k) { var e = exercise(k); return e ? e.name : k; };
   window.__renderAccount__ = renderAccount;   // reachable from a test
+  /* The CAPTCHA wiring, so a test can prove a token reaches the three
+     calls Supabase checks and is not spent on the ones it does not. */
+  window.__capOpts__ = capOpts;
+  window.__sb__ = function () { return sb; };
 
   function renderHall() {
     var box = $('#hall');

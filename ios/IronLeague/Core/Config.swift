@@ -19,6 +19,21 @@ enum Config {
     /// the button is hidden rather than dead. Mirrors CONTACT_URL in config.js.
     static let contactURL = "mailto:mrcsylver@gmail.com"
 
+    /// Cloudflare Turnstile. Empty means off, exactly as in config.js, and
+    /// off is the shipped state: no web view is ever created and no challenge
+    /// is ever asked for. Fill it in only at the same time as Supabase's own
+    /// Attack Protection — a key here with nothing checking it is theatre,
+    /// and Supabase checking with no key here means nobody can sign in.
+    ///
+    /// The SITE key, which is public like the anon key above. The secret one
+    /// belongs in the Supabase dashboard and nowhere in this repository.
+    static let turnstileSiteKey = ""
+
+    /// Where the challenge page lives. It has to be a hostname on the
+    /// Cloudflare widget's allow-list, which a local HTML string can never
+    /// be, so the native app borrows the web app's own page.
+    static let captchaPage = "https://mrcsylver.github.io/Sport-app/captcha.html"
+
     /// Shown at the foot of the leagues tab, so a bug report can say which
     /// build it came from.
     static var appVersion: String {

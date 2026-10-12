@@ -81,6 +81,21 @@ ever disagree, the server is right.
 **One `Session` object.** Views read it; nothing else writes to it. The app is
 small enough that one source of truth beats five coordinated ones.
 
+One deliberate exception to the first rule, in `Core/Captcha.swift`: the robot
+check in front of anonymous sign-in. Turnstile is a browser widget, and
+Cloudflare only accepts a challenge served from a hostname on the widget's
+allow-list — `about:blank`, which is where a local HTML string lives, can
+never be on one. So the app loads the web app's own `captcha.html` over https
+in a `WKWebView` and takes the token back through a message handler. It makes
+its own `UIWindow` because `ensureSignedIn()` runs before there is any view to
+present from.
+
+It is **off unless `Config.turnstileSiteKey` is set**, which is the shipped
+state: no web view is created and `signInAnonymously` goes out exactly as it
+always has. Turn it on only at the same time as Supabase's Attack Protection,
+and read the main README's section on it first — one side without the other
+is a door nobody can open.
+
 ---
 
 ## The artwork

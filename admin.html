@@ -229,6 +229,7 @@
 
 <script src="./config.js"></script>
 <script src="./vendor/supabase.js"></script>
+<script src="./captcha.js"></script>
 <script>
 (function () {
   var CFG = window.APP_CONFIG || {};
@@ -268,7 +269,11 @@
   async function signIn(code) {
     var s = await sb.auth.getSession();
     if (!s.data.session) {
-      var a = await sb.auth.signInAnonymously();
+      /* Same door, same gate: captcha.js is inert unless config.js carries
+         a Turnstile site key, and Supabase checks anonymous sign-in like any
+         other signup once Attack Protection is on. */
+      var opts = window.IronCaptcha ? await window.IronCaptcha.opts() : {};
+      var a = await sb.auth.signInAnonymously({ options: opts });
       if (a.error) throw a.error;
     }
     if (code) {

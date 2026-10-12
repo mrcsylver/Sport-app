@@ -948,6 +948,68 @@ without opening anything: it is drawn around your emblem on every board, every
 duel and every quest. That is what makes one worth having, and it is also the
 cheapest one to draw well.
 
+## The robot check, and why the door needs one
+
+The front door of this app is Supabase's **anonymous sign-in**: open the link,
+pick a name, start logging. That is the whole reason somebody can be in a
+league twenty seconds after scanning a poster, and it stays.
+
+It also writes a row in `auth.users` every time, and the key that calls it is
+public by design — it is in `config.js`, as it has to be. So the endpoint is
+callable by anybody with the link, not just by somebody using the app, and a
+script that calls it in a loop fills a free database with accounts that never
+log anything. Cloudflare's own per-IP limit (30 an hour) slows one machine
+down; it does not stop somebody who means it.
+
+It is also what makes the restore-code throttle worth having. Ten wrong
+guesses an hour is counted per signed-in identity, because Postgres cannot see
+the caller's IP from PostgREST — and if fresh identities are free and
+unlimited, ten guesses an hour is ten guesses an hour *each*. The CAPTCHA and
+the throttle are one fence; either alone is a gate.
+
+**Cloudflare Turnstile** is the gate, it is free, and with an interaction-only
+widget almost nobody ever sees it. It is **off in this repository**, and the
+off switch is an empty site key.
+
+**To turn it on — both halves, or neither:**
+
+1. [Cloudflare dashboard](https://dash.cloudflare.com) → Turnstile → add a
+   widget. Domains: `mrcsylver.github.io` (add `localhost` too if you ever run
+   it locally). Widget mode: **Managed**. You get a **Site key** and a
+   **Secret key**.
+2. Supabase → Authentication → **Attack Protection** → enable CAPTCHA
+   protection, provider **Turnstile**, paste the **Secret key**, Save.
+3. `config.js` → `TURNSTILE_SITE_KEY: "your-site-key"`. Commit and push.
+4. iOS, if you build it: `Config.turnstileSiteKey` in
+   `ios/IronLeague/Core/Config.swift`.
+
+Do 2 and 3 together. Step 2 alone means **nobody can sign in at all** —
+Supabase starts demanding a token the app is not sending. Step 3 alone is
+theatre: a widget nothing checks.
+
+**What it guards, and what it does not.** Supabase checks a CAPTCHA on exactly
+three endpoints: sign-up, password sign-in, and anonymous sign-in (which is a
+sign-up). It does **not** check an OAuth redirect, so the Google button is
+unaffected, and it does not check `updateUser`, so attaching an email to an
+account that already exists needs nothing. `captcha.js` sends a token to the
+three and to nothing else — a token is single-use, and one spent where
+Supabase ignores it is one the next real call cannot have.
+
+`captcha.js` is its own file, with its own markup and styles, because the
+control room signs in through the same endpoint and has neither the app's HTML
+nor its stylesheet. `captcha.html` is the same challenge as a standalone page,
+which is what the native app loads in a web view: Turnstile only accepts a
+challenge served from a hostname on the widget's allow-list, and a local HTML
+string is `about:blank`, which can never be on one.
+
+**Never run the cleanup SQL from the Supabase docs.** The anonymous sign-in
+page suggests `delete from auth.users where is_anonymous is true and created_at
+< now() - interval '30 days'`. In *this* database `profiles.user_id` is
+`references auth.users(id) on delete cascade`, and most real players are
+anonymous users who have simply never attached Google — so that statement
+deletes their profiles and everything they ever logged. Park people from the
+control room instead; that is what it is for.
+
 ## Backing the database up
 
 **A free Supabase project has no backups.** None — the dashboard's backup tab
