@@ -914,20 +914,77 @@ alter table public.workouts       enable row level security;
 alter table public.challenges     enable row level security;
 alter table public.bounties       enable row level security;
 
--- profiles: you can read your own, plus anyone you share a league with.
+-- profiles: YOUR OWN ROW AND NOTHING ELSE.
+--
+-- It used to be "yours, plus anyone you share a league with", which reads as
+-- reasonable and is not: RLS filters ROWS, not columns, and a profile row
+-- carries `restore_code`. A restore code hands over an entire account, so
+-- that policy let any league-mate take over anybody else's -- a friend, once;
+-- ninety-nine strangers, the week a poster goes up. It also handed out
+-- `bodyweight`, which is health data under GDPR and is in here only to score
+-- gym lifts.
+--
+-- Nobody needs anybody else's profile row. Everything one person is allowed
+-- to know about another -- name, emblem, banner, colour, ring, badges,
+-- lifetime -- already comes out of league_leaderboard(), which chooses what
+-- it returns.
 create policy profiles_read on public.profiles for select to authenticated
-  using (user_id = auth.uid() or public.shares_league_with(id));
-create policy profiles_insert on public.profiles for insert to authenticated
-  with check (user_id = auth.uid());
-create policy profiles_update on public.profiles for update to authenticated
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+  using (user_id = auth.uid());
+
+-- And nothing writes this table from a browser. There was a profiles_insert
+-- and a profiles_update policy, both `user_id = auth.uid()`, which sounds
+-- like "you may edit yourself" and means "you may set any column on yourself"
+-- -- is_admin included. One PATCH and somebody owned the control room. It
+-- also went round check_wear(), so every paid cosmetic was free to anyone
+-- willing to call the API by hand, and round create_profile(), so the global
+-- cap could be stepped over by inserting a row.
+--
+-- Every legitimate change already goes through a SECURITY DEFINER function
+-- that checks what it is being asked to do: create_profile, rename_profile,
+-- set_avatar, set_banner, set_name_color, set_frame, set_bodyweight,
+-- set_body_form, set_units, set_pinned_badges, restore_profile, wake_me.
+-- The grants below are what actually close the door; the absent policies
+-- merely agree with them.
+revoke insert, update, delete on public.profiles from anon, authenticated;
+revoke select on public.profiles from anon;
 
 -- leagues: only visible to members (joining happens through join_league_by_code)
 create policy leagues_read on public.leagues for select to authenticated
   using (public.is_member(id) or owner_id = public.my_profile_id());
-create policy leagues_update on public.leagues for update to authenticated
-  using (owner_id = public.my_profile_id())
-  with check (owner_id = public.my_profile_id());
+-- And three privileges nothing with an API key can use, on every table.
+-- TRUNCATE is the one that matters: ROW-level security does not apply to it
+-- at all, so a role holding TRUNCATE can empty a table whatever its policies
+-- say. PostgREST never issues one, so this is not a reachable hole today --
+-- it is a privilege that exists for no reason, on the table holding every
+-- profile in the app, and the cost of removing it is nothing.
+do $g$
+declare t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public'
+  loop
+    execute format('revoke truncate, trigger, references on public.%I '
+                   'from anon, authenticated', t);
+  end loop;
+end $g$;
+
+-- `anon` is the role before anybody has signed in, and nothing in either app
+-- writes anything before that -- the first thing both do is sign in, even if
+-- anonymously. Every write grant it holds is therefore unused, and every one
+-- of them is a row-level policy away from being the only thing in the way.
+do $g$
+declare t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public'
+  loop
+    execute format('revoke insert, update, delete on public.%I from anon', t);
+  end loop;
+end $g$;
+
+-- A league is changed through set_league_settings() and set_league_badge(),
+-- which validate what they are given -- the badge one against the shop
+-- catalogue. A direct UPDATE went round both, so a league owner could fly any
+-- paid crest or banner for nothing.
+revoke insert, update, delete on public.leagues from anon, authenticated;
 
 create policy members_read on public.league_members for select to authenticated
   using (public.is_member(league_id));

@@ -68,6 +68,10 @@ echo "· a league that holds more than 36"
 fresh ironbigl
 psql -d ironbigl -f "$HERE/bigleague.sql" 2>&1 | clean
 
+echo "· the door beside the functions"
+fresh ironpriv
+psql -d ironpriv -f "$HERE/privilege.sql" 2>&1 | clean
+
 echo "· guessing a restore code at machine speed"
 fresh ironguess
 psql -d ironguess -f "$HERE/guessing.sql" 2>&1 | clean
@@ -128,6 +132,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/faster-board.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/restore-throttle.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/big-league.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/shut-the-side-door.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -256,5 +261,17 @@ psql -tAd ironlive -c "select case when (select count(*) from pg_proc p
            and conname = 'leagues_max_members_check') like '%100%'
   then 'and a league can hold 100, with one callable shape of each function'
   else 'THE LEAGUE SIZE MIGRATION DID NOT LAND' end;"
+# The grants are what hold the side door shut, so they are what the replay
+# has to prove -- a policy alone never stopped a column.
+psql -tAd ironlive -c "select case when not exists (
+    select 1 from information_schema.role_table_grants
+     where table_schema='public' and table_name in ('profiles','leagues')
+       and grantee in ('anon','authenticated')
+       and privilege_type in ('INSERT','UPDATE','DELETE'))
+   and (select qual from pg_policies
+         where tablename='profiles' and policyname='profiles_read')
+       not ilike '%shares_league_with%'
+  then 'and nothing an app signs in as can write a profile or read another'
+  else 'THE SIDE DOOR IS OPEN AGAIN' end;"
 
 echo "· all clear"

@@ -18,3 +18,18 @@ do $$ begin
   end if;
 end $$;
 grant usage on schema public to anon, authenticated;
+
+-- AND THE PART THAT MATTERS MOST. Supabase hands `anon` and `authenticated`
+-- SELECT, INSERT, UPDATE and DELETE on every table created in `public`,
+-- through ALTER DEFAULT PRIVILEGES, and leaves row-level security as the
+-- only thing in the way. A plain Postgres grants nothing.
+--
+-- So without these two lines the local database is STRICTER than production,
+-- and every check that a table cannot be reached directly passes for the
+-- wrong reason. That is exactly how four open doors survived twenty-eight
+-- test files: `update profiles set is_admin = true` failed here because the
+-- role held no grant, and succeeded in production because it held them all.
+alter default privileges in schema public
+  grant all on tables to anon, authenticated;
+alter default privileges in schema public
+  grant all on sequences to anon, authenticated;

@@ -8,8 +8,9 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
 `progressions.sql`, `season-table.sql`, `season-stats.sql`, `cup.sql`,
 `membership.sql`, `rest-day.sql`, `launch-gate.sql`, `shop.sql`,
-`faster-board.sql`, `restore-throttle.sql` and `big-league.sql` are
-migrations for a database that is already running. They only add; nothing logged is touched, and all of
+`faster-board.sql`, `restore-throttle.sql`, `big-league.sql` and
+`shut-the-side-door.sql` are migrations for a database that is already
+running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -413,6 +414,66 @@ Three things it is careful about:
 is the next writer of it; until then `admin_grant_item()` hands things out by
 name, which stays useful afterwards — a prize, an apology, a founder's gift.
 
+### The door beside the functions
+
+Every RPC here is `SECURITY DEFINER` and checks what it is asked to do. None
+of that matters if the **table** underneath is reachable — and on Supabase it
+is, by default. `authenticated` arrives holding `SELECT`, `INSERT`, `UPDATE`
+and `DELETE` on every column of every table in `public`, through
+`ALTER DEFAULT PRIVILEGES`, and row-level security is the only thing in the
+way.
+
+**RLS filters rows. It does not filter columns, and it does not care which
+column an `UPDATE` touches.** Five things were therefore possible against the
+live database, by anybody signed in, with one HTTP request each:
+
+1. **Read any league-mate's restore code.** `profiles_read` allowed
+   `shares_league_with(id)`, and a profile row carries `restore_code`. A
+   restore code *is* the account. Among forty friends that is one kind of
+   problem; with ninety-nine strangers in a campus league it is another. The
+   same row carries `bodyweight` — health data under GDPR, in there only to
+   score gym lifts.
+2. **Make yourself an admin.** `profiles_update` allowed
+   `user_id = auth.uid()` — "you may edit yourself" — with `UPDATE` on every
+   column, `is_admin` included. One `PATCH` and the control room was yours.
+3. **Take any paid cosmetic.** `check_wear()` guards `set_banner`,
+   `set_avatar`, `set_frame` and `set_name_color`. A direct `UPDATE` walked
+   past all four — the lock built in "The shop had no lock on it" was real,
+   and there was a door next to it.
+4. **Step over the global cap.** `create_profile()` checks `app_is_full()`.
+   A raw `INSERT` did not, and could set `is_admin` on the way in.
+5. **Fly a paid crest for free** as a league owner, round
+   `set_league_badge()`'s catalogue check, via `leagues_update`.
+
+The fix takes permissions away and adds nothing. Reads of `profiles` are
+narrowed to your own row; the write grants on `profiles` and `leagues` are
+revoked from `anon` and `authenticated`; `TRUNCATE`, `TRIGGER` and
+`REFERENCES` go from every table, because **RLS does not apply to `TRUNCATE`
+at all**; and `anon` loses every write grant, since nothing writes before
+signing in.
+
+Nothing in either app broke, and that is checkable rather than hopeful: both
+clients read `profiles` only with `.eq('user_id', <me>)`, and neither has
+ever written to `profiles` or `leagues` directly. Everything one person may
+know about another already comes out of `league_leaderboard()`, which chooses
+what it returns.
+
+`workouts` is deliberately left alone. Its `BEFORE INSERT` trigger forces
+`created_at` and `week_start` and recomputes `points`; its `BEFORE UPDATE`
+guard pins id, profile, league, `created_at`, `week_start` and `boost` and
+rescores the row. A direct write there can neither forge a score nor reach a
+finished week, and the app edits and deletes entries that way.
+
+**Why twenty-eight test files never saw it.** `supabase/test/bootstrap.sql`
+created the two roles and granted them nothing, because a plain Postgres
+grants nothing. So the local database was *stricter* than production, and
+every check that a table could not be reached directly passed for the wrong
+reason: `update profiles set is_admin = true` failed locally for want of a
+grant and succeeded in production, which had them all. The bootstrap now
+copies Supabase's default privileges, and `supabase/test/privilege.sql` is
+the suite that proves the door is shut — it reports five failures against the
+schema from before the fix, and none after.
+
 ### A league can hold 100
 
 36 was a hard ceiling in a CHECK constraint, and 36 is the number the five
@@ -646,6 +707,11 @@ was actually executed:
 - `revoke all on function public.is_rest_day()` named a signature that does
   not exist (a default argument does not create a second one), so the run
   stopped there and the revoke never applied.
+- `authenticated` could set its own `is_admin`, read any league-mate's
+  restore code, take any paid cosmetic and step over the global cap — none of
+  it through a function, all of it through the table the functions sit on.
+  The local test database had no grants at all, so none of the twenty-eight
+  files could have caught it; the bootstrap now matches production.
 - `restore_profile`'s new throttle recorded its failures and then raised,
   which rolled the record back, so the lock never closed. Nothing about the
   call looked different from outside — only counting the rows afterwards
