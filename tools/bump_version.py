@@ -15,10 +15,29 @@ browser's own HTTP cache and can refill the new bucket with the old bytes.
 Changing the URL sidesteps all of that: index.html is served network-first, a
 fresh index.html asks for app.js?v=2.13.1, and nothing has that cached.
 
+A VERSION NUMBER IS PUBLISHED ONCE AND NEVER REUSED, and this refuses to
+reuse one. That is not tidiness. 2.37.0 went out twice with different code in
+it -- a revert took the bump back down with everything else, and the next
+commit bumped to the same number again -- and the second one could not reach
+a single phone that had seen the first. Every mechanism that is supposed to
+deliver an update keys on this string:
+
+  * sw.js was byte-identical, so no browser ever saw a new worker to install
+  * CACHE was still `ironleague-v2.37.0`, so activate deleted nothing
+  * app.js?v=2.37.0 was already in that cache, and the fetch handler is
+    cache-first, so it answered from it forever
+
+Three independent safety nets, all keyed on the same string, all defeated at
+once. The app had no way back: nothing short of clearing site data would have
+fixed it. Hence the check below, which reads git rather than trusting anyone
+to remember.
+
 Usage:  python3 tools/bump_version.py 2.13.1
+        python3 tools/bump_version.py 2.13.1 --reuse   (escape hatch)
 """
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,10 +53,42 @@ def write(p, s):
     open(os.path.join(ROOT, p), 'w', encoding='utf-8').write(s)
 
 
+def already_published(v):
+    """Has this exact version ever been committed before?
+
+    Asks git rather than a changelog, because git is the thing that is
+    actually true. Any commit whose sw.js carried this version counts: it was
+    pushed, Pages served it, and somebody's phone may hold it.
+    """
+    try:
+        out = subprocess.run(
+            ['git', 'log', '--all', '--format=%H %s', '-S', "var VERSION = '%s';" % v,
+             '--', 'sw.js'],
+            cwd=ROOT, capture_output=True, text=True, timeout=30)
+    except Exception:
+        return []                      # no git here; not a reason to stop
+    if out.returncode != 0:
+        return []
+    return [l for l in out.stdout.strip().splitlines() if l]
+
+
 def main():
-    if len(sys.argv) != 2 or not re.match(r'^\d+\.\d+\.\d+$', sys.argv[1]):
+    args = [a for a in sys.argv[1:] if a != '--reuse']
+    reuse = '--reuse' in sys.argv
+    if len(args) != 1 or not re.match(r'^\d+\.\d+\.\d+$', args[0]):
         raise SystemExit('usage: python3 tools/bump_version.py 2.13.1')
-    v = sys.argv[1]
+    v = args[0]
+
+    seen = already_published(v)
+    if seen and not reuse:
+        raise SystemExit(
+            'REFUSING: %s has been committed before, by:\n  %s\n\n'
+            'Publishing a version number twice with different code in it does not\n'
+            'reach anybody who saw the first one -- sw.js is byte-identical so no\n'
+            'new worker installs, CACHE matches so nothing is purged, and the\n'
+            'cache-first handler keeps answering ?v=%s from the old bytes.\n'
+            'Pick the next number instead. (--reuse overrides, for a version\n'
+            'that was never pushed.)' % (v, '\n  '.join(seen[:4]), v))
 
     app = read('app.js')
     app = re.sub(r"var APP_VERSION = '[^']*';", "var APP_VERSION = '%s';" % v, app, 1)
