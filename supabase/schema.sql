@@ -3569,6 +3569,41 @@ revoke all on function public.leave_league(uuid)            from public, anon;
 revoke all on function public.drop_membership(uuid,uuid)    from public, anon, authenticated;
 revoke all on function public.admin_memberships()           from public, anon;
 revoke all on function public.admin_remove_member(uuid,uuid) from public, anon;
+
+-- The control room's player list was the one admin function `anon` could
+-- still call, and it is the worst one to leave open: it returns a restore
+-- code for every player, and a restore code IS the account. Nothing leaked
+-- -- the body is `where public.is_admin()`, and a caller who has not signed
+-- in has no profile and so is not an admin -- but it was the only function
+-- in the set that the control room reads from whose grant did not match,
+-- and a cap of 300 strangers is the wrong moment to be relying on one
+-- `where` clause. The three under it are the rest of the same miss, two of
+-- them destructive; the live database happens to have them closed already,
+-- which is worse, not better, because it means this file and the database
+-- had drifted and only a rebuild would have shown it.
+--
+-- The rest below are the same tidy-up rather than a hole: a write
+-- (set_league_settings raises NO_PROFILE without one) and four reads that
+-- are scoped to a profile that `anon` does not have. Supabase hands EXECUTE
+-- to PUBLIC on every new function, so each of these is a line that was
+-- simply never written.
+--
+-- Nothing in either app calls these before signing in. The app signs in
+-- anonymously at boot, and a Supabase anonymous session is the
+-- `authenticated` role -- `anon` is the role with no session at all, which
+-- in this app is nobody.
+revoke all on function public.admin_players()                from public, anon;
+revoke all on function public.admin_leagues()                 from public, anon;
+revoke all on function public.admin_delete_league(uuid)      from public, anon;
+revoke all on function public.admin_delete_profile(uuid)     from public, anon;
+revoke all on function public.set_league_settings(uuid,int[],int,int,int,int)
+                                                             from public, anon;
+revoke all on function public.my_badges(uuid)                from public, anon;
+revoke all on function public.league_season(uuid,int)        from public, anon;
+revoke all on function public.league_season_info(uuid)       from public, anon;
+revoke all on function public.league_season_state(uuid)      from public, anon;
+revoke all on function public.life_scored_all()              from public, anon;
+revoke all on function public.week_scored(uuid,date)         from public, anon;
 revoke all on function public.my_leagues()                  from public, anon;
 revoke all on function public.league_leaderboard(uuid,date) from public, anon;
 revoke all on function public.weekly_history(uuid)          from public, anon;
