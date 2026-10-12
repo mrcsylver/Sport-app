@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.33.0">
+  <link rel="stylesheet" href="./styles.css?v=2.34.0">
 </head>
 <body>
 
@@ -451,6 +451,18 @@
             <p class="rulestate" id="rulesState">Every change here saves itself.</p>
           </div>
 
+          <h4>Your line</h4>
+          <p class="muted small">One line about you, on your card when somebody
+            taps your face on the board. 140 characters. Everybody in your
+            leagues can read it — so nothing here you would not say out loud
+            in the gym.</p>
+          <div class="copyrow">
+            <input id="bioInput" class="input" maxlength="140"
+                   placeholder="Third year. Chasing a one-arm.">
+            <button id="bioBtn" class="btn ghost sm" type="button">SAVE</button>
+          </div>
+          <p class="muted small" id="bioState"></p>
+
           <div id="leagueTextBox" hidden>
             <h4>League name colour</h4>
             <div id="lgNameColors" class="ncrow"></div>
@@ -787,6 +799,25 @@
   </div>
 </div>
 
+<!-- Who somebody is, when you tap their face on the board. Deliberately not
+     a tab: a tab shows YOUR OWN profile, and the thing worth seeing on a
+     campus is somebody else's. -->
+<div id="cardPop" class="cardpop" hidden>
+  <div class="playercard">
+    <button id="cardX" class="cardx" type="button" aria-label="Close">&times;</button>
+    <div id="cardArt" class="card-art"></div>
+    <p id="cardName" class="card-name">—</p>
+    <p id="cardGrade" class="card-grade">—</p>
+    <div class="card-stat">
+      <span class="card-pts mono" id="cardPts">0</span>
+      <span class="card-ptsl">LIFETIME POINTS</span>
+    </div>
+    <p id="cardBio" class="card-bio" hidden></p>
+    <div id="cardBadges" class="card-badges"></div>
+    <p id="cardSince" class="muted small"></p>
+  </div>
+</div>
+
 <!-- Shown once, to everybody, after a workout lands. Competition is the
      thing that keeps people coming back, and a league of one is not one —
      so the moment somebody has a score worth showing is the moment to ask
@@ -806,9 +837,9 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.33.0"></script>
-<script src="./vendor/game-icons.js?v=2.33.0"></script>
-<script src="./captcha.js?v=2.33.0"></script>
-<script src="./app.js?v=2.33.0"></script>
+<script src="./vendor/supabase.js?v=2.34.0"></script>
+<script src="./vendor/game-icons.js?v=2.34.0"></script>
+<script src="./captcha.js?v=2.34.0"></script>
+<script src="./app.js?v=2.34.0"></script>
 </body>
 </html>

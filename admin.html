@@ -109,6 +109,13 @@
     <h2>Leagues</h2>
     <div class="scroll"><table id="leagues"></table></div>
 
+    <h2>Lines people wrote</h2>
+    <p class="dim">A bio is the only free text in this app that strangers read.
+      Empty until somebody writes one. Clearing a line clears the line and
+      nothing else — the account, the history and every week they won stay
+      exactly where they are.</p>
+    <div class="scroll"><table id="bios"></table></div>
+
     <h2>Players</h2>
     <p class="dim"><b>Lifetime</b> is everything a player has ever logged, counted once
       even when the same set went to several leagues, with no bonus in it. <b>This week</b>
@@ -229,7 +236,7 @@
 
 <script src="./config.js"></script>
 <script src="./vendor/supabase.js"></script>
-<script src="./captcha.js?v=2.33.0"></script>
+<script src="./captcha.js?v=2.34.0"></script>
 <script>
 (function () {
   var CFG = window.APP_CONFIG || {};
@@ -300,6 +307,27 @@
     return null;
   }
 
+  async function loadBios() {
+    var r = await sb.rpc('admin_bios');
+    var rows = r.error ? [] : (r.data || []);
+    $('#bios').innerHTML = rows.length
+      ? '<tr><th>Who</th><th>Their line</th><th></th></tr>' + rows.map(function (b) {
+          return '<tr><td>' + esc(b.display_name) + '</td><td>' + esc(b.bio) + '</td>' +
+            '<td><button class="danger" data-clearbio="' + esc(b.profile_id) +
+            '">CLEAR</button></td></tr>';
+        }).join('')
+      : '<tr><td class="dim">Nobody has written one yet.</td></tr>';
+  }
+
+  document.addEventListener('click', async function (e) {
+    var btn = e.target.closest('[data-clearbio]');
+    if (!btn) return;
+    if (!confirm('Clear this line? Nothing else about the account changes.')) return;
+    var r = await sb.rpc('admin_clear_bio', { p_profile: btn.getAttribute('data-clearbio') });
+    if (r.error) { $('#err').textContent = r.error.message; return; }
+    await loadBios();
+  });
+
   async function load() {
     $('#err').textContent = '';
     var lg = await sb.rpc('admin_leagues');
@@ -310,6 +338,7 @@
     players = pl.data || [];
     memberships = mb.error ? [] : (mb.data || []);
     overview = (ov.error ? null : (ov.data || [])[0]) || null;
+    await loadBios();
     var L = lg.data || [];
 
     if (!players.length) {

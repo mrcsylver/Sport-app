@@ -1,11 +1,11 @@
 # The browser tests
 
-Twenty-eight Playwright runs against the real `index.html` and `admin.html`, with
+Twenty-nine Playwright runs against the real `index.html` and `admin.html`, with
 Supabase replaced by `mock-supabase.js` — a hand-written stand-in that keeps a
 database in `localStorage` and answers the same RPCs the server does.
 
 ```bash
-node tools/test/run.js        # …through run28.js
+node tools/test/run.js        # …through run29.js
 ```
 
 Each file prints a list of PASS/FAIL lines, reports any JavaScript error the
@@ -48,6 +48,7 @@ them somewhere else.
 | `run26.js` | the CAPTCHA gate: off by default, and where the token goes |
 | `run27.js` | a league of up to 100: the size control, and divisions that grow |
 | `run28.js` | the two nudges: attach your account, and challenge a friend |
+| `run29.js` | tapping a face: the card, and what it must not carry |
 
 ## Before a release
 

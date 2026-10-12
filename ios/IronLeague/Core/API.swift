@@ -63,6 +63,20 @@ actor API {
         return rows.first
     }
 
+    /// One line somebody writes about themselves, trimmed and bounded by the
+    /// server rather than here — this is the courtesy, not the rule.
+    func setBio(_ text: String) async throws -> Profile {
+        try await rpc("set_bio", ["p_bio": .string(text)])
+    }
+
+    /// Nil when you share no league with them, which is the server saying no
+    /// rather than an error: a card is not something you are owed.
+    func playerCard(_ id: UUID) async throws -> PlayerCard? {
+        let rows: [PlayerCard] = try await rpc(
+            "player_card", ["p_profile": .string(id.uuidString)])
+        return rows.first
+    }
+
     func createProfile(name: String) async throws -> Profile {
         try await rpc("create_profile", ["p_name": .string(name)])
     }
@@ -356,6 +370,7 @@ enum Friendly {
             "TOO_MANY_TRIES": "Too many wrong codes from this phone. Wait an hour and try again.",
             "LEAGUE_SHRINK": "That is fewer than the people already in. Nobody is removed to make a league smaller.",
             "BAD_SIZE": "A league holds between 2 and 100 people.",
+            "BIO_TOO_LONG": "Your line has to fit in 140 characters.",
             "LOCKED_ITEM": "That one is not yours yet.",
             "NOT_A_MEMBER": "You are not in that league.",
             "NO_PROFILE": "Something went wrong with your profile — reopen the app."

@@ -56,6 +56,7 @@ KNOWN = {
     "UIWindowScene", "URLComponents", "URLQueryItem", "URLRequest",
     # WebKit, for the Turnstile challenge the native app has to borrow a
     # browser for
+    "TapGesture",
     "WebKit", "WKWebView", "WKWebViewConfiguration", "WKScriptMessage",
     "WKScriptMessageHandler", "WKUserContentController",
     # Supabase

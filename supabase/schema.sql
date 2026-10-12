@@ -551,6 +551,13 @@ create table public.profiles (
   -- bytes. Null is the plain ring everybody starts with.
   frame        text constraint profiles_frame_check
                  check (frame is null or char_length(frame) between 1 and 40),
+  -- One line somebody writes about themselves, shown on their card when
+  -- anybody taps their avatar. 140 characters: long enough to say what you
+  -- train for, short enough that nobody writes an essay and short enough to
+  -- read in the two seconds a card is open. It is the only free text in this
+  -- app that other people see, so the control room can clear one.
+  bio          text constraint profiles_bio_len
+                 check (bio is null or char_length(bio) <= 140),
   -- admin is a flag the DATABASE checks inside every admin function; no
   -- service key ever reaches a browser
   is_admin     boolean not null default false,
@@ -2892,6 +2899,79 @@ language sql stable security definer set search_path = public as $$
   where public.is_member(p_league)
 $$;
 
+-- A bio is text other people read, so it is trimmed and bounded here rather
+-- than trusted from a client, and an empty one is null rather than ''.
+create function public.set_bio(p_bio text)
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare me uuid := public.my_profile_id(); row public.profiles;
+begin
+  if me is null then raise exception 'NO_PROFILE'; end if;
+  if char_length(btrim(coalesce(p_bio, ''))) > 140 then
+    raise exception 'BIO_TOO_LONG';
+  end if;
+  update public.profiles set bio = nullif(btrim(coalesce(p_bio, '')), '')
+   where id = me returning * into row;
+  return row;
+end $$;
+
+-- The card somebody sees when they tap an avatar on the board: who this is,
+-- what they have earned, and the line they wrote about themselves.
+--
+-- A FUNCTION rather than a widened leaderboard, for two reasons. A board is
+-- polled every 25 seconds by everybody with the app open and carries a row
+-- per member, so a bio on it would be paid for by every member of every
+-- league on every poll; this is read once, when a finger lands on a face.
+-- And `profiles` is readable only for your own row now -- deliberately,
+-- because that row carries a restore code -- so a card has to be something
+-- that CHOOSES what it returns. It returns no restore code, no bodyweight
+-- and no email, and the WHERE clause is what stops it being a way to read
+-- strangers: you see somebody you share a league with, or nobody.
+create function public.player_card(p_profile uuid)
+returns table (profile_id uuid, display_name text, avatar text, banner text,
+               name_color text, frame text, bio text,
+               pinned_badges text[], lifetime numeric, joined_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.display_name, p.avatar, p.banner, p.name_color, p.frame,
+         p.bio, p.pinned_badges,
+         coalesce((select sum(public.tier_points(x.raw, x.cap))
+                   from (select sum(o.points) as raw, max(e.cap) as cap
+                         from (select distinct on (w.group_id)
+                                      w.group_id, w.exercise_key, w.week_start, w.points
+                               from public.workouts w
+                               where w.profile_id = p.id
+                               order by w.group_id, w.league_id) o
+                         left join public.exercises e on e.key = o.exercise_key
+                         group by o.week_start, o.exercise_key) x), 0)::numeric,
+         (select min(m.joined_at) from public.league_members m where m.profile_id = p.id)
+  from public.profiles p
+  where p.id = p_profile
+    and (p.user_id = auth.uid() or public.shares_league_with(p.id))
+$$;
+
+-- Every line anybody has written, for the one person who may have to take
+-- one down. A list of its own rather than a wider admin_players(), because
+-- widening that would change its shape and most rows have no bio at all --
+-- this is the moderation view, and it is empty until somebody writes
+-- something.
+create function public.admin_bios()
+returns table (profile_id uuid, display_name text, bio text)
+language sql stable security definer set search_path = public as $$
+  select p.id, p.display_name, p.bio
+  from public.profiles p
+  where public.is_admin() and p.bio is not null
+  order by p.display_name
+$$;
+
+-- Somebody has to be able to take a line down. A bio is the only free text
+-- in this app that other people read, and "the admin can delete the whole
+-- account" is not a proportionate answer to a rude sentence.
+create function public.admin_clear_bio(p_profile uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Not allowed'; end if;
+  update public.profiles set bio = null where id = p_profile;
+end $$;
+
 create function public.set_name_color(p_color text)
 returns public.profiles language plpgsql security definer set search_path = public as $$
 declare me uuid := public.my_profile_id(); row public.profiles;
@@ -3513,6 +3593,10 @@ revoke all on function public.may_wear(text,text)           from public, anon, a
 revoke all on function public.check_wear(text,text)         from public, anon, authenticated;
 revoke all on function public.shop_catalogue()              from public, anon;
 revoke all on function public.set_frame(text)               from public, anon;
+revoke all on function public.set_bio(text)                 from public, anon;
+revoke all on function public.player_card(uuid)             from public, anon;
+revoke all on function public.admin_clear_bio(uuid)         from public, anon;
+revoke all on function public.admin_bios()                  from public, anon;
 revoke all on function public.league_frames(uuid)           from public, anon;
 revoke all on function public.admin_shop_items()            from public, anon;
 revoke all on function public.admin_save_shop_item(text,text,text,text,text,text,boolean,int,int)
@@ -3617,6 +3701,10 @@ grant execute on function public.admin_set_dormant(uuid,boolean) to authenticate
 grant execute on function public.wake_me()                     to authenticated;
 grant execute on function public.shop_catalogue()              to authenticated;
 grant execute on function public.set_frame(text)               to authenticated;
+grant execute on function public.set_bio(text)                 to authenticated;
+grant execute on function public.player_card(uuid)             to authenticated;
+grant execute on function public.admin_clear_bio(uuid)         to authenticated;
+grant execute on function public.admin_bios()                  to authenticated;
 grant execute on function public.league_frames(uuid)           to authenticated;
 grant execute on function public.admin_shop_items()            to authenticated;
 grant execute on function public.admin_save_shop_item(text,text,text,text,text,text,boolean,int,int)

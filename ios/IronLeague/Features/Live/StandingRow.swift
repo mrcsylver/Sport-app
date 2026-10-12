@@ -13,6 +13,7 @@ struct StandingRow: View {
     let onTap: () -> Void
 
     @Environment(Session.self) private var session
+    @State private var showCard = false
 
     private var grade: Grade? { Grade.reached(standing.lifetime) }
     private var isLeader: Bool { rank == 1 && standing.points > 0 }
@@ -34,6 +35,11 @@ struct StandingRow: View {
                     .padding(.bottom, 12)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
+        }
+        .sheet(isPresented: $showCard) {
+            PlayerCardSheet(profileId: standing.profileId)
+                .presentationDetents([.medium])
+                .presentationBackground(Theme.void)
         }
         .background {
             RoundedRectangle(cornerRadius: Theme.corner, style: .continuous)
@@ -91,10 +97,20 @@ struct StandingRow: View {
                 .foregroundStyle(rankColor)
                 .frame(width: 24, alignment: .leading)
 
+            /// The face is its own target. A tap on the name opens their
+            /// week; a tap here opens who they are. `.highPriorityGesture`
+            /// rather than a nested Button, because a button inside a button
+            /// is a fight over which one a tap belongs to.
             Mark(spec: standing.avatar, name: standing.displayName,
                  tint: division.map { Theme.metal($0) },
                  ring: session.frameArt(session.frames[standing.profileId]))
                 .frame(width: 34, height: 34)
+                .highPriorityGesture(TapGesture().onEnded {
+                    Haptic.tap()
+                    showCard = true
+                })
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel("Who is \(standing.displayName)")
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {

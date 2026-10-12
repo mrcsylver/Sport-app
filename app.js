@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.33.0';
+  var APP_VERSION = '2.34.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -822,6 +822,7 @@
     NO_PROFILE: 'Pick your name first.',
     TOO_MANY_LEAGUES: 'You already own 10 leagues.',
     BAD_SIZE: 'A league holds between 2 and 100 people.',
+    BIO_TOO_LONG: 'Your line has to fit in 140 characters.',
     LEAGUE_SHRINK: 'That is fewer than the people already in. Nobody is removed '
                  + 'to make a league smaller — take them out first.',
     NOT_SIGNED_IN: 'Connection lost — reload the page.',
@@ -1819,8 +1820,14 @@
            '" data-id="' + p.profile_id + '">' +
       '<button class="rowbtn" type="button" data-toggle="' + p.profile_id + '">' +
         '<span class="rank">' + (rank && pts > 0 ? rank : '–') + '</span>' +
+        /* The face is its own target inside the row. A <span>, not a
+           nested <button>, because a button inside a button is invalid and
+           browsers disagree about which one a tap belongs to. */
+        '<span class="avtap" data-card="' + p.profile_id + '" role="button" tabindex="0"' +
+          ' aria-label="Who is ' + esc(p.display_name) + '">' +
         avatarHtml(p.avatar, { name: p.display_name, tier: tierKey,
                                frame: state.frames[p.profile_id] }) +
+        '</span>' +
         '<span class="who"><span class="nm"' +
           (nameColor(p.name_color) ? ' style="color:' + nameColor(p.name_color) + '"' : '') +
           '>' + esc(p.display_name) +
@@ -1985,6 +1992,13 @@
       Object.keys(state.open).forEach(function (id) { if (state.open[id]) loadFeed(id); });
       return;
     }
+    var face = e.target.closest('[data-card]');
+    if (face) {
+      e.preventDefault();
+      e.stopPropagation();
+      openCard(face.getAttribute('data-card'));
+      return;
+    }
     if (e.target.closest('[data-shareweek]')) {
       e.preventDefault();
       doShare(true);
@@ -2127,6 +2141,90 @@
     });
     $('#sharePop').addEventListener('click', function (e) {
       if (e.target === $('#sharePop')) closeSharePop();
+    });
+  }
+
+  /* ===================================================================
+     9c. Who somebody is
+     ---------------------------------------------------------------------
+     Tapping a NAME opens that person's week, which is what you want when
+     you are reading a board. Tapping their FACE opens who they are, which
+     is what you want when somebody you do not recognise is above you — and
+     on a campus, that is most of them.
+
+     Not a tab. A tab shows your own profile, and the app already has two
+     places that do (STATS for the numbers, LEAGUES for the choices). The
+     thing worth seeing is somebody ELSE's, and the only way to ask for
+     that is to point at them.
+
+     Read once, on the tap, through player_card(). It is not on the board
+     because the board is polled every 25 seconds by everybody with the app
+     open, and a bio on it would be paid for by every member of every league
+     on every poll.
+     =================================================================== */
+  async function openCard(pid) {
+    if (!pid) return;
+    var r = await sb.rpc('player_card', { p_profile: pid });
+    if (r.error) { toast(niceError(r.error), true); return; }
+    var c = (r.data || [])[0];
+    if (!c) { toast('That profile is not in any of your leagues.', true); return; }
+
+    var bn = bannerOf(c.lifetime);
+    $('#cardArt').innerHTML = avatarHtml(c.avatar, {
+      name: c.display_name, tier: bn.tier, frame: c.frame });
+    $('#cardName').textContent = c.display_name;
+    var col = nameColor(c.name_color);
+    $('#cardName').style.color = col || '';
+    $('#cardGrade').textContent = bn.name;
+    $('#cardPts').textContent = num(c.lifetime);
+
+    var bio = $('#cardBio');
+    bio.textContent = c.bio || '';
+    bio.hidden = !c.bio;
+
+    $('#cardBadges').innerHTML = (c.pinned_badges || []).map(function (k) {
+      return '<span class="worn">' + iconSvg(badgeArt(k)) + '</span>';
+    }).join('');
+
+    $('#cardSince').textContent = c.joined_at
+      ? 'Training here since ' + new Intl.DateTimeFormat('en-GB',
+          { month: 'long', year: 'numeric', timeZone: TZ }).format(new Date(c.joined_at))
+      : '';
+
+    $('#cardPop').hidden = false;
+    document.body.classList.add('modal-open');
+  }
+
+  function closeCard() {
+    $('#cardPop').hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  function wireCard() {
+    $('#cardX').addEventListener('click', closeCard);
+    $('#cardPop').addEventListener('click', function (e) {
+      if (e.target === $('#cardPop')) closeCard();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !$('#cardPop').hidden) closeCard();
+    });
+
+    /* The bio, which is the only free text in this app that other people
+       read. Bounded on the server too -- this is the courtesy, not the
+       rule. */
+    $('#bioBtn').addEventListener('click', async function () {
+      var el = $('#bioInput'), btn = this;
+      btn.disabled = true;
+      try {
+        var r = await sb.rpc('set_bio', { p_bio: el.value });
+        if (r.error) throw r.error;
+        state.profile = r.data;
+        $('#bioState').textContent = r.data.bio
+          ? 'Saved. Tap your own face on the board to see it.'
+          : 'Cleared.';
+      } catch (e) {
+        $('#bioState').textContent = niceError(e);
+      } finally { btn.disabled = false; }
     });
   }
 
@@ -2288,6 +2386,7 @@
      calls Supabase checks and is not spent on the ones it does not. */
   window.__capOpts__ = capOpts;
   window.__tierSizes__ = tierSizes;   // reachable from a test
+  window.__openCard__ = openCard;
   window.__sb__ = function () { return sb; };
 
   function renderHall() {
@@ -2411,6 +2510,7 @@
     $('#shareLink').value = l ? shareUrl(l.code) : '—';
     if (state.profile) {
       $('#renameInput').value = state.profile.display_name;
+      $('#bioInput').value = state.profile.bio || '';
       $('#bwProfile').value = state.profile.bodyweight
         ? Math.round(fromKg(state.profile.bodyweight) * 10) / 10 : '';
       paintUnits();
@@ -3877,6 +3977,7 @@
   wireAccount();
   wireNudge();
   wireShare();
+  wireCard();
 
   async function saveFrame(key) {
     try {

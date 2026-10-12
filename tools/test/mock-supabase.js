@@ -458,6 +458,46 @@
             restore_code: 'A1B2C3D4', created_at: new Date().toISOString() };
       DB.profiles.push(p); return ok(p);
     },
+    set_bio: function (a) {
+      var p = me(); if (!p) return bad('NO_PROFILE');
+      var t = String(a.p_bio == null ? '' : a.p_bio).trim();
+      if (t.length > 140) return bad('BIO_TOO_LONG');
+      p.bio = t || null;
+      save(); return ok(p);
+    },
+    /* Chooses what it returns, exactly as the real one does: no restore
+       code, no bodyweight, and nothing at all for somebody you share no
+       league with. A mock that is more generous than the server is how a
+       leak ships green. */
+    player_card: function (a) {
+      var mine = me(); if (!mine) return ok([]);
+      var t = DB.profiles.filter(function (x) { return x.id === a.p_profile; })[0];
+      if (!t) return ok([]);
+      var shared = t.id === mine.id || DB.members.some(function (m) {
+        return m.profile_id === t.id && DB.members.some(function (n) {
+          return n.league_id === m.league_id && n.profile_id === mine.id; });
+      });
+      if (!shared) return ok([]);
+      var life = DB.workouts.filter(function (w) { return w.profile_id === t.id; })
+        .reduce(function (n, w) { return n + Number(w.points || 0); }, 0);
+      var join = DB.members.filter(function (m) { return m.profile_id === t.id; })
+        .map(function (m) { return m.joined_at; }).sort()[0] || null;
+      return ok([{ profile_id: t.id, display_name: t.display_name, avatar: t.avatar || null,
+                   banner: t.banner || null, name_color: t.name_color || null,
+                   frame: t.frame || null, bio: t.bio || null,
+                   pinned_badges: t.pinned_badges || [], lifetime: life, joined_at: join }]);
+    },
+    admin_bios: function () {
+      var p = me(); if (!p || !p.is_admin) return ok([]);
+      return ok(DB.profiles.filter(function (x) { return !!x.bio; })
+        .map(function (x) { return { profile_id: x.id, display_name: x.display_name, bio: x.bio }; }));
+    },
+    admin_clear_bio: function (a) {
+      var p = me(); if (!p || !p.is_admin) return bad('Not allowed');
+      var t = DB.profiles.filter(function (x) { return x.id === a.p_profile; })[0];
+      if (t) { t.bio = null; save(); }
+      return ok(null);
+    },
     rename_profile: function (a) { var p = me(); if (!p) return bad('NO_PROFILE'); p.display_name = a.p_name.trim(); return ok(p); },
     /* Zero rows for a code that matches nothing, never an exception, because
        that is what the real one does -- and the reason it does is in

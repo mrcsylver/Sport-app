@@ -81,6 +81,11 @@ ever disagree, the server is right.
 **One `Session` object.** Views read it; nothing else writes to it. The app is
 small enough that one source of truth beats five coordinated ones.
 
+`PlayerCardSheet` is what a tap on somebody's face opens — a tap on their
+name still opens their week. The face is a `.highPriorityGesture` rather
+than a nested `Button`, because a button inside a button is a fight over
+which one a tap belongs to.
+
 One deliberate exception to the first rule, in `Core/Captcha.swift`: the robot
 check in front of anonymous sign-in. Turnstile is a browser widget, and
 Cloudflare only accepts a challenge served from a hostname on the widget's

@@ -68,6 +68,10 @@ echo "· a league that holds more than 36"
 fresh ironbigl
 psql -d ironbigl -f "$HERE/bigleague.sql" 2>&1 | clean
 
+echo "· the card behind a face"
+fresh ironcard
+psql -d ironcard -f "$HERE/card.sql" 2>&1 | clean
+
 echo "· the door beside the functions"
 fresh ironpriv
 psql -d ironpriv -f "$HERE/privilege.sql" 2>&1 | clean
@@ -133,6 +137,7 @@ for i in 1 2 3; do
   psql -q -d ironlive -f "$ROOT/supabase/restore-throttle.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/big-league.sql" >/dev/null 2>&1
   psql -q -d ironlive -f "$ROOT/supabase/shut-the-side-door.sql" >/dev/null 2>&1
+  psql -q -d ironlive -f "$ROOT/supabase/player-card.sql" >/dev/null 2>&1
   echo "  run $i: clean"
 done
 psql -tAd ironlive -c "select 'leagues now hold '||max(max_members)||' people'
@@ -273,5 +278,14 @@ psql -tAd ironlive -c "select case when not exists (
        not ilike '%shares_league_with%'
   then 'and nothing an app signs in as can write a profile or read another'
   else 'THE SIDE DOOR IS OPEN AGAIN' end;"
+psql -tAd ironlive -c "select case when exists (
+    select 1 from information_schema.columns
+     where table_name = 'profiles' and column_name = 'bio')
+   and not (select pg_get_function_result(p.oid) from pg_proc p
+             join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname='public' and p.proname='player_card')
+       ilike '%restore_code%'
+  then 'and a card can be opened on a face without it carrying a restore code'
+  else 'THE CARD DID NOT SURVIVE THE MIGRATION' end;"
 
 echo "· all clear"

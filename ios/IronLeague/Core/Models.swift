@@ -21,6 +21,9 @@ struct Profile: Codable, Identifiable, Hashable {
     /// A ring drawn around the avatar, on every row of every board. The one
     /// cosmetic slot that is uploaded artwork rather than something drawn.
     var frame: String?
+    /// One line this person wrote about themselves, shown on their card. The
+    /// only free text in this app that other people read.
+    var bio: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -32,7 +35,7 @@ struct Profile: Codable, Identifiable, Hashable {
         case pinnedBadges = "pinned_badges"
         case isAdmin = "is_admin"
         case dormantAt = "dormant_at"
-        case frame
+        case frame, bio
     }
 
     var isParked: Bool { dormantAt != nil }
@@ -643,5 +646,34 @@ struct FrameRow: Codable {
     enum CodingKeys: String, CodingKey {
         case profileId = "profile_id"
         case frame
+    }
+}
+
+/// Who somebody is, when you tap their face on the board. What the server
+/// chose to send — no restore code, no bodyweight, no account id — because
+/// `profiles` is readable only for your own row and a card has to be a
+/// function that decides what it returns.
+struct PlayerCard: Decodable, Identifiable {
+    let profileId: UUID
+    let displayName: String
+    let avatar: String?
+    let banner: String?
+    let nameColor: String?
+    let frame: String?
+    let bio: String?
+    let pinnedBadges: [String]
+    let lifetime: Double
+    let joinedAt: Date?
+
+    var id: UUID { profileId }
+
+    enum CodingKeys: String, CodingKey {
+        case profileId = "profile_id"
+        case displayName = "display_name"
+        case avatar, banner, bio, lifetime
+        case nameColor = "name_color"
+        case frame
+        case pinnedBadges = "pinned_badges"
+        case joinedAt = "joined_at"
     }
 }

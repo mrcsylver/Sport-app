@@ -525,6 +525,12 @@ final class Session {
         }
     }
 
+    /// Empty clears it. The server trims and bounds it too — this is the
+    /// courtesy, not the rule.
+    func saveBio(_ text: String) async {
+        await apply { try await API.shared.setBio(text) }
+    }
+
     func rename(_ name: String) async {
         await apply { try await API.shared.renameProfile(name.trimmingCharacters(in: .whitespaces)) }
     }

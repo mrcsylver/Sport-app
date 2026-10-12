@@ -33,6 +33,12 @@ ton journal il y a un bouton **SHARE THIS WEEK**, qui envoie ce que tu as fait
 et le lien de la ligue dans un seul message. Une ligue à une personne n'en est
 pas une.
 
+**C'est qui ?** Touche le **visage** de quelqu'un dans le classement et tu
+obtiens sa carte : grade, points à vie, ce qu'il a choisi de porter, et une
+ligne qu'il a écrite sur lui-même. Toucher son **nom** ouvre toujours sa
+semaine. Écris la tienne dans LEAGUES → YOUR LINE — 140 caractères, et tout
+le monde dans tes ligues peut la lire.
+
 Une ligue accueille **de 2 à 100 personnes**, et c'est celui ou celle qui la
 crée qui choisit. Par défaut 36 — un nombre pair exprès, pour que la rivalité
 du lundi apparie tout le monde sans laisser personne de côté, et c'est aussi
@@ -446,6 +452,12 @@ trying codes at random until they land on yours.
 **Challenge somebody.** Open your own row on the LIVE tab and there is a
 **SHARE THIS WEEK** button at the bottom of your log — it sends what you did
 and the league link in one message. A league of one is not a league.
+
+**Who is that?** Tap somebody's **face** on the leaderboard and you get their
+card: grade, lifetime points, what they chose to wear, and one line they
+wrote about themselves. Tapping their **name** still opens their week. Write
+your own line in LEAGUES → YOUR LINE — 140 characters, and everybody in your
+leagues can read it.
 
 A league holds **2 to 100 people**, and whoever creates it picks the number.
 36 by default — even on purpose, so the Monday rivalry pairs everybody off

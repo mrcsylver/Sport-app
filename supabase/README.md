@@ -8,9 +8,9 @@ twice is a rebuild, not a mess — and running it on a live database wipes it.
 `body-and-crowns.sql`, `repetition-cap.sql`, `gym-lifts.sql`,
 `progressions.sql`, `season-table.sql`, `season-stats.sql`, `cup.sql`,
 `membership.sql`, `rest-day.sql`, `launch-gate.sql`, `shop.sql`,
-`faster-board.sql`, `restore-throttle.sql`, `big-league.sql` and
-`shut-the-side-door.sql` are migrations for a database that is already
-running. They only add; nothing logged is touched, and all of
+`faster-board.sql`, `restore-throttle.sql`, `big-league.sql`,
+`shut-the-side-door.sql` and `player-card.sql` are migrations for a database
+that is already running. They only add; nothing logged is touched, and all of
 them are safe to run twice.
 
 `dashboard-points.sql` splits the control room's one "Points" column in two.
@@ -414,6 +414,45 @@ Three things it is careful about:
 is the next writer of it; until then `admin_grant_item()` hands things out by
 name, which stays useful afterwards — a prize, an apology, a founder's gift.
 
+### Who somebody is, when you tap their face
+
+Tapping a **name** on the board opens that person's week. Tapping their
+**face** opens who they are — lifetime points, grade, the emblem and colour
+they chose, the badges they pinned, and one line they wrote about themselves.
+
+It is not a tab. A tab shows your own profile, and the app already has two
+places that do: STATS for the numbers and LEAGUES for the choices. The thing
+worth seeing on a campus is somebody *else's*, and the only way to ask for
+that is to point at them.
+
+`profiles.bio` is 140 characters. `set_bio()` trims it, bounds it and stores
+an empty one as null — bounded on the server because it is text other people
+read, not because a client cannot be trusted to count.
+
+**Why `player_card()` is a function and not a wider `league_leaderboard()`**,
+which is where a first instinct puts it:
+
+- A board is polled every 25 seconds by everybody with the app open and
+  carries a row per member. A bio on it would be paid for by every member of
+  every league on every poll. A card is read once, when a finger lands on a
+  face.
+- `profiles` is readable only for your own row since **The door beside the
+  functions** below — deliberately, because that row carries a restore code.
+  So a card cannot be a `SELECT`. It has to be something that *chooses* what
+  it returns.
+
+It returns no restore code, no bodyweight and no account id, and its `WHERE`
+clause is what stops it being a way to read strangers: you see somebody you
+share a league with, or you see nothing. `supabase/test/card.sql` checks the
+absence as well as the presence, because on this one what it cannot say
+matters more than what it can.
+
+`admin_bios()` and `admin_clear_bio()` are the moderation pair. A bio is the
+only free text here that strangers read, and "the admin can delete the whole
+account" is not a proportionate answer to a rude sentence — so the control
+room lists every line that exists and can take one down without touching
+anything else.
+
 ### The door beside the functions
 
 Every RPC here is `SECURITY DEFINER` and checks what it is asked to do. None
@@ -747,6 +786,7 @@ Do not hand-edit these:
 | `faster-board.sql` | `tools/build_board_migration.py` |
 | `restore-throttle.sql` | `tools/build_restore_migration.py` |
 | `big-league.sql` | `tools/build_bigleague_migration.py` |
+| `player-card.sql` | `tools/build_card_migration.py` |
 | the `muscles` seed in `schema.sql` | `tools/build_exercises.py` |
 | `BODY` in `app.js` (the figure) | `tools/build_body.py`, from `tools/body_source.json` |
 | `RATES`/`CATS`/`CAPS`/`MUSCLE_OF` in the browser mock | `tools/build_exercises.py` |

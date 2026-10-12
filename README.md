@@ -952,6 +952,28 @@ without opening anything: it is drawn around your emblem on every board, every
 duel and every quest. That is what makes one worth having, and it is also the
 cheapest one to draw well.
 
+## Tapping somebody's face
+
+Tap a **name** on the leaderboard and you get that person's week. Tap their
+**face** and you get who they are: grade, lifetime points, the emblem and
+colour they chose, the badges they pinned, and one line they wrote about
+themselves.
+
+It is deliberately **not a sixth tab**. A tab shows your own profile, and
+STATS and LEAGUES already do that between them. The thing worth seeing on a
+campus is somebody *else's*, and the only way to ask for that is to point at
+them — which costs no navigation and loses nobody their place on the table.
+
+Your own line lives in **LEAGUES → YOUR LINE**: 140 characters, everybody in
+your leagues can read it, and an empty one is stored as nothing rather than a
+blank. The control room lists every line anybody has written and can clear
+one — a bio is the only free text here that strangers read, and deleting the
+whole account is not a proportionate answer to a rude sentence.
+
+**Bodyweight is never on it.** It is on profiles to score gym lifts, it is
+health data under GDPR, and the card is built from a function that returns no
+bodyweight, no restore code and no account id at all.
+
 ## Two nudges, and what stops them becoming adverts
 
 Both exist for the same reason: somebody who has just logged their first
