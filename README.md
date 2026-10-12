@@ -781,11 +781,19 @@ bookkeeping at all.
 
 | division | seats | |
 |---|---:|---|
-| **ROYAL GUARD** | 2 | The two who stand closest to the crown |
-| **APEX** | 3 | Three deep, and one push off the front |
-| **VANGUARD** | 10 | The line that holds. Chasing the Apex |
-| **FORGE** | 15 | Where a fighter is hammered into shape |
-| **COMMONER** | 6 | Everyone starts here. Nobody stays |
+| **LEGEND** | 2 | The two who stand closest to the crown |
+| **S** | 3 | Three deep, and one push off the front |
+| **A** | 5 | The line that holds. Chasing the top |
+| **B** | 7 | Close enough to smell it |
+| **C** | 10 | Where a fighter is hammered into shape |
+| **D** | 6 | Out of the bottom, and climbing |
+| **E** | 3 | Everyone starts here. Nobody stays |
+
+Letters, because a letter needs no teaching. These used to be ROYAL GUARD,
+APEX, VANGUARD, FORGE and COMMONER — five invented words that each had to be
+learned before any of them meant anything, and nobody could tell from the
+name whether a VANGUARD outranked a FORGE. Everyone already knows that D
+beats E and that S is above A; LEGEND sits where there is no letter left.
 
 Thirty-six seats, which is a full league — and an even number on purpose.
 The Monday rivalry pairs the table off two by two, so an odd league would

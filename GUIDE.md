@@ -212,14 +212,20 @@ numérotés :
 
 | division | places | |
 |---|---:|---|
-| 👑 **ROYAL GUARD** | 2 | Les deux qui se tiennent le plus près de la couronne |
-| ⚔️ **APEX** | 3 | Trois de profondeur, à une poussée du sommet |
-| 🛡️ **VANGUARD** | 10 | La ligne qui tient. À la poursuite de l'Apex |
-| ⚒️ **FORGE** | 15 | Là où un combattant est forgé |
-| 🚪 **COMMONER** | 6 | Tout le monde commence ici. Personne n'y reste |
+| 👑 **LEGEND** | 2 | Les deux qui se tiennent le plus près de la couronne |
+| ⚔️ **S** | 3 | Trois de profondeur, à une poussée du sommet |
+| 🛡️ **A** | 5 | La ligne qui tient. À la poursuite du sommet |
+| 🛡️ **B** | 7 | Assez près pour le sentir |
+| ⚒️ **C** | 10 | Là où un combattant est forgé |
+| ⛰️ **D** | 6 | Sorti du fond, et en train de grimper |
+| 🚪 **E** | 3 | Tout le monde commence ici. Personne n'y reste |
 
-Les tailles se resserrent brutalement en haut, exprès : deux places dans la
-Royal Guard, c'est un endroit d'où une bonne soirée suffit à te déloger. Et
+Des lettres, parce qu'une lettre n'a pas besoin d'être apprise : tout le
+monde sait déjà que D bat E et que S est au-dessus de A. LEGEND est là où il
+n'y a plus de lettre.
+
+Les tailles se resserrent brutalement en haut, exprès : deux places dans
+LEGEND, c'est un endroit d'où une bonne soirée suffit à te déloger. Et
 le total fait 36, un nombre pair, pour que la rivalité du lundi apparie tout
 le monde.
 
@@ -625,11 +631,13 @@ From 10 members up, the board splits into places rather than numbered tiers:
 
 | division | seats | |
 |---|---:|---|
-| 👑 **ROYAL GUARD** | 2 | The two who stand closest to the crown |
-| ⚔️ **APEX** | 3 | Three deep, and one push off the front |
-| 🛡️ **VANGUARD** | 10 | The line that holds. Chasing the Apex |
-| ⚒️ **FORGE** | 15 | Where a fighter is hammered into shape |
-| 🚪 **COMMONER** | 6 | Everyone starts here. Nobody stays |
+| 👑 **LEGEND** | 2 | The two who stand closest to the crown |
+| ⚔️ **S** | 3 | Three deep, and one push off the front |
+| 🛡️ **A** | 5 | The line that holds. Chasing the top |
+| 🛡️ **B** | 7 | Close enough to smell it |
+| ⚒️ **C** | 10 | Where a fighter is hammered into shape |
+| ⛰️ **D** | 6 | Out of the bottom, and climbing |
+| 🚪 **E** | 3 | Everyone starts here. Nobody stays |
 
 The sizes narrow sharply at the top on purpose: two seats in the Royal Guard
 makes it somewhere one good evening can push you out of. And the total comes

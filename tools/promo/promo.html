@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Iron League — promo</title>
+<!--
+  A 25-second silent clip, 1080x1920, built out of the app's own font,
+  colours and icons so the thing on screen is the thing people land on.
+
+  NOT AN ANIMATION. There is no CSS transition and no requestAnimationFrame
+  anywhere in here. draw(t) puts every element exactly where it belongs at t
+  seconds, and the capture script calls it once per frame. A CSS animation
+  recorded by screenshotting is at the mercy of how long each screenshot
+  took; this renders the same 750 frames every time, on any machine.
+
+  SILENT ON PURPOSE. It autoplays muted on a phone, and it will be watched in
+  a gym. Every word that matters is burnt into the picture.
+
+  tools/promo/build_video.py fills __ICONS__ and drives the capture.
+-->
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* styles.css is loaded for the @font-face rules only — the app's real
+     Barlow Condensed. Its palette is not inherited, because a clip's colours
+     are decided by the clip, not by the machine that rendered it. */
+  :root {
+    --bg:#08090c; --panel:#111319; --panel2:#161923; --line:#22262f;
+    --txt:#eef1f6; --muted:#828b9c; --red:#ff2e2e; --gold:#ffc93c;
+    --green:#26d07c; --azure:#3ba6ff; --violet:#a86bff;
+  }
+  html,body { margin:0; padding:0; background:#000; }
+  /* 540x960 CSS px shot at 2x = 1080x1920, which is what a phone and every
+     social feed want. */
+  #stage {
+    position:relative; width:540px; height:960px; overflow:hidden;
+    background:var(--bg); color:var(--txt);
+    font-family:'Barlow Condensed', system-ui, sans-serif;
+  }
+  .scene { position:absolute; inset:0; opacity:0; }
+  .mid { position:absolute; left:0; right:0; text-align:center; }
+
+  .brand { font-size:21px; font-weight:800; letter-spacing:.42em; color:var(--red); }
+  h1 { margin:0; font-size:64px; line-height:.94; font-weight:800;
+       text-transform:uppercase; letter-spacing:-.01em; }
+  h1 .hit { color:var(--red); }
+  .kicker { font-size:27px; font-weight:700; color:var(--muted); }
+  .cap { font-size:30px; font-weight:800; text-transform:uppercase;
+         letter-spacing:.04em; }
+  .cap small { display:block; margin-top:7px; font-size:21px; font-weight:600;
+               letter-spacing:0; text-transform:none; color:var(--muted); }
+
+  /* The phone the app is shown inside. A bezel reads as "this is a phone"
+     faster than any caption can say it. */
+  .phone { position:absolute; left:90px; width:360px; height:620px;
+           border:7px solid #23262f; border-radius:34px; background:var(--bg);
+           overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.6); }
+  .notch { position:absolute; top:0; left:50%; transform:translateX(-50%);
+           width:106px; height:19px; background:#23262f;
+           border-radius:0 0 11px 11px; z-index:5; }
+  .scr { position:absolute; inset:0; padding:34px 13px 13px; }
+
+  /* A leaderboard row, the same shape the app draws. */
+  .row { display:flex; align-items:center; gap:9px; padding:9px 10px;
+         border-radius:7px; background:var(--panel); margin-bottom:6px;
+         border:1px solid var(--line); }
+  .row.me { border-color:var(--red); background:#19121a; }
+  .pos { width:23px; font-size:19px; font-weight:800; color:var(--muted);
+         text-align:center; }
+  .av { width:33px; height:33px; flex:0 0 auto; border-radius:50%;
+        background:var(--panel2); display:grid; place-items:center;
+        color:var(--muted); border:2px solid var(--line); }
+  .av svg { width:21px; height:21px; fill:currentColor; }
+  .nm { flex:1; font-size:21px; font-weight:700; min-width:0;
+        overflow:hidden; white-space:nowrap; }
+  .pt { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .gr { font-size:12px; font-weight:800; letter-spacing:.07em;
+        padding:2px 5px; border-radius:3px; background:var(--panel2); }
+
+  .hdr { font-size:14px; font-weight:800; letter-spacing:.17em;
+         color:var(--muted); margin:0 0 10px 2px; }
+
+  /* The log sheet. */
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--panel);
+           border-top:2px solid var(--line); border-radius:15px 15px 0 0;
+           padding:15px 14px 20px; }
+  .ex { display:flex; align-items:center; gap:10px; padding:11px 12px;
+        border-radius:6px; background:var(--panel2); margin-bottom:7px;
+        font-size:22px; font-weight:800; border:2px solid transparent; }
+  .ex.on { border-color:var(--red); }
+  .ex svg { width:25px; height:25px; fill:currentColor; color:var(--muted); }
+  .amt { font-size:63px; font-weight:800; text-align:center; line-height:1;
+         font-variant-numeric:tabular-nums; }
+  .amtl { text-align:center; font-size:15px; font-weight:700; color:var(--muted);
+          letter-spacing:.17em; margin-top:5px; }
+  .go { margin-top:13px; padding:13px; border-radius:7px; background:var(--red);
+        color:#fff; font-size:23px; font-weight:800; text-align:center;
+        letter-spacing:.07em; }
+  .fly { position:absolute; font-size:36px; font-weight:800; color:var(--green); }
+
+  /* The card you get by tapping a face. */
+  .card { position:absolute; left:50%; transform:translateX(-50%);
+          width:300px; background:var(--panel); border:2px solid var(--line);
+          border-radius:13px; padding:19px; text-align:center; }
+  .card .cav { width:76px; height:76px; margin:0 auto 11px; border-radius:50%;
+               background:var(--panel2); display:grid; place-items:center;
+               border:3px solid var(--gold); color:var(--gold); }
+  .card .cav svg { width:46px; height:46px; fill:currentColor; }
+  .card .cn { font-size:31px; font-weight:800; }
+  .card .cg { display:inline-block; margin-top:5px; font-size:16px;
+              font-weight:800; letter-spacing:.09em; color:var(--azure);
+              border:1px solid var(--azure); border-radius:4px; padding:3px 9px; }
+  .card .cl { margin-top:11px; font-size:25px; font-weight:800; }
+  .card .cls { font-size:13px; font-weight:700; color:var(--muted);
+               letter-spacing:.14em; }
+  .card .cb { margin-top:11px; font-size:18px; font-weight:600;
+              color:var(--muted); font-style:italic; }
+
+  .tile { display:inline-block; width:218px; vertical-align:top;
+          background:var(--panel); border:2px solid var(--line);
+          border-radius:11px; padding:15px; margin:0 5px; text-align:left; }
+  .tile b { display:block; font-size:24px; font-weight:800; }
+  .tile i { display:block; margin-top:4px; font-size:16px; font-weight:600;
+            font-style:normal; color:var(--muted); }
+  .tile.hot { border-color:var(--red); }
+
+  .url { font-size:25px; font-weight:700; color:var(--gold); }
+  .rule { position:absolute; top:0; left:0; right:0; height:6px;
+          background:var(--red); }
+  .bar { height:5px; border-radius:3px; background:var(--panel2); overflow:hidden; }
+  .bar span { display:block; height:100%; background:var(--red); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="rule"></div>
+
+  <!-- 1. who this is -->
+  <div class="scene" id="s1">
+    <div class="mid" style="top:300px">
+      <div class="brand">IRON LEAGUE</div>
+      <h1 id="h1a" style="margin-top:24px">Where do you<br>rank <span class="hit">on campus?</span></h1>
+      <div class="kicker" id="k1" style="margin-top:22px">Gym · Calisthenics · Running · Football</div>
+    </div>
+  </div>
+
+  <!-- 2. logging something -->
+  <div class="scene" id="s2">
+    <div class="mid cap" style="top:72px">Log it in ten seconds<small>No stopwatch, no spreadsheet</small></div>
+    <div class="phone" id="p2" style="top:210px">
+      <div class="notch"></div>
+      <div class="scr">
+        <div class="hdr">WHAT DID YOU DO</div>
+        <div class="ex" id="e1">__I_PULL__ Pull-ups</div>
+        <div class="ex" id="e2">__I_PUSH__ Push-ups</div>
+        <div class="ex" id="e3">__I_RUN__ Run</div>
+        <div class="sheet" id="sh">
+          <div class="amt" id="amt">0</div>
+          <div class="amtl">REPS</div>
+          <div class="go">LOG IT</div>
+        </div>
+        <div class="fly" id="fly">+24</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. the board moves -->
+  <div class="scene" id="s3">
+    <div class="mid cap" style="top:72px">Everyone sees it<small>The board is live all week</small></div>
+    <div class="phone" id="p3" style="top:210px">
+      <div class="notch"></div>
+      <div class="scr">
+        <div class="hdr">THIS WEEK</div>
+        <div id="board"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. leagues -->
+  <div class="scene" id="s4">
+    <div class="mid cap" style="top:150px">Start your own league<small>Your team, your floor, your friends</small></div>
+    <div class="mid" style="top:380px">
+      <div class="tile hot"><b>THE GYM CREW</b><i>18 fighters · you are 3rd</i>
+        <div class="bar" style="margin-top:11px"><span style="width:72%"></span></div></div>
+      <div class="tile"><b>FLOOR 4</b><i>9 fighters · you are 1st</i>
+        <div class="bar" style="margin-top:11px"><span style="width:96%"></span></div></div>
+    </div>
+    <div class="mid cap" style="top:620px">Be in as many as you want<small>One workout counts in all of them</small></div>
+  </div>
+
+  <!-- 5. who is that -->
+  <div class="scene" id="s5">
+    <div class="mid cap" style="top:150px">Tap anyone<small>See who you are up against</small></div>
+    <div class="card" id="pc" style="top:330px">
+      <div class="cav">__I_MUSCLE__</div>
+      <div class="cn">MAXIME</div>
+      <div class="cg">C II</div>
+      <div class="cl" id="cl">4,116</div>
+      <div class="cls">LIFETIME POINTS</div>
+      <div class="cb">"back day is every day"</div>
+    </div>
+  </div>
+
+  <!-- 6. how to get in -->
+  <div class="scene" id="s6">
+    <div class="mid" style="top:270px">
+      <div class="brand">IRON LEAGUE</div>
+      <h1 style="margin-top:26px;font-size:54px">Nothing to<br><span class="hit">download</span></h1>
+      <div class="kicker" style="margin-top:20px">Free. Scan, type a name, you are in.</div>
+      <div class="url" style="margin-top:34px">mrcsylver.github.io/Sport-app</div>
+      <div class="kicker" style="margin-top:26px;font-size:22px">
+        Add to home screen and it is an app, icon and all</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   draw(t) — the whole clip, as a pure function of time.
+
+   Everything below is arithmetic on t. No transitions, no rAF, no
+   setTimeout: the capture script sets a time and asks for a picture, so
+   frame 400 looks the same whether the machine took 2ms or 2s to draw
+   frame 399. That is the difference between a clip that renders the same
+   twice and one that does not.
+   ------------------------------------------------------------------ */
+var DUR = 25;
+
+function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+/* Ease-out cubic: things arrive quickly and settle, which is what reads as
+   deliberate rather than floaty at this length. */
+function ease(x) { x = clamp(x, 0, 1); return 1 - Math.pow(1 - x, 3); }
+/* 0 before `from`, 1 after `from+len`. */
+function ramp(t, from, len) { return ease((t - from) / len); }
+/* A scene's opacity: fades in, holds, fades out. */
+function band(t, a, b) {
+  var f = 0.45;
+  return clamp(Math.min((t - a) / f, (b - t) / f), 0, 1);
+}
+function px(el, prop, v) { el.style[prop] = v + 'px'; }
+
+var BOARD = [
+  ['BEN',    412, 'C I'],  ['SOFIA',  388, 'C I'],  ['OMAR',   355, 'B III'],
+  ['YOU',    402, 'C II'], ['LEILA',  301, 'B III'],['TOM',    268, 'B II'],
+  ['AMIN',   244, 'B II']
+];
+
+/* The board is built once; only its order and numbers move. */
+(function buildBoard() {
+  var h = '';
+  for (var i = 0; i < BOARD.length; i++) {
+    h += '<div class="row' + (BOARD[i][0] === 'YOU' ? ' me' : '') + '" id="r' + i + '">' +
+         '<div class="pos" id="rp' + i + '"></div>' +
+         '<div class="av">__I_MUSCLE__</div>' +
+         '<div class="nm">' + BOARD[i][0] + '</div>' +
+         '<div class="gr">' + BOARD[i][2] + '</div>' +
+         '<div class="pt" id="rv' + i + '"></div></div>';
+  }
+  document.getElementById('board').innerHTML = h;
+})();
+
+function draw(t) {
+  /* ---- scene opacities -------------------------------------------- */
+  var o = {
+    s1: band(t,  0.0,  4.0),
+    s2: band(t,  4.0,  9.6),
+    s3: band(t,  9.6, 15.0),
+    s4: band(t, 15.0, 19.0),
+    s5: band(t, 19.0, 22.0),
+    s6: band(t, 22.0, 25.4)
+  };
+  for (var k in o) document.getElementById(k).style.opacity = o[k];
+
+  /* ---- 1. the headline arrives, then the sports under it ---------- */
+  var a = ramp(t, 0.25, 0.8);
+  var h1 = document.getElementById('h1a');
+  h1.style.transform = 'translateY(' + (26 * (1 - a)) + 'px)';
+  h1.style.opacity = a;
+  var k = ramp(t, 1.1, 0.7);
+  var k1 = document.getElementById('k1');
+  k1.style.opacity = k;
+  k1.style.transform = 'translateY(' + (14 * (1 - k)) + 'px)';
+
+  /* ---- 2. pick the exercise, the number counts, the points fly ---- */
+  var pick = t > 5.3;
+  document.getElementById('e1').className = 'ex' + (pick ? ' on' : '');
+  /* The sheet slides up once the exercise is chosen. */
+  var up = ramp(t, 5.6, 0.55);
+  document.getElementById('sh').style.transform =
+    'translateY(' + (260 * (1 - up)) + 'px)';
+  /* 0 to 12 reps, which at 2 points a rep is the +24 that flies off. */
+  var reps = Math.round(12 * ramp(t, 6.3, 1.1));
+  document.getElementById('amt').textContent = reps;
+  /* The points leave the sheet and fade, the one bit of reward in the clip. */
+  var f = clamp((t - 7.8) / 1.3, 0, 1);
+  var fly = document.getElementById('fly');
+  fly.style.opacity = f > 0 ? (1 - f) : 0;
+  px(fly, 'left', 128);
+  px(fly, 'top', 300 - 78 * ease(f));
+
+  /* ---- 3. YOU climbs from 4th to 2nd ------------------------------ */
+  /* Sorted by points, except YOU, whose score runs up mid-shot and drags the
+     row past the two people above it. The order is recomputed from the
+     numbers rather than animated by hand, so the row never lands somewhere
+     the points do not justify. */
+  var mine = 355 + Math.round(63 * ramp(t, 11.0, 1.6));
+  var rows = BOARD.map(function (r, i) {
+    return { i: i, v: r[0] === 'YOU' ? mine : r[1] };
+  }).sort(function (x, y) { return y.v - x.v; });
+  rows.forEach(function (r, place) {
+    var el = document.getElementById('r' + r.i);
+    el.style.transform = 'translateY(' + ((place - r.i) * 57) + 'px)';
+    el.style.zIndex = r.i === 3 ? 2 : 1;
+    document.getElementById('rp' + r.i).textContent = place + 1;
+    document.getElementById('rv' + r.i).textContent = r.v;
+  });
+
+  /* ---- 5. the lifetime number counts up on the card --------------- */
+  var c = ramp(t, 19.6, 1.2);
+  document.getElementById('cl').textContent =
+    Math.round(4116 * c).toLocaleString('en-GB');
+  var pc = document.getElementById('pc');
+  var s = 0.9 + 0.1 * ramp(t, 19.3, 0.6);
+  pc.style.transform = 'translateX(-50%) scale(' + s + ')';
+
+  /* The phones drift up a few pixels across their scene. Enough that the
+     frame is never dead, little enough that nobody notices it happening. */
+  px(document.getElementById('p2'), 'top', 210 - 10 * clamp((t - 4) / 5.6, 0, 1));
+  px(document.getElementById('p3'), 'top', 210 - 10 * clamp((t - 9.6) / 5.4, 0, 1));
+}
+
+window.draw = draw;
+window.DUR = DUR;
+draw(0);
+</script>
+</body>
+</html>

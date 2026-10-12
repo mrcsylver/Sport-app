@@ -74,13 +74,22 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
 
  /* ---- divisions ---- */
  const heads=await pg.$$eval('.divhead', e=>e.map(x=>x.textContent.replace(/\s+/g,' ').trim()));
- T('the divisions that fit are shown', heads.length===4, heads.join(' | '));
+ /* 24 people against sizes 2,3,5,7,10,6,3: the first four fill, C takes the
+    seven that are left, and D and E are not drawn at all. An empty division
+    is not a division. */
+ T('the divisions that fit are shown', heads.length===5, heads.join(' | '));
  const sizes=await pg.$$eval('.divhead-n', e=>e.map(x=>x.textContent.trim()));
- T('two in the royal guard, three in the apex, ten in the vanguard',
-   sizes.join(',')==='2,3,10,9', sizes.join(',') || 'no division headers rendered');
- T('divisions are named places, not numbers',
-   /ROYAL GUARD/.test(heads[0]) && /APEX/.test(heads[1]) && /VANGUARD/.test(heads[2])
-   && /FORGE/.test(heads[3]),
+ T('two in LEGEND, three in S, five in A, seven in B, the rest in C',
+   sizes.join(',')==='2,3,5,7,7', sizes.join(',') || 'no division headers rendered');
+ /* Letters, not invented places. ROYAL GUARD, APEX, VANGUARD, FORGE and
+    COMMONER each had to be learned before any of them meant anything, and
+    nobody could tell from the name whether a VANGUARD outranked a FORGE. */
+ T('divisions are letters, top down',
+   heads.slice(0,5).map((h,i)=>new RegExp('^(LEGEND|S|A|B|C)\\b').test(h.trim()))
+     .every(Boolean) &&
+   /^LEGEND/.test(heads[0].trim()) && /^S\b/.test(heads[1].trim()) &&
+   /^A\b/.test(heads[2].trim()) && /^B\b/.test(heads[3].trim()) &&
+   /^C\b/.test(heads[4].trim()),
    heads.join(' | '));
  // divisions must follow THIS week's points, highest first
  const pts=await pg.$$eval('#board .row .pts', e=>e.map(x=>parseFloat(x.textContent)));
@@ -88,21 +97,24 @@ const SEED=`(function(){var DB=window.__DB__,W=window.__weekStart__,C=window.__c
    pts.every((v,i)=>i===0||pts[i-1]>=v), pts.slice(0,6).join(' > ')+' …');
  const goldTop=await pg.$eval('#board .row', e=>parseFloat(e.querySelector('.pts').textContent));
  T('the top division holds the current leader', goldTop===Math.max(...pts), goldTop+' vs max '+Math.max(...pts));
- /* The Royal Guard and the Apex share one run of numbers, so the top five
-    read 1..5 straight through; every division below starts again at 1. */
+ /* LEGEND and S share one run of numbers, so the top five read 1..5 straight
+    through; every division below starts again at 1, because your number is
+    your place among the people you are actually fighting. */
  const ranks=await pg.$$eval('#board .row .rank', e=>e.map(x=>x.textContent.trim()));
  T('the top five are numbered straight through',
    ranks.slice(0,5).join(',')==='1,2,3,4,5', ranks.slice(0,5).join(','));
- T('the vanguard starts again at 1',
-   ranks[5]==='1' && ranks.slice(5,15).join(',')==='1,2,3,4,5,6,7,8,9,10',
-   ranks.slice(5,15).join(','));
- T('and so does the forge',
-   ranks[15]==='1', ranks.slice(15,20).join(','));
+ T('A starts again at 1 and runs to five',
+   ranks.slice(5,10).join(',')==='1,2,3,4,5', ranks.slice(5,10).join(','));
+ T('and so does B, for seven',
+   ranks.slice(10,17).join(',')==='1,2,3,4,5,6,7', ranks.slice(10,17).join(','));
+ T('and C after it',
+   ranks[17]==='1', ranks.slice(17,24).join(','));
  const order=await pg.$$eval('#board > *', e=>e.map(x=>x.className.split(' ')[0]));
  T('board is grouped, not one flat list', order[0]==='divhead', order.slice(0,3).join(','));
  T('a leader is highlighted per division',
-   (await pg.$$('.row.lead-diamond')).length===1 && (await pg.$$('.row.lead-gold')).length===1,
-   'royal guard and apex both marked');
+   (await pg.$$('.row.lead-legend')).length===1 && (await pg.$$('.row.lead-s')).length===1
+   && (await pg.$$('.row.lead-a')).length===1,
+   'LEGEND, S and A each have their own leader marked');
  await pg.screenshot({path:path.join(OUT,'80-tiers.png')});
 
  /* ---- most improved ---- */

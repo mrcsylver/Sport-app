@@ -22,6 +22,7 @@
   --silver:#c9d3e2;
   --bronze:#d08442;
   --diamond:#8ce9ff;
+  --legend:#e9edf5;
   --stone:#7d8492;
   --green:#26d07c;
   --display:"Barlow Condensed",Oswald,"Arial Narrow",system-ui,sans-serif;
@@ -46,6 +47,7 @@
   --silver:#7b8494;
   --bronze:#9c5f22;
   --diamond:#1f8fb0;
+  --legend:#5d6676;
   --stone:#6b7280;
   --green:#0f8f52;
 }
@@ -281,22 +283,33 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
 .tierhead:first-child{margin-top:0}
 .tierhead i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--muted);
   letter-spacing:0;margin-left:auto}
-.tierhead.t-diamond{color:var(--diamond)}
-.tierhead.t-stone{color:var(--stone)}
-.tierhead.t-gold{color:var(--gold)}
-.tierhead.t-silver{color:var(--silver)}
-.tierhead.t-bronze{color:var(--bronze)}
-.row.lead-diamond{border-color:rgba(140,233,255,.6);
+/* Seven divisions, in the colour order every game has already taught people
+   to read: stone, green, bronze, silver, gold, ice, and above ice a white
+   that is not a colour at all. The classes ARE the letters, so a stylesheet
+   rule and the division it paints cannot drift apart. */
+.tierhead.t-legend{color:var(--legend)}
+.tierhead.t-s{color:var(--diamond)}
+.tierhead.t-a{color:var(--gold)}
+.tierhead.t-b{color:var(--silver)}
+.tierhead.t-c{color:var(--bronze)}
+.tierhead.t-d{color:var(--green)}
+.tierhead.t-e{color:var(--stone)}
+.row.lead-legend{border-color:rgba(233,237,245,.65);
+  box-shadow:inset 0 0 44px -12px rgba(233,237,245,.5)}
+.row.lead-legend .rank{color:var(--legend)}
+.row.lead-s{border-color:rgba(140,233,255,.6);
   box-shadow:inset 0 0 40px -12px rgba(140,233,255,.55)}
-.row.lead-diamond .rank{color:var(--diamond)}
-.row.lead-gold{border-color:rgba(255,201,60,.55);box-shadow:inset 0 0 34px -14px rgba(255,201,60,.55)}
-.row.lead-gold .rank{color:var(--gold)}
-.row.lead-silver{border-color:rgba(201,211,226,.4)}
-.row.lead-silver .rank{color:var(--silver)}
-.row.lead-stone{border-color:rgba(125,132,146,.4)}
-.row.lead-stone .rank{color:var(--stone)}
-.row.lead-bronze{border-color:rgba(208,132,66,.45)}
-.row.lead-bronze .rank{color:var(--bronze)}
+.row.lead-s .rank{color:var(--diamond)}
+.row.lead-a{border-color:rgba(255,201,60,.55);box-shadow:inset 0 0 34px -14px rgba(255,201,60,.55)}
+.row.lead-a .rank{color:var(--gold)}
+.row.lead-b{border-color:rgba(201,211,226,.4)}
+.row.lead-b .rank{color:var(--silver)}
+.row.lead-c{border-color:rgba(208,132,66,.45)}
+.row.lead-c .rank{color:var(--bronze)}
+.row.lead-d{border-color:rgba(38,208,124,.4)}
+.row.lead-d .rank{color:var(--green)}
+.row.lead-e{border-color:rgba(125,132,146,.4)}
+.row.lead-e .rank{color:var(--stone)}
 
 /* ---------- most improved ---------- */
 .climber{display:flex;align-items:center;gap:8px;padding:8px 13px;
@@ -697,17 +710,20 @@ body.modal-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))
 .divhead-n{font:800 13px/1 var(--mono);color:var(--dv);opacity:.7;flex:0 0 auto}
 .divhead.is-mine .divhead-t b::after{content:" · YOU";font-size:10px;letter-spacing:.1em;
   opacity:.65}
-/* Bronze, silver, gold — and above gold, diamond. A pale ice blue rather
-   than another warm metal: the board is already red and gold, and the top of
-   it should be the one thing on screen that is cold. */
-.t-diamond{--dv:var(--diamond)}
-.t-stone{--dv:var(--stone)}
-.t-gold{--dv:var(--gold)}
-.t-silver{--dv:var(--silver)}
-.t-bronze{--dv:var(--bronze)}
+/* Bronze, silver, gold — and above gold ice, and above ice nothing but
+   white. A pale ice blue rather than another warm metal: the board is
+   already red and gold, and the top of it should be the one thing on screen
+   that is cold. */
+.t-legend{--dv:var(--legend)}
+.t-s{--dv:var(--diamond)}
+.t-a{--dv:var(--gold)}
+.t-b{--dv:var(--silver)}
+.t-c{--dv:var(--bronze)}
+.t-d{--dv:var(--green)}
+.t-e{--dv:var(--stone)}
 /* the top division gets a glow the others do not */
-.divhead.t-diamond .divhead-t b{text-shadow:0 0 14px color-mix(in srgb,var(--diamond) 55%,transparent)}
-.divhead.t-diamond{border-bottom-width:3px}
+.divhead.t-legend .divhead-t b{text-shadow:0 0 14px color-mix(in srgb,var(--legend) 60%,transparent)}
+.divhead.t-legend{border-bottom-width:3px}
 
 /* --- emblem builder --------------------------------------------------- */
 .av-preview{display:flex;align-items:center;gap:14px;padding:12px 0 2px}

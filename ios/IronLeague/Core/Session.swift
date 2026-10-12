@@ -139,7 +139,7 @@ final class Session {
             var slice = Array(sorted[i..<end])
             // whoever spills past the last division joins it rather than
             // forming a sixth
-            if d == .commoner && end < sorted.count { slice += sorted[end...] }
+            if d == .e && end < sorted.count { slice += sorted[end...] }
             // the Royal Guard and the Apex share a numbering; everything
             // below starts again at 1
             if d.rankGroup != numbering {

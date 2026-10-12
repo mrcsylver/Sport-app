@@ -32,6 +32,10 @@ enum Theme {
     static let silver    = Color(hex: 0xC9D3E2)
     static let bronze    = Color(hex: 0xD08442)
     static let jade      = Color(hex: 0x26D07C)
+    /// LEGEND, the division above S. When the ramp has already spent stone,
+    /// green, bronze, silver, gold and ice, the only thing left that reads as
+    /// higher is no colour at all. Matches --legend in styles.css.
+    static let legendWhite = Color(hex: 0xE9EDF5)
     static let azure     = Color(hex: 0x3BA6FF)
     static let violet    = Color(hex: 0xA86BFF)
 
@@ -41,13 +45,17 @@ enum Theme {
         colors: [flame, ember, gold],
         startPoint: .leading, endPoint: .trailing)
 
+    /// Stone, green, bronze, silver, gold, ice — and above ice a white that
+    /// is not a colour at all. Must match .t-legend … .t-e in styles.css.
     static func metal(_ tier: Division) -> Color {
         switch tier {
-        case .royalGuard: return diamond
-        case .apex:       return gold
-        case .vanguard:   return silver
-        case .forge:      return bronze
-        case .commoner:   return stone
+        case .legend: return legendWhite
+        case .s:      return diamond
+        case .a:      return gold
+        case .b:      return silver
+        case .c:      return bronze
+        case .d:      return jade
+        case .e:      return stone
         }
     }
 
@@ -75,39 +83,43 @@ extension Color {
     }
 }
 
-/// A division is a place with a name, not a colour with a number.
+/// A division is a letter, because a letter needs no teaching.
 ///
-/// The sizes narrow sharply at the top on purpose. Two in the Royal Guard and
-/// three in the Apex means the top of the table is somewhere you can be pushed
-/// out of by one good evening — which is the only reason to have divisions.
+/// These used to be ROYAL GUARD, APEX, VANGUARD, FORGE and COMMONER — five
+/// invented words, each of which had to be learned before any of them meant
+/// anything, and nobody could tell from the name whether a VANGUARD outranked
+/// a FORGE. Everyone who has touched a game or a report card already knows
+/// that D beats E and that S is above A. LEGEND sits where there is no letter
+/// left. Must match TIERS in app.js.
 ///
-/// Nothing here is a god or a throne. They are posts in an order: you start
-/// outside it, you are made in the forge, you fight in the line, and two
-/// people stand at the crown. Every one of them can be taken off you by
-/// Sunday.
+/// The sizes still narrow sharply at the top, which is the only reason to
+/// have divisions at all: two places in LEGEND and three in S means the top
+/// of the table is somewhere one good evening can push you out of.
 enum Division: String, CaseIterable {
-    case royalGuard, apex, vanguard, forge, commoner
+    case legend, s, a, b, c, d, e
 
     /// How many people it holds in a league of 36, which is the default size
-    /// and the number these five come to — and even on purpose, because the
+    /// and the number these seven come to — and even on purpose, because the
     /// Monday rivalry pairs the table off two by two.
     var size: Int {
         switch self {
-        case .royalGuard: return 2
-        case .apex:       return 3
-        case .vanguard:   return 10
-        case .forge:      return 15
-        case .commoner:   return 6
+        case .legend: return 2
+        case .s:      return 3
+        case .a:      return 5
+        case .b:      return 7
+        case .c:      return 10
+        case .d:      return 6
+        case .e:      return 3
         }
     }
 
     /// How many it holds in a table of `n`. Up to 36 this is `size` and
     /// nothing about an existing league moves. Past it — a league can hold
-    /// 100 now — the BOTTOM THREE grow in the proportion they already have
-    /// and the top two never do: a Royal Guard of six is not a Royal Guard,
-    /// and the point of those five places is that one good evening can push
-    /// you out of them. Without this the overflow all landed in COMMONER, so
-    /// a league of 100 read as five divisions and then a crowd of seventy.
+    /// 100 now — the BOTTOM FIVE grow in the proportion they already have
+    /// and the top two never do: a LEGEND of six is not a LEGEND, and the
+    /// point of those five places is that one good evening can push you out
+    /// of them. Without this the overflow all landed in E, so a league of 100
+    /// read as six divisions and then a crowd of seventy.
     static func sizes(for n: Int) -> [Division: Int] {
         var out: [Division: Int] = [:]
         if n <= 36 {
@@ -115,13 +127,17 @@ enum Division: String, CaseIterable {
             return out
         }
         let rest = n - 5
-        let v = Int((Double(rest) * 10.0 / 31.0).rounded())
-        let f = Int((Double(rest) * 15.0 / 31.0).rounded())
-        out[.royalGuard] = 2
-        out[.apex] = 3
-        out[.vanguard] = v
-        out[.forge] = f
-        out[.commoner] = rest - v - f
+        let a = Int((Double(rest) *  5.0 / 31.0).rounded())
+        let b = Int((Double(rest) *  7.0 / 31.0).rounded())
+        let c = Int((Double(rest) * 10.0 / 31.0).rounded())
+        let d = Int((Double(rest) *  6.0 / 31.0).rounded())
+        out[.legend] = 2
+        out[.s] = 3
+        out[.a] = a
+        out[.b] = b
+        out[.c] = c
+        out[.d] = d
+        out[.e] = rest - a - b - c - d
         return out
     }
 
@@ -132,36 +148,32 @@ enum Division: String, CaseIterable {
     /// actually fighting.
     var rankGroup: String {
         switch self {
-        case .royalGuard, .apex: return "top"
-        default:                 return rawValue
+        case .legend, .s: return "top"
+        default:          return rawValue
         }
     }
 
-    var title: String {
-        switch self {
-        case .royalGuard: return "ROYAL GUARD"
-        case .apex:       return "APEX"
-        case .vanguard:   return "VANGUARD"
-        case .forge:      return "FORGE"
-        case .commoner:   return "COMMONER"
-        }
-    }
+    var title: String { rawValue.uppercased() }
     var subtitle: String {
         switch self {
-        case .royalGuard: return "The two who stand closest to the crown"
-        case .apex:       return "Three deep, and one push off the front"
-        case .vanguard:   return "The line that holds. Chasing the Apex"
-        case .forge:      return "Where a fighter is hammered into shape"
-        case .commoner:   return "Everyone starts here. Nobody stays"
+        case .legend: return "The two who stand closest to the crown"
+        case .s:      return "Three deep, and one push off the front"
+        case .a:      return "The line that holds. Chasing the top"
+        case .b:      return "Close enough to smell it"
+        case .c:      return "Where a fighter is hammered into shape"
+        case .d:      return "Out of the bottom, and climbing"
+        case .e:      return "Everyone starts here. Nobody stays"
         }
     }
     var symbol: String {
         switch self {
-        case .royalGuard: return "crown.fill"
-        case .apex:       return "figure.fencing"
-        case .vanguard:   return "shield.lefthalf.filled"
-        case .forge:      return "hammer.fill"
-        case .commoner:   return "figure.walk"
+        case .legend: return "crown.fill"
+        case .s:      return "figure.fencing"
+        case .a:      return "shield.lefthalf.filled"
+        case .b:      return "shield.fill"
+        case .c:      return "hammer.fill"
+        case .d:      return "mountain.2.fill"
+        case .e:      return "figure.walk"
         }
     }
 }

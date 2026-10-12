@@ -83,7 +83,7 @@ struct StandingRow: View {
     }
 
     private var borderColor: Color {
-        if let d = division, d == .royalGuard { return Theme.diamond.opacity(0.6) }
+        if let d = division, d == .legend { return Theme.legendWhite.opacity(0.6) }
         if isLeader, let d = division { return Theme.metal(d).opacity(0.65) }
         if isLeader { return Theme.gold.opacity(0.6) }
         if isMe { return Theme.flame.opacity(0.5) }

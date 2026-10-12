@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.36.0';
+  var APP_VERSION = '2.37.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -284,37 +284,43 @@
   var COMBO_TIERS = [{ n: 5, pts: 12 }, { n: 4, pts: 8 }, { n: 3, pts: 5 }];
 
   /* Divisions. Where you are is where you finished, so it maintains itself
-     with no bookkeeping. Each one is a place with a name and a crest, not a
-     colour with a number — you are in the VANGUARD, not in "tier 2".
-     The sizes narrow sharply at the top on purpose: two in the ROYAL GUARD
-     and three in the APEX means the top of the table is somewhere you can be
-     pushed out of by one good evening, which is the whole point of it.
+     with no bookkeeping.
 
-     Nothing here is a god or a throne. They are posts in an order: you start
-     outside it, you are made in the forge, you fight in the line, and two
-     people stand at the crown. Every one of them is somewhere you can be
-     moved out of by Sunday.
+     LETTERS, NOT INVENTED PLACES. These used to be ROYAL GUARD, APEX,
+     VANGUARD, FORGE and COMMONER — five words that each had to be learned
+     before any of them meant anything, and nobody could say from the name
+     whether a VANGUARD outranked a FORGE. E to S is a ladder that needs no
+     teaching: everyone who has touched a game or a report card already knows
+     D beats E and that S is above A. LEGEND sits where there is no letter
+     left.
 
-     `rank` is which numbering a division belongs to. The Royal Guard and the
-     Apex share one, so the top five read 1 to 5 straight through — they are
-     the top of the league, not two separate races. Everything below counts
-     from 1 again: your number is your place among the people you are
-     actually fighting. */
+     The sizes still narrow sharply at the top, which is the whole point: two
+     places in LEGEND and three in S means the top of the table is somewhere
+     one good evening can push you out of.
+
+     `rank` is which numbering a division belongs to. LEGEND and S share one,
+     so the top five read 1 to 5 straight through — they are the top of the
+     league, not two separate races. Everything below counts from 1 again:
+     your number is your place among the people you are actually fighting. */
   var TIERS = [
-    { key: 'DIAMOND', name: 'ROYAL GUARD', sub: 'The two who stand closest to the crown',
+    { key: 'legend', name: 'LEGEND', sub: 'The two who stand closest to the crown',
       icon: 'crown',              size: 2,  rank: 'top' },
-    { key: 'GOLD',    name: 'APEX',        sub: 'Three deep, and one push off the front',
+    { key: 's',      name: 'S',      sub: 'Three deep, and one push off the front',
       icon: 'crossed-swords',     size: 3,  rank: 'top' },
-    { key: 'SILVER',  name: 'VANGUARD',    sub: 'The line that holds. Chasing the Apex',
-      icon: 'crenulated-shield',  size: 10, rank: 'vanguard' },
-    { key: 'BRONZE',  name: 'FORGE',       sub: 'Where a fighter is hammered into shape',
-      icon: 'anvil-impact',       size: 15, rank: 'forge' },
-    { key: 'STONE',   name: 'COMMONER',    sub: 'Everyone starts here. Nobody stays',
-      icon: 'triple-gate',        size: 6,  rank: 'commoner' }
+    { key: 'a',      name: 'A',      sub: 'The line that holds. Chasing the top',
+      icon: 'crenulated-shield',  size: 5,  rank: 'a' },
+    { key: 'b',      name: 'B',      sub: 'Close enough to smell it',
+      icon: 'shield-bash',        size: 7,  rank: 'b' },
+    { key: 'c',      name: 'C',      sub: 'Where a fighter is hammered into shape',
+      icon: 'anvil-impact',       size: 10, rank: 'c' },
+    { key: 'd',      name: 'D',      sub: 'Out of the bottom, and climbing',
+      icon: 'mountains',          size: 6,  rank: 'd' },
+    { key: 'e',      name: 'E',      sub: 'Everyone starts here. Nobody stays',
+      icon: 'triple-gate',        size: 3,  rank: 'e' }
   ];
-  /* 2 + 3 + 10 + 15 + 6 = 36, and 36 is even on purpose: the Monday rivalry
-     pairs the table off two by two, and an odd league always leaves the last
-     person without an opponent. */
+  /* 2 + 3 + 5 + 7 + 10 + 6 + 3 = 36, and 36 is even on purpose: the Monday
+     rivalry pairs the table off two by two, and an odd league always leaves
+     the last person without an opponent. */
   /* Below this many people a division is just the table with headings in it. */
   var TIER_MINIMUM = 10;
 
@@ -1767,18 +1773,19 @@
   /* Divisions are a live cut of the current table: the top ten are Gold,
      the next ten Silver, the rest Bronze. Log something and you climb. */
   /* How many people each division holds, for a table of n.
-     Up to 36 this is the fixed 2/3/10/15/6 and nothing about an existing
-     league moves. Past it -- a league can hold 100 now -- the BOTTOM THREE
-     grow in the same proportion they already have, and the top two never do:
-     a Royal Guard of six is not a Royal Guard, and the whole point of those
-     five places is that one good evening can push you out of them.
-     Without this the overflow all landed in COMMONER, so a league of 100 was
-     five divisions and then a crowd of seventy. */
+     Up to 36 the sizes are the ones above and nothing about an existing
+     league moves. Past it — a league holds 100 now — the bottom FIVE grow in
+     the proportion they already have and the top two never do: a LEGEND of
+     six is not a LEGEND, and the point of those five places is that one good
+     evening can push you out of them. Without this the overflow all landed
+     in E, so a league of 100 read as six divisions and then a crowd. */
   function tierSizes(n) {
     var fixed = TIERS.map(function (t) { return t.size; });
     if (n <= 36) return fixed;
-    var rest = n - 5, v = Math.round(rest * 10 / 31), f = Math.round(rest * 15 / 31);
-    return [2, 3, v, f, rest - v - f];
+    var rest = n - 5;
+    var a = Math.round(rest *  5 / 31), b = Math.round(rest *  7 / 31),
+        c = Math.round(rest * 10 / 31), d = Math.round(rest *  6 / 31);
+    return [2, 3, a, b, c, d, rest - a - b - c - d];
   }
 
   function withTiers(rows) {

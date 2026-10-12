@@ -61,21 +61,27 @@ const SEED=`(function(){var DB=window.__DB__, ws=window.__weekStart__();
    small: window.__tierSizes__(20), full: window.__tierSizes__(36),
    just:  window.__tierSizes__(37), big:  window.__tierSizes__(100)
  }));
- T('a league of 36 or fewer is divided exactly as it always was',
-   JSON.stringify(sizes.full)==='[2,3,10,15,6]' &&
-   JSON.stringify(sizes.small)==='[2,3,10,15,6]', JSON.stringify(sizes.full));
+ /* Seven letters now, not five invented places, but the shape of the thing
+    is unchanged: a fixed split up to 36, then the bottom five growing in
+    proportion while the top two never move. */
+ T('a league of 36 or fewer is divided by the fixed split',
+   JSON.stringify(sizes.full)==='[2,3,5,7,10,6,3]' &&
+   JSON.stringify(sizes.small)==='[2,3,5,7,10,6,3]', JSON.stringify(sizes.full));
  T('37 is not a cliff',
-   JSON.stringify(sizes.just)==='[2,3,10,15,7]', JSON.stringify(sizes.just));
- T('and 100 people are five divisions, not five and a crowd',
-   sizes.big.reduce((a,c)=>a+c,0)===100 && sizes.big[4] < 25,
+   JSON.stringify(sizes.just)==='[2,3,5,7,10,6,4]', JSON.stringify(sizes.just));
+ /* The point of the proportional split: without it the leftover sixty-four
+    all fell into the bottom division and a league of 100 read as six
+    divisions and then a crowd. */
+ T('and 100 people are seven divisions, not six and a crowd',
+   sizes.big.reduce((a,c)=>a+c,0)===100 && sizes.big[6] < 25,
    JSON.stringify(sizes.big));
  T('the two at the top never grow — being pushed out of them is the point',
    sizes.big[0]===2 && sizes.big[1]===3, sizes.big[0]+'+'+sizes.big[1]);
 
  /* ---- 2. the board actually draws them --------------------------------- */
  const heads = await pg.$$eval('.divhead-t b', e=>e.map(x=>x.textContent.trim()));
- T('all five divisions are on a 60-person board',
-   heads.length===5, heads.join(' · '));
+ T('all seven divisions are on a 60-person board',
+   heads.length===7, heads.join(' · '));
  const rows = await pg.$$eval('#board .row', e=>e.length);
  T('and every one of the 60 is on it', rows===60, rows+' rows');
  await pg.screenshot({path:path.join(OUT,'97-big-board.png'),fullPage:false});
