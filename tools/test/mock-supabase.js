@@ -46,6 +46,15 @@
   if (!window.__ASK_SHARE__) {
     try { localStorage.setItem('ironleague.share.asked', '1'); } catch (e) {}
   }
+  /* Exactly the same problem, and it bit the moment the explainer stopped
+     being onboarding-only: it now opens once per browser for EVERYBODY, and
+     a fresh context IS a fresh browser -- so a full-screen video went up over
+     every suite and sat on whatever the test meant to click next. Marked as
+     already seen unless a test opts in with window.__ASK_PROMO__ = true,
+     which run31 is the one that does. */
+  if (!window.__ASK_PROMO__) {
+    try { localStorage.setItem('ironleague.promo.seen', '1'); } catch (e) {}
+  }
   DB.authPasswords = DB.authPasswords || {};
   DB.authIdentities = DB.authIdentities || {};
   /* Enough of the exercise table for the control room's picker. The app

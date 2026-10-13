@@ -27,8 +27,13 @@ const srv=http.createServer((q,s)=>{let p=decodeURIComponent(q.url.split('?')[0]
 const CFG='window.APP_CONFIG={SUPABASE_URL:"https://d.supabase.co",SUPABASE_ANON_KEY:"k",' +
           'TIMEZONE:"Europe/Paris",DEFAULT_LEAGUE_CODE:"",APP_NAME:"IRON LEAGUE",' +
           'SIGN_IN:{GOOGLE:false,EMAIL:false,ANON:true},TURNSTILE_SITE_KEY:""};';
+/* Two kinds of person, because the clip has to reach both: `unew` has no
+   profile and meets it at the door, `u1` already has one and is every player
+   who was here before the clip existed. */
 const SEED=`(function(){var DB=window.__DB__;
- DB.leagues.push({id:'lg1',name:'ALPHA',code:'AAA111',owner_id:'p9',max_members:30,rest_dow:[]});
+ DB.leagues.push({id:'lg1',name:'ALPHA',code:'AAA111',owner_id:'p1',max_members:30,rest_dow:[]});
+ DB.profiles.push({id:'p1',user_id:'u1',display_name:'OLDHAND',restore_code:'OLD00001'});
+ DB.members.push({league_id:'lg1',profile_id:'p1',joined_at:'2026-09-01'});
  window.__save__();
 })();`;
 
@@ -44,7 +49,11 @@ const SEED=`(function(){var DB=window.__DB__;
    pg.on('console',m=>{if(m.type()==='error')errs.push('CONSOLE '+m.text());});
    await pg.route('**/vendor/supabase.js*',r=>r.fulfill({contentType:'text/javascript',body:MOCK+SEED}));
    await pg.route('**/config.js*',r=>r.fulfill({contentType:'text/javascript',body:CFG}));
-   await pg.addInitScript(u=>{window.__UID__=u;window.__ASK_SHARE__=false;},uid);
+   /* The one suite that WANTS the explainer: the mock marks it already seen
+      for everybody else, or a full-screen video would sit over every other
+      test in the project. */
+   await pg.addInitScript(u=>{window.__UID__=u;window.__ASK_SHARE__=false;
+                              window.__ASK_PROMO__=true;}, uid);
    return {ctx,pg};
  }
 
@@ -158,6 +167,35 @@ const SEED=`(function(){var DB=window.__DB__;
 
  await pg.click('#promoSkip');
  await ctx.close();
+
+ /* ===== 8. a player who ALREADY has a profile gets it too ============ */
+ /* This is the case that was missed: the clip used to live inside
+    startOnboarding(), which only runs for somebody with no profile — so
+    every player who was already here, including all of the ones from before
+    it existed, could never see it. */
+ {
+   /* A fresh context starts with empty localStorage, so the flag is simply
+      absent. Clearing it on every load instead would have re-cleared it on
+      the reload below and made the "does not ask again" check meaningless. */
+   const {ctx:c2, pg:p2} = await open('u1');
+   await p2.goto('http://localhost:4431/');
+   await p2.waitForSelector('#promoPop:not([hidden])',{timeout:9000});
+   T('an existing player with a profile sees it too, once',
+     await p2.evaluate(()=>!document.querySelector('#promoPop').hidden),
+     'shown to a returning player');
+   /* It must not block them: the app is built behind it, so SKIP lands on
+      their board rather than on a loading screen. */
+   await p2.click('#promoSkip');
+   await p2.waitForSelector('#app:not([hidden])',{timeout:9000});
+   T('and skipping drops them straight onto their board',
+     await p2.evaluate(()=>!document.querySelector('#app').hidden), 'app is up');
+   await p2.reload();
+   await p2.waitForSelector('#app:not([hidden])',{timeout:9000});
+   await p2.waitForTimeout(500);
+   T('and it does not ask them again',
+     await p2.evaluate(()=>document.querySelector('#promoPop').hidden), 'quiet after');
+   await c2.close();
+ }
 
  T('no JavaScript error anywhere', errs.length===0, errs.join(' | ') || 'clean');
 

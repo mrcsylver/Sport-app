@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.41.0';
+  var APP_VERSION = '2.42.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1121,6 +1121,18 @@
 
     try { await loadProfile(); } catch (e) { toast(niceError(e), true); }
 
+    /* ONCE, FOR EVERYBODY, and here rather than inside startOnboarding()
+       because that only runs for somebody with no profile — which made the
+       clip invisible to every player who already had one, including all of
+       the ones who were here before it existed.
+
+       Deliberately not awaited: the overlay goes up immediately and whatever
+       is behind it — the name box, or the whole app — carries on building,
+       so SKIP always lands on something finished. For a returning player
+       that also means the 25 seconds are spent on a load they would have
+       waited through anyway. */
+    if (!flag(LS.promoSeen)) openPromo();
+
     if (!state.profile) { await startOnboarding(); return; }
     /* Parked to free a seat. Nothing is lost — there is just no room at this
        second — so this is a waiting room, not an error. */
@@ -1399,11 +1411,6 @@
   }
 
   async function startOnboarding() {
-    /* Before the name box, not after: this is the moment somebody who
-       scanned a poster still has no idea what they are joining. Deliberately
-       not awaited -- the overlay sits on top and the screen behind it carries
-       on setting itself up, so skipping lands on a form that is ready. */
-    if (!flag(LS.promoSeen)) openPromo();
     /* Ask before showing a name box. Being told there is no room AFTER
        picking a fighter name is the worst version of this. */
     try {
