@@ -291,10 +291,22 @@ var BOARD = [
   document.getElementById('board').innerHTML = h;
 })();
 
+/* A scene STARTS ARRIVING one cut-length BEFORE its own slot, so it is
+   already coming in while the one before it is still going out.
+
+   Without that overlap there is a hole: the outgoing scene reaches opacity 0
+   at exactly the moment the incoming one is still at 0, and for five or six
+   frames the screen holds nothing but the red rule at the top — which is
+   precisely what "it glitches and the whole image goes in the top left"
+   looks like. It also made the very first frame black, because s1 began its
+   fade at t=0 from nothing.
+
+   inP now reaches 1 at sc.at, so a scene is fully up for its whole slot and
+   only ever shares the frame with the one it is replacing. */
 function stage(sc, t) {
   var end = sc.at + sc.bars * BAR;
-  if (t < sc.at || t > end) return null;
-  return { inP: clamp((t - sc.at) / CUT, 0, 1),
+  if (t < sc.at - CUT || t > end) return null;
+  return { inP: clamp((t - (sc.at - CUT)) / CUT, 0, 1),
            outP: clamp((t - (end - CUT)) / CUT, 0, 1) };
 }
 
@@ -304,7 +316,7 @@ function draw(t) {
   for (i = 0; i < SC.length; i++) {
     var sc = SC[i], el = document.getElementById(sc.id), st = stage(sc, t);
     if (!st) { el.style.opacity = 0; continue; }
-    live = i;
+    if (st.inP >= 0.5) live = i;
 
     var a = back(st.inP), o = ease(st.outP);
     var x = 0, y = 44 * (1 - a), k = 1, op = st.inP;
@@ -313,9 +325,15 @@ function draw(t) {
     if (sc.out === 'left') { x -= 230 * o; }
     if (sc.out === 'down') { y += 120 * o; k -= 0.16 * o; }
     if (sc.out === 'zoom') { k += 0.55 * o; }
-    op *= (1 - o);
+    /* The last scene has nothing to hand over to, so it holds. Fading it out
+       spent the final four frames on an empty screen, which is a weak place
+       to leave somebody who has watched the whole thing. */
+    if (sc.out !== 'none') op *= (1 - o);
 
     el.style.opacity = op;
+    /* The arriving scene sits on top of the one it is replacing, or the
+       overlap reads as the old scene swallowing the new one. */
+    el.style.zIndex = 2 + i;
     el.style.transform = 'translate(' + x.toFixed(2) + 'px,' + y.toFixed(2) +
                          'px) scale(' + k.toFixed(4) + ')';
   }
@@ -323,10 +341,16 @@ function draw(t) {
     'radial-gradient(120% 80% at 50% 18%, rgba(' + TINT[live] + ',.17), transparent 62%)';
 
   /* ---- 1. headline, then the sports under it ---------------------- */
-  var h1 = document.getElementById('h1a'), aa = ramp(t, 0.2, 0.7);
+  /* From t=0, not 0.2. The clip opened on seven frames of nothing but the
+     brand line, and the first half-second is the only one you are guaranteed
+     to get. */
+  /* Starts BEFORE zero so frame 0 already has the headline part-way in.
+     That frame is also the poster -- the still shown before anybody presses
+     play -- and a near-empty poster is a thumbnail nobody presses. */
+  var h1 = document.getElementById('h1a'), aa = ramp(t, -0.22, 0.55);
   h1.style.transform = 'translateY(' + (22 * (1 - aa)) + 'px)';
   h1.style.opacity = aa;
-  var k1 = document.getElementById('k1'), kk = ramp(t, 0.95, 0.6);
+  var k1 = document.getElementById('k1'), kk = ramp(t, 0.6, 0.55);
   k1.style.opacity = kk;
   k1.style.letterSpacing = (0.22 * (1 - kk)).toFixed(3) + 'em';
 

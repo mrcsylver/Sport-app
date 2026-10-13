@@ -507,7 +507,8 @@
       return ok([{ profile_id: t.id, display_name: t.display_name, avatar: t.avatar || null,
                    banner: t.banner || null, name_color: t.name_color || null,
                    frame: t.frame || null, bio: t.bio || null,
-                   pinned_badges: t.pinned_badges || [], lifetime: life, joined_at: join }]);
+                   pinned_badges: t.pinned_badges || [], lifetime: life, joined_at: join,
+                   instagram: t.instagram || null, snapchat: t.snapchat || null }]);
     },
     admin_bios: function () {
       var p = me(); if (!p || !p.is_admin) return ok([]);

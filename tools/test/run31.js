@@ -48,41 +48,39 @@ const SEED=`(function(){var DB=window.__DB__;
    return {ctx,pg};
  }
 
- /* ===== 1. a brand-new account: in first, film second ================= */
+ /* ===== 1. it meets them at the door ================================== */
  const {ctx,pg}=await open('unew');
  await pg.goto('http://localhost:4431/');
- await pg.waitForSelector('#onboard:not([hidden])',{timeout:8000});
-
- T('no explainer in front of the door',
-   await pg.evaluate(()=>document.querySelector('#promoPop').hidden), 'hidden at onboarding');
- T('and the 0.6 MB file is not fetched before anybody asks for it',
-   videoHits===0, videoHits+' requests');
-
- await pg.fill('#nameInput','NEWBIE');
- await pg.fill('#joinCode','AAA111');
- await pg.click('#enterBtn');
  await pg.waitForSelector('#promoPop:not([hidden])',{timeout:9000});
 
- T('it opens once they are actually inside',
-   await pg.evaluate(()=>!document.querySelector('#promoPop').hidden), 'shown after joining');
- T('the board is already behind it, so skipping lands somewhere real',
-   await pg.evaluate(()=>!document.querySelector('#app').hidden), 'app is up');
+ T('it opens on the door, before anybody has typed anything',
+   await pg.evaluate(()=>!document.querySelector('#promoPop').hidden), 'shown at the door');
+ /* The form is already built behind it, so SKIP lands on something usable
+    rather than on a screen still setting itself up. */
+ T('and the name box is already there behind it, ready',
+   await pg.evaluate(()=>!!document.querySelector('#nameInput')), 'form is up');
 
  /* ===== 2. escape, which is the thing that matters ==================== */
  T('SKIP is on screen from the first frame, not after a countdown',
    await pg.isVisible('#promoSkip'), 'visible immediately');
  const box = await pg.$eval('#promoSkip', e=>{const r=e.getBoundingClientRect();
    return {w:Math.round(r.width),h:Math.round(r.height)};});
- /* 44px is the smallest thing a thumb reliably hits; a SKIP nobody can press
-    is a video nobody can leave. */
+ /* A SKIP nobody can hit is a video nobody can leave. */
  T('and it is big enough to actually hit with a thumb',
    box.h>=30 && box.w>=60, box.w+'x'+box.h);
 
  await pg.click('#promoSkip');
- await pg.waitForTimeout(200);
+ await pg.waitForTimeout(250);
  T('skipping closes it', await pg.evaluate(()=>document.querySelector('#promoPop').hidden), 'closed');
- T('and the video is paused, not left running behind the board',
+ T('and the video is paused, not left running behind the form',
    await pg.evaluate(()=>document.querySelector('#promoVid').paused), 'paused');
+ /* The whole point of skipping at the door: you can get on with joining. */
+ await pg.fill('#nameInput','NEWBIE');
+ await pg.fill('#joinCode','AAA111');
+ await pg.click('#enterBtn');
+ await pg.waitForSelector('#app:not([hidden])',{timeout:9000});
+ T('and joining still works straight afterwards',
+   await pg.evaluate(()=>!document.querySelector('#app').hidden), 'in the app');
 
  /* ===== 3. skipping is a decision, not a postponement ================ */
  T('skipping counts as seen, so it does not argue tomorrow',
@@ -136,6 +134,27 @@ const SEED=`(function(){var DB=window.__DB__;
    played.dur+'s '+played.w+'x'+played.h);
  T('and it is actually playing, not stuck on frame zero',
    played.t > 0.3 && !played.paused, 'at '+played.t.toFixed(1)+'s');
+
+ await pg.click('#promoSkip');
+
+ /* ===== 7. sound, which is the only way the music is ever heard ====== */
+ /* No browser autoplays with sound, so the clip starts muted and a tap is the
+    permission. If that button is missing the music exists only in the file
+    somebody downloads, which is not where most people will watch it. */
+ await pg.evaluate(()=>document.querySelector('#promoReplay').click());
+ await pg.waitForTimeout(500);
+ T('there is a way to turn the sound on', await pg.isVisible('#promoSound'),
+   (await pg.textContent('#promoSound')).trim());
+ T('and it starts muted, because an unmuted autoplay is simply refused',
+   await pg.evaluate(()=>document.querySelector('#promoVid').muted), 'muted');
+ await pg.click('#promoSound');
+ await pg.waitForTimeout(250);
+ T('tapping it unmutes', await pg.evaluate(()=>!document.querySelector('#promoVid').muted),
+   'sound on');
+ T('and the clip carries an audio track at all',
+   await pg.evaluate(()=>{const v=document.querySelector('#promoVid');
+     return (v.webkitAudioDecodedByteCount===undefined) ? true
+          : v.webkitAudioDecodedByteCount > 0;}), 'has audio');
 
  await pg.click('#promoSkip');
  await ctx.close();

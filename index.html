@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=2.40.0">
+  <link rel="stylesheet" href="./styles.css?v=2.41.0">
 </head>
 <body>
 
@@ -864,6 +864,13 @@
   <video id="promoVid" class="promovid" playsinline muted preload="none"
          poster="./promo.jpg"></video>
   <button id="promoSkip" class="promoskip" type="button">SKIP</button>
+  <!-- No browser will autoplay with sound: it is blocked until the person has
+       interacted with the page, and that is not a setting anybody can turn
+       off. So it starts muted and this turns it on, which counts as the tap
+       the browser was waiting for. -->
+  <button id="promoSound" class="promosound" type="button">
+    <span aria-hidden="true">&#128263;</span> TAP FOR SOUND
+  </button>
   <div class="promofoot">
     <button id="promoDone" class="btn primary xl" type="button" hidden>START</button>
   </div>
@@ -872,9 +879,9 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="./config.js"></script>
-<script src="./vendor/supabase.js?v=2.40.0"></script>
-<script src="./vendor/game-icons.js?v=2.40.0"></script>
-<script src="./captcha.js?v=2.40.0"></script>
-<script src="./app.js?v=2.40.0"></script>
+<script src="./vendor/supabase.js?v=2.41.0"></script>
+<script src="./vendor/game-icons.js?v=2.41.0"></script>
+<script src="./captcha.js?v=2.41.0"></script>
+<script src="./app.js?v=2.41.0"></script>
 </body>
 </html>

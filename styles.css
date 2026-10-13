@@ -530,28 +530,34 @@ code{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:1
   background:#000000d9;padding:22px}
 .cardpop[hidden]{display:none}
 .playercard{position:relative;background:var(--panel-2);border:1px solid var(--line-2);
-  border-top:3px solid var(--red);border-radius:8px;padding:26px 22px 20px;
-  text-align:center;width:min(360px,92vw);animation:up2 .18s ease}
+  border-top:3px solid var(--red);border-radius:8px;padding:18px 18px 16px;
+  text-align:center;width:min(330px,88vw);animation:up2 .18s ease;
+  /* The handle fields pushed this past the height of a phone. It now scrolls
+     inside itself rather than growing: a card you cannot see the bottom of is
+     a card with a hidden SAVE button. */
+  max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .cardx{position:absolute;top:6px;right:10px;background:none;border:0;
   color:var(--muted);font-size:26px;line-height:1;padding:4px 8px;cursor:pointer}
-.card-art{display:flex;justify-content:center;margin-bottom:12px}
-.card-art .av{width:96px;height:96px;font-size:54px}
-.card-name{font-size:24px;font-weight:800;margin:0;letter-spacing:.02em}
+.card-art{display:flex;justify-content:center;margin-bottom:8px}
+.card-art .av{width:76px;height:76px;font-size:42px}
+.card-name{font-size:21px;font-weight:800;margin:0;letter-spacing:.02em}
 .card-grade{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--muted);
   margin:4px 0 0}
 .card-stat{margin:18px 0 0;padding:14px 0;border-top:1px solid var(--line-2);
   border-bottom:1px solid var(--line-2)}
-.card-pts{display:block;font-size:34px;font-weight:800;color:var(--txt);line-height:1}
+.card-pts{display:block;font-size:28px;font-weight:800;color:var(--txt);line-height:1}
 .card-ptsl{font-size:10px;font-weight:700;letter-spacing:.16em;color:var(--muted)}
 .card-bio{margin:16px 0 0;font-size:14px;color:var(--txt);line-height:1.45;
   word-break:break-word}
 .card-badges{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap}
 .card-badges .worn{font-size:22px;color:var(--gold)}
 .playercard .muted{margin:14px 0 0}
-.card-mine{margin-top:14px;text-align:left}
-.card-mine textarea{width:100%;resize:none;font-size:14px;line-height:1.4;
-  padding:9px 10px;box-sizing:border-box}
-.card-mine-r{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.card-mine{margin-top:10px;text-align:left}
+.card-mine textarea{width:100%;resize:none;font-size:13px;line-height:1.35;
+  padding:7px 9px;box-sizing:border-box}
+.card-mine-r{display:flex;align-items:center;justify-content:space-between;margin-top:6px;
+  gap:8px}
+.card-mine-r .small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* The one-line nudge about attaching an account. A bar, not a card: it has
    to be impossible to miss and equally impossible to resent, so it is one
@@ -1329,24 +1335,41 @@ p.ms-next b{color:var(--txt);font-weight:800}
 .promopop{position:fixed;inset:0;z-index:80;background:#000;
   display:flex;align-items:center;justify-content:center}
 .promovid{width:100%;height:100%;object-fit:contain;background:#000}
-.promoskip{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px;
+.promoskip{position:absolute;z-index:2;top:calc(14px + env(safe-area-inset-top,0px));right:14px;
   background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.3);
   color:#fff;border-radius:999px;padding:9px 16px;
   font:800 12px/1 var(--display);letter-spacing:.14em;cursor:pointer;
   -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .promoskip:active{background:rgba(0,0,0,.8)}
-.promofoot{position:absolute;left:0;right:0;
+/* The strip spans the width but must not swallow taps meant for the sound
+   button sitting in the same band -- only its own button is clickable. */
+.promofoot{position:absolute;z-index:2;left:0;right:0;
   bottom:calc(22px + env(safe-area-inset-bottom,0px));
-  padding:0 22px;text-align:center}
+  padding:0 22px;text-align:center;pointer-events:none}
+.promofoot .btn{pointer-events:auto}
 .promofoot .btn{width:100%;max-width:420px}
 
 /* Handles on a player card. Shown only when somebody has given one, so a
-   card without them is the card that was always there. */
-.card-social{margin:8px 0 0;font:700 13px/1.5 var(--sans);text-align:center}
+   card without them is the card that was always there. Side by side, because
+   two stacked labelled fields were what pushed the card off the screen. */
+.card-social{margin:7px 0 0;font:700 12px/1.4 var(--sans);text-align:center}
 .card-social a{color:var(--gold);text-decoration:none}
-.card-social a + a{margin-left:12px}
-.card-handles{display:grid;gap:8px;margin-top:10px}
-.card-handles label{display:flex;flex-direction:column;gap:3px;
-  font:700 10px/1 var(--display);letter-spacing:.14em;color:var(--muted);
+.card-social a + a{margin-left:10px}
+.card-handles{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.card-handles label{display:flex;flex-direction:column;gap:2px;
+  font:700 9px/1 var(--display);letter-spacing:.12em;color:var(--muted);
   text-transform:uppercase;text-align:left}
-.card-handles .input{font-size:14px;padding:8px 10px}
+.card-handles .input{font-size:13px;padding:7px 8px}
+
+/* The one thing that can give the clip its music: a tap. Browsers block
+   unmuted autoplay outright, so the clip starts silent and this turns it on —
+   the press itself is the gesture the browser was waiting for. Bottom-left,
+   away from SKIP, because hitting the wrong one of those is annoying in
+   opposite directions. */
+.promosound{position:absolute;z-index:3;left:14px;
+  bottom:calc(22px + env(safe-area-inset-bottom,0px));
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.3);
+  color:#fff;border-radius:999px;padding:10px 16px;
+  font:800 12px/1 var(--display);letter-spacing:.12em;cursor:pointer;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.promosound.on{border-color:var(--red);color:var(--red)}

@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.40.0';
+  var APP_VERSION = '2.41.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1560,6 +1560,11 @@
       v.load();
     }
     $('#promoDone').hidden = true;
+    /* Always starts muted, every time. A browser will refuse to autoplay with
+       sound and then refuse to play at all, which turns the clip into a black
+       rectangle -- far worse than silence. */
+    v.muted = true;
+    soundBtn(false);
     $('#promoPop').hidden = false;
     setFlag(LS.promoSeen);
     try { v.currentTime = 0; } catch (e) {}
@@ -1571,8 +1576,25 @@
     try { v.pause(); } catch (e) {}
     $('#promoPop').hidden = true;
   }
+  function soundBtn(on) {
+    var b = $('#promoSound');
+    if (!b) return;
+    b.classList.toggle('on', !!on);
+    b.innerHTML = on ? '<span aria-hidden="true">\uD83D\uDD0A</span> SOUND ON'
+                     : '<span aria-hidden="true">\uD83D\uDD07</span> TAP FOR SOUND';
+  }
+
   function wirePromo() {
     $('#promoSkip').addEventListener('click', closePromo);
+    /* The tap IS the permission. Nothing else will do: unmuting without one
+       is refused, and refused loudly enough that the video stops. */
+    $('#promoSound').addEventListener('click', function () {
+      var v = $('#promoVid');
+      v.muted = !v.muted;
+      soundBtn(!v.muted);
+      /* Some browsers pause rather than unmute when asked mid-play. */
+      if (v.paused) { var g = v.play(); if (g && g.catch) g.catch(function () {}); }
+    });
     $('#promoDone').addEventListener('click', closePromo);
     $('#promoReplay').addEventListener('click', openPromo);
     /* At the end, SKIP would be the wrong word for the only button left. */
