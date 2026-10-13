@@ -7,7 +7,8 @@
 
      · SKIP is on screen from the first frame, not after a countdown
      · skipping counts as seen, so it never argues with them tomorrow
-     · it never appears in front of the door, only once they are inside
+     · it reaches EVERYBODY once, not only people who have never joined
+     · a new cut reaches somebody who watched the old one
      · and it is reachable afterwards, so skipping is not a one-shot loss
 
    The 0.6 MB file is deliberately NOT fetched here. preload="none" and a src
@@ -93,7 +94,8 @@ const SEED=`(function(){var DB=window.__DB__;
 
  /* ===== 3. skipping is a decision, not a postponement ================ */
  T('skipping counts as seen, so it does not argue tomorrow',
-   await pg.evaluate(()=>localStorage.getItem('ironleague.promo.seen')==='1'), 'flag set');
+   await pg.evaluate(()=>!!localStorage.getItem('ironleague.promo.seen')),
+   await pg.evaluate(()=>'cut '+localStorage.getItem('ironleague.promo.seen')));
  await pg.reload();
  await pg.waitForSelector('#app:not([hidden])',{timeout:9000});
  await pg.waitForTimeout(600);
@@ -195,6 +197,39 @@ const SEED=`(function(){var DB=window.__DB__;
    T('and it does not ask them again',
      await p2.evaluate(()=>document.querySelector('#promoPop').hidden), 'quiet after');
    await c2.close();
+ }
+
+ /* ===== 9. a NEW cut reaches somebody who watched the old one ======== */
+ /* The thing that made this look broken three times running: somebody who
+    had seen the silent cut was marked "seen" forever, so a clip with music,
+    new transitions and a new ending could never reach them. The key stores
+    WHICH cut was watched, so moving PROMO_CUT brings them back once. */
+ {
+   const {ctx:c3, pg:p3} = await open('u1');
+   await p3.addInitScript(()=>{ try{
+     localStorage.setItem('ironleague.promo.seen','1'); }catch(e){} });
+   await p3.goto('http://localhost:4431/');
+   await p3.waitForSelector('#promoPop:not([hidden])',{timeout:9000});
+   T('somebody who watched an older cut is shown the new one',
+     await p3.evaluate(()=>!document.querySelector('#promoPop').hidden), 'shown again');
+   await p3.click('#promoSkip');
+   T('and watching it stores the cut, not a yes',
+     await p3.evaluate(()=>localStorage.getItem('ironleague.promo.seen')==='2'),
+     await p3.evaluate(()=>localStorage.getItem('ironleague.promo.seen')));
+   await c3.close();
+ }
+
+ /* ===== 10. ?promo=1 plays it whatever the storage says ============== */
+ /* So it can be shown to somebody without clearing site data first --
+    which is the only way I could get it onto a phone that had already
+    watched it, and is not something to ask a user to do. */
+ {
+   const {ctx:c4, pg:p4} = await open('u1');
+   await p4.goto('http://localhost:4431/?promo=1');
+   await p4.waitForSelector('#promoPop:not([hidden])',{timeout:9000});
+   T('?promo=1 plays it even when it has already been seen',
+     await p4.evaluate(()=>!document.querySelector('#promoPop').hidden), 'forced');
+   await c4.close();
  }
 
  T('no JavaScript error anywhere', errs.length===0, errs.join(' | ') || 'clean');

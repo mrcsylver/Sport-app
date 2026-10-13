@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.42.0';
+  var APP_VERSION = '2.43.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1031,11 +1031,34 @@
     logged: 'ironleague.logged',
     nudgeOff: 'ironleague.nudge.off',
     sharePrompted: 'ironleague.share.asked',
-    /* Set the first time the explainer is shown OR skipped. Skipping counts:
-       somebody who pressed SKIP has told us they do not want it, and showing
-       it again tomorrow would be arguing with them. */
+    /* Which CUT of the explainer somebody has watched -- not a yes/no. Set
+       the first time it is shown OR skipped, because skipping is an answer
+       and showing it again tomorrow would be arguing with them.
+
+       Storing the cut rather than a flag is what lets a NEW clip reach
+       people who saw the old one. It cost me three rounds of "I scanned and
+       nothing happened" to work out that the honest answer was "you watched
+       the silent cut last night, so the app is behaving correctly" -- which
+       is a true answer and a useless one. */
     promoSeen: 'ironleague.promo.seen'
   };
+
+  /* Bump this when the clip CHANGES ENOUGH TO BE WORTH SHOWING AGAIN, not
+     when the app version moves. Cut 2 is the one with music, the varied cuts
+     and the colour wash; cut 1 was silent. */
+  var PROMO_CUT = '2';
+  function promoSeen() {
+    try { return localStorage.getItem(LS.promoSeen) === PROMO_CUT; }
+    catch (e) { return false; }
+  }
+  function markPromoSeen() {
+    try { localStorage.setItem(LS.promoSeen, PROMO_CUT); } catch (e) {}
+  }
+  /* ?promo=1 on the URL plays it whatever the storage says. For showing
+     somebody the app without having to clear site data first. */
+  function promoForced() {
+    try { return /[?&#]promo=1\b/.test(location.href); } catch (e) { return false; }
+  }
   function flag(k) { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } }
   function setFlag(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
   /* Whether anything had been logged BEFORE this visit started, read once at
@@ -1131,7 +1154,7 @@
        so SKIP always lands on something finished. For a returning player
        that also means the 25 seconds are spent on a load they would have
        waited through anyway. */
-    if (!flag(LS.promoSeen)) openPromo();
+    if (!promoSeen() || promoForced()) openPromo();
 
     if (!state.profile) { await startOnboarding(); return; }
     /* Parked to free a seat. Nothing is lost — there is just no room at this
@@ -1573,7 +1596,7 @@
     v.muted = true;
     soundBtn(false);
     $('#promoPop').hidden = false;
-    setFlag(LS.promoSeen);
+    markPromoSeen();
     try { v.currentTime = 0; } catch (e) {}
     var go = v.play();
     if (go && go.catch) go.catch(function () { v.controls = true; });

@@ -2,6 +2,10 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(Session.self) private var session
+    /// Once per person per cut, and NOT only for somebody without a profile:
+    /// hanging it off onboarding is what made it invisible on the web to
+    /// every player who was already here.
+    @State private var showPromo = false
 
     var body: some View {
         ZStack {
@@ -37,6 +41,15 @@ struct RootView: View {
         }
         .animation(Motion.settle, value: session.toast)
         .animation(Motion.settle, value: phaseKey)
+        .fullScreenCover(isPresented: $showPromo) {
+            PromoView { showPromo = false }
+        }
+        /// Waits for the boot to finish rather than firing on appear, so the
+        /// 25 seconds are spent over a load that was happening anyway and
+        /// SKIP lands on a screen that is ready.
+        .onChange(of: phaseKey) { _, now in
+            if now != "booting" && !Promo.seen { showPromo = true }
+        }
     }
 
     private var phaseKey: String {

@@ -32,6 +32,11 @@ KNOWN = {
     "Hashable", "Identifiable", "Equatable", "Comparable", "CaseIterable",
     "Sendable", "RawRepresentable", "Animatable", "Observation", "Foundation",
     "Swift", "Character", "Substring", "AnyHashable", "Never", "Float",
+    # AVKit / UIKit — the explainer is the only thing in here that touches
+    # either, and it needs the player layer directly because AVKit's own
+    # VideoPlayer draws transport controls over a clip that already has SKIP.
+    "AVPlayer", "AVPlayerItem", "AVPlayerLayer", "AVKit", "AVFoundation",
+    "UIView", "UIViewRepresentable", "AnyClass", "Context", "NotificationCenter",
     # SwiftUI
     "View", "App", "Scene", "WindowGroup", "Text", "Image", "Button", "VStack",
     "HStack", "ZStack", "LazyVStack", "LazyVGrid", "LazyHStack", "GridItem",

@@ -8,6 +8,7 @@ struct LeaguesView: View {
     @Environment(Session.self) private var session
 
     @State private var sheet: Sheet?
+    @State private var replayPromo = false
     @State private var confirmLeave: League?
     @State private var confirmDelete: League?
 
@@ -86,11 +87,20 @@ struct LeaguesView: View {
                     }
                 }
 
+                /// The way back to the explainer. It plays once on its own
+                /// and skipping it is a decision, not a loss — so there has
+                /// to be a door back in.
+                Button("How it works · 25 seconds") { replayPromo = true }
+                    .font(Theme.display(13, .bold))
+                    .foregroundStyle(Theme.inkMuted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 18)
+
                 Text("IRON LEAGUE · \(Config.appVersion)")
                     .font(Theme.mono(9))
                     .foregroundStyle(Theme.inkFaint)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 18)
+                    .padding(.top, 8)
 
                 Color.clear.frame(height: 24)
             }
@@ -99,6 +109,9 @@ struct LeaguesView: View {
             .animation(Motion.settle, value: session.leagues.count)
         }
         .scrollIndicators(.hidden)
+        .fullScreenCover(isPresented: $replayPromo) {
+            PromoView { replayPromo = false }
+        }
         .sheet(item: $sheet) { which in
             Group {
                 switch which {
