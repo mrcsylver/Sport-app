@@ -151,6 +151,15 @@
   function weekAgo(n) {
     return weekStart(new Date(Date.now() - n * 7 * 86400000));
   }
+  /* Profiles a test seeded by hand often have no created_at, and
+     `new Date(undefined)` is an Invalid Date that makes weekStart throw —
+     which showed up as a page error with every check still passing. A row
+     with no timestamp belongs to no week, which is what null says. */
+  function weekOf(ts) {
+    if (!ts) return null;
+    var d = new Date(ts);
+    return isNaN(d.getTime()) ? null : weekStart(d);
+  }
   function plusWeeks(w, n) {
     return weekStart(new Date(new Date(w + 'T12:00:00Z').getTime() + n * 7 * 86400000));
   }
@@ -740,7 +749,7 @@
       for (var i = 0; i < n; i++) {
         var w = weekAgo(i);
         var joined = DB.profiles.filter(function (q) {
-          return weekStart(new Date(q.created_at)) === w; }).length;
+          return weekOf(q.created_at) === w; }).length;
         var logs = DB.workouts.filter(function (x) { return x.week_start === w; });
         out.push({ week_start: w,
           landed: landed[w] == null ? joined : landed[w],
@@ -756,7 +765,7 @@
       for (var i = 1; i <= n; i++) {
         var w = weekAgo(i);
         var cohort = DB.profiles.filter(function (q) {
-          return weekStart(new Date(q.created_at)) === w; });
+          return weekOf(q.created_at) === w; });
         out.push({ week_start: w, size: cohort.length,
           back_1: cameBack(cohort, w, 1, now), back_2: cameBack(cohort, w, 2, now),
           back_4: cameBack(cohort, w, 4, now) });
@@ -893,6 +902,12 @@
         return { profile_id: p.id, display_name: p.display_name, avatar: p.avatar || null,
           joined_at: m.joined_at, entries: ws.length, lifetime: life,
           base_points: base, bonus: bonus,
+          /* The real league_leaderboard returns all three, and the board
+             draws a worn badge, a banner and a name colour from them. Leaving
+             them out here meant no test could ever see a badge reach a row —
+             which is how "tap to wear" shipped wired to nothing. */
+          banner: p.banner || null, pinned_badges: p.pinned_badges || [],
+          name_color: p.name_color || null,
           points: Math.round((base + bonus) * 100) / 100 };
       });
       rows.sort(function (x, y) { return y.points - x.points || (x.joined_at < y.joined_at ? -1 : 1); });
@@ -1094,6 +1109,22 @@
       p.pinned_badges = (a.p_keys || []).slice(0, 3); save(); return ok(p); },
     my_badges: function (a) {
       if (!isMember(a.p_league)) return ok([]);
+      function weekWins(league, who) {
+        var now = weekAgo(0), by = {};
+        DB.workouts.filter(function (w) {
+          return w.league_id === league && w.week_start < now;
+        }).forEach(function (w) {
+          var k = w.week_start + '|' + w.profile_id;
+          by[k] = (by[k] || 0) + (Number(w.points) || 0);
+        });
+        var best = {};
+        Object.keys(by).forEach(function (k) {
+          var bits = k.split('|'), wk = bits[0];
+          if (!best[wk] || by[k] > best[wk].pts) best[wk] = { who: bits[1], pts: by[k] };
+        });
+        return Object.keys(best).filter(function (wk) {
+          return best[wk].who === who; }).length;
+      }
       var p = me(); if (!p) return ok([]);
       var mine = DB.workouts.filter(function (w) {
         return w.league_id === a.p_league && w.profile_id === p.id; });
@@ -1108,7 +1139,17 @@
         row('grand','FIVE THOUSAND','Five thousand points here', pts, 5000),
         row('allrounder','ALL ROUNDER','Train all five muscle groups',
             Object.keys(cats).filter(function (c) { return c && c !== 'RECOVERY'; }).length, 5),
-        row('week_win','CHAMPION','Win a week in this league', 0, 1)
+        /* Was hard-coded to 0, which made CHAMPION a badge no test could
+           ever earn — so the three-at-a-time cap had no fourth badge to be
+           refused and that branch went unexercised. Counts finished weeks
+           this profile topped, same as the real one. */
+        row('week_win','CHAMPION','Win a week in this league', weekWins(a.p_league, p.id), 1),
+        /* Two real badges from the server's list that this fixture cannot
+           reach, so there is always something LOCKED to check against. With
+           only earnable badges modelled, "unearned ones are disabled" was a
+           check with nothing to look at. */
+        row('duel10','GLADIATOR','Win ten duels', 0, 10),
+        row('streak30','UNBROKEN','Thirty days running', 0, 30)
       ].sort(function (x, y) { return (y.earned - x.earned)
         || (y.progress / y.target - x.progress / x.target); }));
     },

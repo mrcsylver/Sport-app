@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.44.0';
+  var APP_VERSION = '2.45.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -630,6 +630,48 @@
             '<span class="bdg-p">' + num(b.progress) + ' / ' + num(b.target) + '</span>') +
       '</button>';
     }).join('');
+  }
+
+  /* Tapping a badge wears it, which is what the button has been saying since
+     the day it shipped. It said TAP TO WEAR and nothing listened: the markup
+     carried data-badge, set_pinned_badges existed in the database and was
+     granted, iOS called it — and the web app never did. Nothing threw and
+     nothing logged, so it read as a tap that did not register rather than as
+     a thing that was never built.
+
+     Delegated from the container because the list is re-rendered on every
+     load, and a listener bound to a button that has since been replaced is
+     the same bug with extra steps. */
+  async function wearBadge(key) {
+    if (!state.profile) return;
+    var b = (state.badges || []).filter(function (x) { return x.key === key; })[0];
+    if (!b) return;
+    if (!b.earned) { toast('Earn it first: ' + (b.descr || '').toLowerCase()); return; }
+
+    var worn = (state.profile.pinned_badges || []).slice();
+    var at = worn.indexOf(key);
+    if (at >= 0) {
+      worn.splice(at, 1);
+    } else if (worn.length >= 3) {
+      /* Three is the cap the database enforces too, so asking anyway would
+         just be a round trip to the same answer in worse words. */
+      toast('Three badges on show at a time — take one off first.', true);
+      return;
+    } else {
+      worn.push(key);
+    }
+
+    var r = await sb.rpc('set_pinned_badges', { p_keys: worn });
+    if (r.error) { toast(niceError(r.error), true); return; }
+    state.profile = r.data || state.profile;
+    await loadBadges();
+    /* The board draws what somebody is wearing beside their name, and that
+       comes from the BOARD's own rows rather than from the profile — so
+       re-rendering is not enough, the rows themselves are stale. Refetched
+       whichever tab is open: switching to LIVE does not reload anything, so
+       leaving it for later means the row keeps the old badges until the
+       poll happens to come round. */
+    await loadBoard();
   }
 
 
@@ -3895,6 +3937,10 @@
   });
   $('#weekBox').addEventListener('toggle', function () { state.weekBoxTouched = true; });
   $('#sectBadges').addEventListener('toggle', function () { if (this.open) loadBadges(); });
+  $('#badges').addEventListener('click', function (ev) {
+    var btn = ev.target.closest ? ev.target.closest('.bdg[data-badge]') : null;
+    if (btn && !btn.disabled) wearBadge(btn.getAttribute('data-badge'));
+  });
 
   /* ---- name colours ---------------------------------------------------- */
   function paintNameColors() {
