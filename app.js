@@ -7,7 +7,7 @@
 
   var CFG = window.APP_CONFIG || {};
   var TZ = CFG.TIMEZONE || 'Europe/Paris';
-  var APP_VERSION = '2.43.0';
+  var APP_VERSION = '2.44.0';
 
   /* ===================================================================
      1. THE POINTS TABLE
@@ -1044,9 +1044,11 @@
   };
 
   /* Bump this when the clip CHANGES ENOUGH TO BE WORTH SHOWING AGAIN, not
-     when the app version moves. Cut 2 is the one with music, the varied cuts
-     and the colour wash; cut 1 was silent. */
-  var PROMO_CUT = '2';
+     when the app version moves. Cut 1 was silent; cut 2 added music, varied
+     cuts and the colour wash; cut 3 adds the RESTORE CODE, which is the one
+     thing in the app somebody can lose a year of training by not knowing
+     about. That is worth asking for 29 seconds twice. */
+  var PROMO_CUT = '3';
   function promoSeen() {
     try { return localStorage.getItem(LS.promoSeen) === PROMO_CUT; }
     catch (e) { return false; }

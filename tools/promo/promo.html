@@ -125,6 +125,15 @@
   .tile.hot { border-color:var(--red); }
 
   .url { font-size:25px; font-weight:700; color:var(--gold); }
+  /* The restore code, drawn the size it deserves: it IS the account, and
+     somebody who scrolls past it loses everything when they change phone. */
+  .codebox { margin-top:40px; background:var(--panel); border:2px solid var(--gold);
+             border-radius:10px; padding:20px 14px; text-align:center; }
+  .codek { font-size:13px; font-weight:800; letter-spacing:.2em; color:var(--muted); }
+  .code { margin-top:9px; font-size:44px; font-weight:800; color:var(--gold);
+          letter-spacing:.09em; font-family:ui-monospace,Menlo,monospace; }
+  .codenote { margin-top:22px; text-align:center; font-size:19px; font-weight:600;
+              line-height:1.45; color:var(--muted); }
   .rule { position:absolute; top:0; left:0; right:0; height:6px;
           background:var(--red); z-index:6; }
   /* A slow colour wash behind everything. The clip was black and red the
@@ -212,8 +221,24 @@
     </div>
   </div>
 
-  <!-- 6. how to get in -->
+  <!-- 6. the one thing that loses an account -->
   <div class="scene" id="s6">
+    <div class="mid cap" style="top:120px">Save your code<small>It is your account. Nothing else is.</small></div>
+    <div class="phone" id="p6" style="top:260px">
+      <div class="notch"></div>
+      <div class="scr">
+        <div class="hdr">MY ACCOUNT</div>
+        <div class="codebox">
+          <div class="codek">RESTORE CODE</div>
+          <div class="code" id="code">7B4E9A2C</div>
+        </div>
+        <div class="codenote">Screenshot it. New phone, type it in,<br>same account, same rank.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. how to get in -->
+  <div class="scene" id="s7">
     <div class="mid" style="top:270px">
       <div class="brand">IRON LEAGUE</div>
       <h1 style="margin-top:26px;font-size:54px">Nothing to<br><span class="hit">download</span></h1>
@@ -241,7 +266,7 @@
    crossfade used six times is wallpaper. Now: push up, push left, drop away,
    zoom through, and a white frame on the last one.
    ------------------------------------------------------------------ */
-var DUR = 25;
+var DUR = 28.76;        /* 15.34 bars at 128 BPM */
 var BEAT = 60 / 128, BAR = BEAT * 4;
 
 function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
@@ -262,14 +287,19 @@ var SC = [
   { id: 's3', at: 9.375, bars: 3,    out: 'down' },
   { id: 's4', at: 15,    bars: 2,    out: 'left' },
   { id: 's5', at: 18.75, bars: 2,    out: 'zoom' },
-  { id: 's6', at: 22.5,  bars: 1.34, out: 'none' }
+  /* The restore code. It went in late, because nobody notices a thing that
+     is missing from a clip -- you notice it on the day somebody changes
+     phone and loses a year. Two bars, right before the close, where it is
+     the last thing anybody is told. */
+  { id: 's6', at: 22.5,  bars: 2,    out: 'left' },
+  { id: 's7', at: 26.25, bars: 1.34, out: 'none' }
 ];
 var CUT = 0.34;
 
 /* The accent each scene washes the frame with. Six scenes, six temperatures,
    without leaving the palette. */
 var TINT = ['255,46,46', '255,46,46', '255,201,60',
-            '38,208,124', '59,166,255', '255,46,46'];
+            '38,208,124', '59,166,255', '255,201,60', '255,46,46'];
 
 var BOARD = [
   ['BEN',    412, 'GRINDER II'], ['SOFIA',  388, 'GRINDER I'],
@@ -399,10 +429,21 @@ function draw(t) {
   document.getElementById('pc').style.transform = 'translateX(-50%) scale(' +
     (0.88 + 0.12 * back(clamp((t - 18.95) / 0.55, 0, 1))).toFixed(4) + ')';
 
-  /* ---- 6. one white frame on the last cut ------------------------- */
+  /* ---- 6. the code appears a character at a time ------------------ */
+  /* Eight characters over half a second. It is the one string in the clip
+     somebody is meant to actually read, and a number that assembles is a
+     number the eye follows. */
+  var full = '7B4E9A2C';
+  var shown = Math.round(full.length * ramp(t, 23.0, 0.55));
+  document.getElementById('code').textContent =
+    full.slice(0, shown) + '\u2007'.repeat(full.length - shown);
+  document.getElementById('p6').style.top =
+    (260 - 10 * clamp((t - 22.5) / 3.75, 0, 1)).toFixed(1) + 'px';
+
+  /* ---- 7. one white frame on the last cut ------------------------- */
   var fl = document.getElementById('flash');
-  fl.style.opacity = (t >= 22.42 && t <= 22.9)
-    ? (clamp(1 - (t - 22.5) / 0.26, 0, 1) * 0.55).toFixed(3) : 0;
+  fl.style.opacity = (t >= 26.17 && t <= 26.65)
+    ? (clamp(1 - (t - 26.25) / 0.26, 0, 1) * 0.55).toFixed(3) : 0;
 
   document.getElementById('stage').style.transform =
     'scale(' + (1 + pulse).toFixed(4) + ')';

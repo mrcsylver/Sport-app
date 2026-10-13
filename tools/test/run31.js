@@ -140,9 +140,16 @@ const SEED=`(function(){var DB=window.__DB__;
  const played = await pg.evaluate(()=>{const e=document.querySelector('#promoVid');
    return {t:e.currentTime, dur:Math.round(e.duration||0), paused:e.paused,
            w:e.videoWidth, h:e.videoHeight};});
- T('the clip is really 25 seconds of 1080x1920',
-   played.dur===25 && played.w===1080 && played.h===1920,
-   played.dur+'s '+played.w+'x'+played.h);
+ /* The expected length is READ from the clip's own source rather than typed
+    here. It was hard-coded to 25 and went red the moment a scene was added,
+    which is a test reporting its own staleness as a defect in the thing it
+    watches. */
+ const wantDur = Math.round(parseFloat(
+   fs.readFileSync(path.join(ROOT,'tools/promo/promo.html'),'utf8')
+     .match(/var DUR\s*=\s*([0-9.]+)/)[1]));
+ T('the shipped clip is the length promo.html says, at 1080x1920',
+   played.dur===wantDur && played.w===1080 && played.h===1920,
+   played.dur+'s (want '+wantDur+') '+played.w+'x'+played.h);
  T('and it is actually playing, not stuck on frame zero',
    played.t > 0.3 && !played.paused, 'at '+played.t.toFixed(1)+'s');
 
@@ -214,7 +221,7 @@ const SEED=`(function(){var DB=window.__DB__;
      await p3.evaluate(()=>!document.querySelector('#promoPop').hidden), 'shown again');
    await p3.click('#promoSkip');
    T('and watching it stores the cut, not a yes',
-     await p3.evaluate(()=>localStorage.getItem('ironleague.promo.seen')==='2'),
+     await p3.evaluate(()=>localStorage.getItem('ironleague.promo.seen')==='3'),
      await p3.evaluate(()=>localStorage.getItem('ironleague.promo.seen')));
    await c3.close();
  }

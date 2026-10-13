@@ -14,9 +14,9 @@ import SwiftUI
 /// different reason: there it is the browser refusing, here it is manners.
 enum Promo {
     /// Bump when the clip CHANGES ENOUGH TO BE WORTH SHOWING AGAIN, not when
-    /// the app version moves. Must match PROMO_CUT in app.js. Cut 2 is the
-    /// one with music; cut 1 was silent.
-    static let cut = "2"
+    /// the app version moves. Must match PROMO_CUT in app.js. Cut 1 was
+    /// silent, cut 2 added music, cut 3 adds the restore code.
+    static let cut = "3"
     static let url = URL(string: "https://mrcsylver.github.io/Sport-app/promo.mp4")!
     private static let key = "ironleague.promo.seen"
 

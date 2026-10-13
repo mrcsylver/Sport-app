@@ -33,6 +33,7 @@ import argparse
 import http.server
 import json
 import os
+import re
 import shutil
 import socketserver
 import subprocess
@@ -133,12 +134,26 @@ def main():
     if not args.silent:
         track = args.music or os.path.join(HERE, "_music.wav")
         if not args.music:
+            # The clip's length lives in promo.html and nowhere else. Reading
+            # it here is what stops the music and the picture drifting apart
+            # the moment a scene is added.
+            page_src = open(os.path.join(HERE, "promo.html"), encoding="utf-8").read()
+            m = re.search(r"var DUR\s*=\s*([0-9.]+)", page_src)
+            if not m:
+                raise SystemExit("cannot find DUR in promo.html")
             subprocess.run(["/usr/bin/python3",
-                            os.path.join(HERE, "make_music.py"), track], check=True)
+                            os.path.join(HERE, "make_music.py"), track, m.group(1)],
+                           check=True)
 
-    mp4 = os.path.join(OUT, "iron-league-25s.mp4")
-    webm = os.path.join(OUT, "iron-league-25s.webm")
-    poster = os.path.join(OUT, "iron-league-25s.jpg")
+    # Named from the clip's REAL length. It was called 25s for a while after
+    # it had stopped being 25 seconds, which is a small lie that costs
+    # somebody five minutes the day they trust it.
+    page_src = open(os.path.join(HERE, "promo.html"), encoding="utf-8").read()
+    secs = re.search(r"var DUR\s*=\s*([0-9.]+)", page_src)
+    stem = "iron-league-%ds" % round(float(secs.group(1))) if secs else "iron-league"
+    mp4 = os.path.join(OUT, stem + ".mp4")
+    webm = os.path.join(OUT, stem + ".webm")
+    poster = os.path.join(OUT, stem + ".jpg")
     # yuv420p and the even-dimension filter are what make this play on phones
     # at all; without them Safari and half of Android show a black rectangle.
     # faststart puts the index at the front so it begins before it has fully

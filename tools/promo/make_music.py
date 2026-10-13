@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """The 25 seconds of music under the clip, synthesised from nothing.
 
-    /usr/bin/python3 tools/promo/make_music.py out.wav
+    /usr/bin/python3 tools/promo/make_music.py out.wav 28.76
+
+The duration is an argument because the clip's length is decided by the
+clip, not here — build_video.py reads DUR straight out of promo.html and
+passes it, so a scene added at midnight cannot leave the music three seconds
+short of the picture.
 
 WHY NOT A REAL SONG. Because a real song is somebody's, and putting one in a
 file you upload is how a reel gets its audio muted or pulled. Instagram's own
@@ -19,7 +24,7 @@ scrolling past.
   bar 1-2    just kick and a filtered pad      the logo
   bar 3-6    hats in, bass in                  logging a set
   bar 7-10   full, lead arpeggio               the board climbing
-  bar 11-13  thins out, resolves               leagues, the card, the close
+  bar 11-15  thins out, resolves               leagues, the card, the code
 
 Swap it freely: build_video.py takes --music PATH and will mux anything.
 """
@@ -34,7 +39,7 @@ SR = 44100
 BPM = 128.0
 BEAT = 60.0 / BPM            # 0.46875 s
 BAR = BEAT * 4
-DUR = 25.0
+DUR = float(sys.argv[2]) if len(sys.argv) > 2 else 25.0
 
 A_MINOR = {"A2": 110.00, "C3": 130.81, "D3": 146.83, "E3": 164.81,
            "F3": 174.61, "G3": 196.00, "A3": 220.00, "C4": 261.63,

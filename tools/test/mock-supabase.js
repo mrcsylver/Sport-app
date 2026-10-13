@@ -56,7 +56,7 @@
     /* Must match PROMO_CUT in app.js: the key stores WHICH cut was watched,
        so writing '1' here would read as "saw the old one" and put the video
        back over every suite the day that constant moves. */
-    try { localStorage.setItem('ironleague.promo.seen', '2'); } catch (e) {}
+    try { localStorage.setItem('ironleague.promo.seen', '3'); } catch (e) {}
   }
   DB.authPasswords = DB.authPasswords || {};
   DB.authIdentities = DB.authIdentities || {};
